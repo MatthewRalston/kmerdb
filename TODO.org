@@ -1,0 +1,82 @@
+# Kmer DB
+
+.kdb files should be debrujin graph databases
+The initial prototype would be plaintext
+The final prototype would be .bgzf format from biopython
+
+* Operations
+** Get all neighbors
+*** Remove first/last letter, add one of the 3 other possible letters
+*** 6 possible neighbors
+** is_terminal = True if all neighbors of one direction have 0 count
+** Eulerian walk (Maybe at the Python level and not the C-api)
+*** Return a group of k-mers that have a complete walk
+
+
+* Format specification
+** YAML header (first block) 
+*** format version
+*** choice of k
+*** file name, sha256 checksums, number of reads, kmers added
+*** comments
+kdb_ver: 0.0.1
+k: 14
+files:
+  - filename: 
+    sha256: 
+    md5: 
+    total_reads: 
+    total_kmers: 
+    unique_kmers: 
+  - filename: ...
+comments:
+** kmers (other blocks)
+*** kmer id
+*** count (exclude 0 count kmers?)
+*** neighboring kmer ids
+* toolkit
+** utility functions
+*** DONE translate kmers to/from binary encoding
+    CLOSED: [2019-10-30 Wed 12:14]
+*** header validation
+** DONE summary
+   CLOSED: [2019-10-30 Wed 12:14]
+*** print information from header
+** profile
+*** new profile is sum of individual profiles
+**** for x in range(len(f.profile)):
+****     final.profile[x] += f.profile[x]
+*** KDBWriter.write_profile
+*** TODO KDBReader.read_profile 
+*** VERIFY generate streaming profile (file or [[https://gist.github.com/MatthewRalston/6641f45bdce19341f568264132b794de][S3 download to temp]])
+*** VERIFY support multiple files
+*** closed
+**** DONE kdb.file.checksums generates checksums of a file
+     CLOSED: [2019-11-06 Wed 02:25]
+**** DONE prof=array.array('H'); for x in range(4**k): prof.append(0)
+     CLOSED: [2019-11-06 Wed 02:26]
+**** DONE prof[sequenceToBinary(kmer)] += 1
+     CLOSED: [2019-11-06 Wed 02:26]
+**** DONE total_kmers += 1
+     CLOSED: [2019-11-06 Wed 02:26]
+**** DONE total_reads += 1
+     CLOSED: [2019-11-06 Wed 02:26]
+**** DONE unique_kmers = 4**k - prof.count(0)
+     CLOSED: [2019-11-06 Wed 02:26]
+** similarity
+*** cumulative formulas
+**** these need to be calculated differently for efficiency/memory reasons
+**** repetitive summation/multiplication and not direct to unit vector transformation
+**** DONE 1. Pearson correlation coefficient of counts? of unit vector?
+     CLOSED: [2019-11-07 Thu 13:03]
+**** DONE 2. euclidean distance of unit vectors?
+     CLOSED: [2019-11-07 Thu 13:03]
+**** 3. sort by count of vector/index and Spearman
+*** jaccard
+**** presence/absence (k-mer is observed in both profiles? it's in the intersection
+**** similar count within a tolerance... vs Spearman?
+*** MUMi distance
+** jsonify
+*** transform the debrujin graph into json
+
+

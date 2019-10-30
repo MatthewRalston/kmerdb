@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+
+import logging
+import argparse
+from os import path
+import sys
+import yaml
+
+logger=None
+
+
+def summarize(arguments):
+    from kdb import fileutil
+    kdbfile = fileutil.KDBReader(arguments.kdbfile)
+    print(yaml.dump(kdbfile.header))
+
+def profile(arguments):
+    from kdb import fileutil
+
+    from config import VERSION
+    files = []
+    header = None
+    for f in arguments.seqfile:
+        f.close()
+        x = fileutil.SeqReader(f.name, arguments.k)
+        x.read_profile()
+        files.append(x)
+    final_profile = None
+    if path.exists(arguments.kdb):
+        logger.debug("Loading header from existing kdb file '{}'...".format(arguments.kdb))
+        final_profile = fileutil.KDBReader(open(arguments.kdb, 'rb'))
+        header = final_profile.get_header()
+        logger.debug("Existing header:\n{}".format(yaml.dump(header)))
+        final_profile.read_profile()
+        if header['k'] != arguments.k:
+            raise TypeError("The -k parameter {0} did not match the value of k from the profile loaded from '{1}'...".format(header['k'], arguments.kdb))
+    else:
+        logger.info("Generating new .kdb file '{}'...".format(arguments.kdb))
+        header={
+            "files": [f.header_dict() for f in files],
+            "k": arguments.k,
+            "kdb_ver": VERSION
+        }
+        logger.debug("New header:")
+        logger.debug("\n{}".format(yaml.dump(header)))
+        final_profile = files.pop(0)
+    if len(files) > 0:
+        for f in files:
+            final_profile.add_profile(f.profile)
+    kdb_writer = fileutil.KDBWriter(open(arguments.kdb, 'wb'), header)
+    kdb_writer.write_profile(final_profile.profile, arguments.k)
+
+def similarity(arguments):
+    import itertools
+    from kdb import fileutil, profile
+    files = []
+    for f in arguments.kdbfiles:
+        kdb = fileutil.KDBReader(f)
+        kdb.read_profile()
+        files.append(kdb)
+    numfiles = len(files)
+    if numfiles == 1:
+        raise Exception("Similarity requires more than one .kdb file")
+    elif numfiles == 2:
+        logger.info("Calculating {} similarity...".format(arguments.metric))
+        if arguments.metric == "correlation":
+            similarity = profile.correlation_distance(files[0].profile, files[1].profile)
+        elif arguments.metric == "euclidean":
+            similarity = profile.euclidean_distance(files[0].profile, files[1].profile)
+        print(similarity)
+    else:
+        if arguments.metric == "correlation":
+            identity = '1.0'
+        elif arguments.metric == "euclidean":
+            identity = '0.0'
+        data = [[identity if x == y else '' for x in range(numfiles)] for y in range(numfiles)]
+        logger.info("Calculating inter-profile {} similarities...".format(arguments.metric))
+        for x, y in itertools.combinations(list(range(numfiles)), 2):
+            logger.debug("Calculating {0} similarity between '{1}' and '{2}'...".format(arguments.metric, files[x].filehandle.name, files[y].filehandle.name))
+            if arguments.metric == "correlation":
+                data[x][y] = profile.correlation_distance(files[x].profile, files[y].profile)
+            elif arguments.metric == "euclidean":
+                data[x][y] = profile.euclidean_distance(files[x].profile, files[y].profile)
+        logger.info("Printing distance matrix...")
+        # Print tsv
+        if arguments.column_names is True: 
+            if arguments.row_names is True: # n+1 columns
+                print("\t" + "\t".join(list(map(lambda y: path.splitext(y.filehandle.name)[0], files))))
+            else:
+                print("\t".join(list(map(lambda y: path.splitext(y.filehandle.name)[0], files))))
+        for x in range(numfiles):
+            if arguments.row_names is True:
+                print(path.splitext(files[x].filehandle.name)[0] + "\t" + "\t".join(map(str, data[x])))
+            else: # No row names
+                print("\t".join(map(str, data[x])))
+
+
+            
+def get_root_logger(level):
+    levels=[logging.WARNING, logging.INFO, logging.DEBUG]
+    if level < 0 or level > 2:
+        raise TypeError("{0}.get_root_logger expects a verbosity between 0-2".format(__file__))
+    logging.basicConfig(level=levels[level], format="%(levelname)s: %(asctime)s %(funcName)s L%(lineno)s| %(message)s", datefmt="%Y/%m%d %I:%M:%S")
+    root_logger = logging.getLogger()
+    return root_logger
+
+
+if __name__ == '__main__':
+    sys.path.append("..")
+    sys.path.remove(path.dirname(path.abspath(__file__)))
+    
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(help="Use --help with sub-commands")
+    # Summary
+
+    summary_parser = subparsers.add_parser("summary", help="Print summary information from the YAML header of the .kdb file")
+    summary_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    summary_parser.add_argument("kdbfile", type=argparse.FileType('rb'), help="A bgzf .kdb file")
+    summary_parser.set_defaults(func=summarize)
+
+    profile_parser = subparsers.add_parser("profile", help="Create a kdb file from one or more sequence files")
+    profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+    profile_parser.add_argument("seqfile", nargs="*", type=argparse.FileType('rb'), metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
+    profile_parser.add_argument("kdb", type=str, help="Kdb file")
+    profile_parser.set_defaults(func=profile)
+
+    similarity_parser = subparsers.add_parser("similarity", help="Create a tsv simlarity matrix")
+    similarity_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    similarity_parser.add_argument("kdbfiles", nargs="*", type=argparse.FileType('rb'), metavar="<kdb1 kdb2 ...>", help=".kdb files")
+    similarity_parser.add_argument("-m", "--metric", default="correlation", choices=["euclidean", "correlation"], help="The distance metric to use for calculating inter-profile similarity [Default: correlation coefficient]")
+    similarity_parser.add_argument("--no-column-names", action="store_false", default=True, dest="column_names", help="Do not include the files in the column headers.")
+    similarity_parser.add_argument("--no-row-names", action="store_false", default=True, dest="row_names", help="Do not include the files as row names.")
+
+    similarity_parser.set_defaults(func=similarity)
+
+    
+    args=parser.parse_args()
+    logger=get_root_logger(args.verbose)
+    logger.debug(sys.path)
+    args.func(args)
+

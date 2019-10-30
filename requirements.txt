@@ -1,0 +1,17 @@
+args==0.1.0
+attrs==19.3.0
+biopython==1.74
+clint==0.5.1
+coverage==4.5.4
+importlib-metadata==0.23
+jsonschema==3.1.1
+more-itertools==7.2.0
+neo4j==1.7.5
+neobolt==1.7.15
+neotime==1.7.4
+numpy==1.17.3
+pyrsistent==0.15.5
+pytz==2019.3
+PyYAML==5.1.2
+six==1.12.0
+zipp==0.6.0
