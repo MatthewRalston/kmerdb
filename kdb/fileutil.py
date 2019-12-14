@@ -3,7 +3,7 @@ import sys
 import os
 import gzip
 import tempfile
-import yaml
+import yaml, json
 import hashlib
 import array
 import random
@@ -17,8 +17,8 @@ import boto3
 sys.path.append('..')
 
 import config
-from kdb import kmer_converter
-
+from kdb import kmer_utils
+from kdb import profile as vector_ops
 
 import logging
 logger = logging.getLogger(__file__)
@@ -29,7 +29,7 @@ s3prefix = "s3://"
 
 
 class SeqReader:
-    def __init__(self, seqFile: str, k: int, forward_only=False):
+    def __init__(self, seqFile: str, k: int, forward_only=False, keep_temporary=False):
         if type(seqFile) is not str:
             raise TypeError("kdb.fileutil.SeqReader expects a sequence file (fasta/fastq) filepath or s3 object reference as its first positional argument")
         elif not os.path.exists(seqFile) and seqFile[0:5] != s3prefix:
@@ -38,19 +38,21 @@ class SeqReader:
             raise TypeError("kdb.fileutil.SeqReader expects an integer as its second positional argument")
         elif type(forward_only) is not bool:
             raise TypeError("kdb.fileutil.SeqReader expects the keyword argument 'forward_only' to be a bool")
+        elif type(keep_temporary) is not bool:
+            raise TypeError("kdb.fileutil.SeqReader expects the keyword argument 'keep_temporary' to be a bool")
         self.forward_only = forward_only
         # Generate null profile
 
         self.k = k
-        self.profile = array.array('H')
+        self.profile = array.array('L')#array.array('H')
         for x in range(4**k):
             self.profile.append(0)
         
         logger.info("{} Mb allocaed for k-mer array...".format(round(self.profile.__sizeof__()/1048576, 2)))
         # Download file if S3 object
         if seqFile[0:5] == s3prefix:
-            self.filepath = self.__s3_file_download(seqFile)
-            self.filepath_is_temporary = True
+            self.filepath_is_temporary = (not keep_temporary)
+            self.filepath = self.__s3_file_download(seqFile, temporary=self.filepath_is_temporary)
         else:
             self.filepath = seqFile
         # Get checksums
@@ -88,12 +90,15 @@ class SeqReader:
         
     def __exit__(self, exc_type, exc_value, traceback):
         self.filehandle.close()
-        if self.filepath_is_temporary:
-            for f in glob.glob(self.filepath + "*"):
+
+        for f in glob.glob(self.filepath + "*"):
+            if self.filepath_is_temporary is True:
                 logger.debug("    Unlinking sequence file '{}'...".format(f))
                 os.unlink(f)
-            
-    def __s3_file_download(self, seqpath):
+            else:
+                logger.debug("    Not unlinking filepath '{1}'...".format(f))
+                
+    def __s3_file_download(self, seqpath, temporary=True):
         """
         Note: the file will be downloaded into a temporary file that needs to be deleted afterwards
         It will create the temporary file with respect to the TMP bash variable 'export TMP=/some/temporary/location'
@@ -106,16 +111,23 @@ class SeqReader:
             raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects a str 'seqpath' as its first positional argument")
         elif seqpath[0:5] != s3prefix:
             raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects a s3 object reference its first positional argument. e.g. 's3://bucket/example.txt'")
+        elif type(temporary) is not bool:
+            raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects the keyword argument temporary to be a bool")
         seqpath = seqpath.lstrip(s3prefix)
         pathsegs =seqpath.split('/')
         bucket = pathsegs.pop(0)
-        key = pathsegs.join('/')
+        fname = os.path.basename(seqpath)
+        key = '/'.join(pathsegs)
         if seqpath[-3:] == ".gz":
-            suffix = '.' + sepath.split('.')[-2:].join('.')
+            suffix = '.' + '.'.join(seqpath.split('.')[-2:])
         else:
             suffix = path.splitext(seqpath)[1]
-        filepath = tempfile.NamedTemporaryFile(mode='w+b', suffix=suffix, delete=False)
-        logger.info("Downloading '{0}' => '{1}'...".format(seqpath, filepath.name))
+        if temporary is True:
+            filepath = tempfile.NamedTemporaryFile(mode='w+b', suffix=suffix, delete=False)
+            logger.info("Downloading '{0}' => '{1}'...".format(seqpath, filepath.name))
+        else:
+            filepath = open(fname, 'w+b')
+            logger.info("Downloading '{0}' => '{1}'...".format(seqpath, fname))
         obj = s3.Object(bucket, key)
         obj.download_fileobj(filepath)
         filepath.close()
@@ -205,7 +217,8 @@ class SeqReader:
             "sha256": self.sha256,
             "total_kmers": self.total_kmers,
             "total_reads": self.total_reads,
-            "unique_kmers": self.unique_kmers
+            "unique_kmers": self.unique_kmers,
+            "nullomers": self.nullomers
         }
     
     def read_profile(self):
@@ -217,141 +230,243 @@ class SeqReader:
 
         """
         i=0
-        if self.is_fastq:
-            if self.is_gzipped:
-                with gzip.open(self.filehandle, mode='rt') as data:
-                    for record in SeqIO.parse(data, "fastq"):
-                        for c in range(len(record.seq) - self.k + 1):
-                            seq = record.seq[c:(c+self.k)]
-                            self.profile[kmer_converter.sequence_to_binary(str(seq))] += 1
-                            if self.forward_only is False:
-                                self.profile[kmer_converter.sequence_to_binary(str(seq.reverse_complement()))] += 1
-                        i+=1
-            else:
-                for record in SeqIO.parse(self.filehandle, "fastq"):
-                    for c in range(len(record.seq) - self.k + 1):
-                        seq = record.seq[c:(c+self.k)]
-                        self.profile[kmer_converter.sequence_to_binary(str(seq))] += 1
-                        if self.forward_only is False:
-                            self.profile[kmer_converter.sequence_to_binary(str(seq.reverse_complement()))] += 1
-
-                    i+=1
-        elif self.is_fasta:
-            if self.is_gzipped:
-                with gzip.open(self.filehandle, mode='rt') as data:
-                    for record in SeqIO.parse(data, "fasta"):
-                        for c in range(len(record.seq) - self.k + 1):
-                            seq = record.seq[c:(c+self.k)]
-                            self.profile[kmer_converter.sequence_to_binary(str(seq))] += 1
-                            if self.forward_only is False:
-                                self.profile[kmer_converter.sequence_to_binary(str(seq.reverse_complement()))] += 1
-                        i+=1
-            else:
-                for record in SeqIO.parse(self.filehandle, "fasta"):
-                    for c in range(len(record.seq) - self.k + 1):
-                        seq = record.seq[c:(c+self.k)]
-                        self.profile[kmer_converter.sequence_to_binary(str(seq))] += 1
-                        if self.forward_only is False:
-                            self.profile[kmer_converter.sequence_to_binary(str(seq.reverse_complement()))] += 1
-                    i+=1
-        else:
-            raise TypeError("Could not determine the type of file to parse:\nis_fasta: {0}\nis_fastq: {1}\nis_gzipped: {2}".format(self.is_fasta, self.is_fastq, self.is_gzipped))
-        self.total_kmers = functools.reduce(lambda a,b: a+b, self.profile)
-        self.unique_kmers = 4**self.k - self.profile.count(0)
-        self.total_reads = i
-   
-class KDBWriter:
-    def __init__(self, fileobj: io.IOBase, header: dict):
-        if not isinstance(fileobj, io.IOBase):
-            raise TypeError("kdb.fileutil.KDBWriter expects a file object as its first positional argument")
-        elif type(header) is not dict:
-            raise TypeError("kdb.fileutil.KDBWriter expects a dict as its second positional argument")
         try:
+            if self.is_fastq:
+                if self.is_gzipped:
+                    with gzip.open(self.filehandle, mode='rt') as data:
+                        for record in SeqIO.parse(data, "fastq"):
+                            for c in range(len(record.seq) - self.k + 1):
+                                seq = record.seq[c:(c+self.k)]
+                                if self.forward_only is False:
+                                    idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                else:
+                                    idx = kmer_utils.sequence_to_binary(str(seq))
+                                if idx is None:
+                                    pass
+                                else:
+                                    self.profile[idx] += 1                    
+                                    i+=1
+                else:
+                    for record in SeqIO.parse(self.filehandle, "fastq"):
+                        for c in range(len(record.seq) - self.k + 1):
+                            seq = record.seq[c:(c+self.k)]
+                            if self.forward_only is False:
+                                idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                            else:
+                                idx = kmer_utils.sequence_to_binary(str(seq))
+                            if idx is None:
+                                pass
+                            else:
+                                self.profile[idx] += 1                    
+                                i+=1
+            elif self.is_fasta:
+                if self.is_gzipped:
+                    with gzip.open(self.filehandle, mode='rt') as data:
+                        for record in SeqIO.parse(data, "fasta"):
+                            for c in range(len(record.seq) - self.k + 1):
+                                seq = record.seq[c:(c+self.k)]
+                                if self.forward_only is False:
+                                    idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                else:
+                                    idx = kmer_utils.sequence_to_binary(str(seq))
+                                if idx is None:
+                                    pass
+                                else:
+                                    self.profile[idx] += 1                    
+                                    i+=1
+                else:
+                    for record in SeqIO.parse(self.filehandle, "fasta"):
+                        for c in range(len(record.seq) - self.k + 1):
+                            seq = record.seq[c:(c+self.k)]
+                            if self.forward_only is False:
+                                idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                            else:
+                                idx = kmer_utils.sequence_to_binary(str(seq))
+                            if idx is None:
+                                pass
+                            else:
+                                self.profile[idx] += 1                    
+                                i+=1
+            else:
+                raise TypeError("Could not determine the type of file to parse:\nis_fasta: {0}\nis_fastq: {1}\nis_gzipped: {2}".format(self.is_fasta, self.is_fastq, self.is_gzipped))
+        except OverflowError as e:
+            logger.warning("Overflow of the C unsigned short type is common when dealing with RNA-Seq, high-volume datasets, or contamination/overrepresentation issues")
+            logger.error(e)
+
+            raise OverflowError("kdb.fileutil.SeqReader.read_profile read more than 65,535 of a single k-mer into the profile")
+        self.total_kmers = functools.reduce(lambda a,b: a+b, self.profile)
+        self.nullomers = self.profile.count(0)
+        self.unique_kmers = 4**self.k - self.nullomers
+        self.total_reads = i
+
+
+class KDB:
+    def __init__(self, profile: array.array, header: dict, metadata:list=[], neighbors:list=[], make_neighbors:bool=False):
+        if not isinstance(profile, array.array):
+            raise TypeError("kdb.fileutil.KDB expects an array.array as its first positional arguments")
+        elif type(header) is not dict:
+            raise TypeError("kdb.fileutil.KDB expects a header dict as its second positional argument")
+        elif type(metadata) is not list:
+            raise TypeError("kdb.fileutil.KDB expects the keyword argument metadata to be a list")
+        elif type(neighbors) is not list:
+            raise TypeError("kdb.fileutil.KDB expects the keyword argument neighbors to be a list")
+        elif type(make_neighbors) is not bool:
+            raise TypeError("kdb.fileutil.KDB expects the keyword argument make_neighbors to be a bool")
+        try:
+            # More validations and initialization
             jsonschema.validate(instance=header, schema=config.header_schema)
-            if 'body_start' in header:
-                header.pop('body_start')
-            self.filehandle = bgzf.BgzfWriter(fileobj=fileobj, compresslevel=9)
-            self.filepath = fileobj.name
-            # Write header
-            self.filehandle._write_block(bgzf._as_bytes(yaml.dump(header)))
-            self.filehandle.flush()
+            # if 'body_start' in header:
+            #     header.pop('body_start')
         except jsonschema.ValidationError as e:
             logger.debug(e)
-            raise TypeError("kdb.fileutil.KDBWriter expects valid YAML header data as its first positional argument")
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.filehandle.close()
+            raise TypeError("kdb.fileutil.KDB expects valid YAML header data as its fourth positional argument")
+        self.num_kmers     = len(profile)
+        num_neighbors = len(neighbors)
+        num_metadata  = len(metadata)
+        self.has_metadata = False
+        self.has_neighbors = False
+        self.header    = header
+        if 4**self.header['k'] != self.num_kmers:
+            raise TypeError("kdb.fileutil.KDB expects the k-mer profile array to have length equal to 4^{0} = {1} but it was {2}...".format(self.header['k'], 4**self.header['k'], num_kmers))
+        if num_neighbors != 0 and num_metadata != 0:
+            if num_neighbors != num_metadata or num_neighbors != self.num_kmers:
+                raise TypeError("kdb.fileutil.KDB expects a k-mer profile array to have equal length to the metadata and neighbors arrays")
+            else:
+                logger.debug("KDB instance has metadata, neighbors, and k-mer profile in equal length...")
+                self.has_metadata = True
+                self.has_neighbors = True
+        else:
+            logger.debug("KDB instance has no metadata or neighbor information...")
+
+        if self.has_neighbors is False and make_neighbors is True and self.metadata["metadata"] is True:
+            logger.debug("kdb.fileutil.KDB.__init__() is creating neighbor information")
+            self._make_neighbors()
+        elif self.has_neighbors is True and make_neighbors is True and self.header["metadata"] is True:
+            logger.warning("kdb.fileutil.KDB.__init__() is re-creating neighbor information")
+            self._make_neighbors()
+        elif self.has_neighbors is True:
+            logger.debug("kdb.fileutil.KDB.__init__() was initialized with a neighbor array")
+        self.metadata  = metadata
+        self.neighbors = neighbors
+        self.profile   = profile
+
+    def _make_neighbors(self):
+        if self.has_neighbors is True:
+            logger.warn("kdb.fileutil.KDB._make_neighbors called on top of an existing neighbors array")
+            return
+        else:
+            logger.debug("Generating the neighbor array...")
+            for x in range(4**self.header['k']):
+                self.neighbors.append(None)
+            for idx, c in enumerate(self.profile):
+                if c > 0:
+                    # neighbors = list(filter(lambda x: self.profile[x] > 0, kmer_utils.get_neighbors(idx, self.header['k'])))
+                    # for y in neighbors:
+                    #     logger.debug("\t".join(list(map(str, [idx, c, y, kmer_utils.binary_to_sequence(y, self.header['k']), self.profile[y]]))))
+                    
+                    self.neighbors[idx] = [
+                        {
+                            "id": y,
+                            "count_delta": abs(self.profile[y] - c) # The difference between k-mer counts
+                            # A markov probability delta (0-1) is a one-to-many between neighbors, node centric
+                            #@"markov": vector_ops.markov_probability(profile)
+                        } for y in list(filter(lambda x: self.profile[x] > 0, kmer_utils.get_neighbors(idx, self.header['k'])))]
+            self.has_neighbors = True
+
+    def _make_metadata(self):
+        if self.has_metadata is True:
+            logger.warn("kdb.fileutil.KDB._make_metadata called on top of an existing neighbors array")
+            return
+        else:
+            logger.debug("Generating the metadata array...")
+            for x in range(4**self.header['k']):
+                self.metadata.append(None)
+            for idx, c in enumerate(self.profile):
+                if c > 0:
+                    metadata = {
+                        "tags": [],
+                        "bools": [],
+                        "floats": [],
+                        "ints": [],
+                        "neighbors": [
+                            {
+                                "id": x,
+                                "count_delta": abs(self.profile[idx] - c) # The difference between k-mer counts
+                                # A markov probability delta (0-1) is a one-to-many between neighbors, node centric
+                                #@"markov": vector_ops.markov_probability(profile)
+                            } for x in list(filter(lambda x: self.profile[x] > 0, kmer_utils.get_neighbors(idx, self.header['k'])))]
+                    }
+                    if self.has_neighbors is True:
+                        metadata["neighbors"] = self.neighbors[idx]
+                    self.metadata[idx] = metadata
+            self.has_metadata = True
+
+            
+    # def _regenerate_header(self):
+    #     self.total_kmers = functools.reduce(lambda a,b: a+b, self.profile)
+    #     self.nullomers = self.profile.count(0)
+    #     self.unique_kmers = 4**self.k - self.nullomers
+    #     self.total_reads = i
+    #     self.header["total_kmers"]  = self.total_kmers
+    #     self.header["nullomers"]    = self.nullomers
+    #     self.header["unique_kmers"] = self.unique_kmers
+    #     self.total_reads
+                    
+    def add_profile(self, x: array.array):
+        if type(x) is not array.array:
+            raise TypeError("kdb.fileutil.KDB.add_profile expects an array as its argument")
+        elif 4**self.header['k'] != len(x):
+            raise TypeError("kdb.fileutil.KDB.add_profile expects the arrays to have equal length")
+        for i in range(len(x)):
+            self.profile[i] += x[i]
+        #self._regenerate_header()
+
         
-    def write_profile(self, profile: array.array, k):
-        """ Write the profile to the file defined during KDBWriter __init__. The profile is not bound to this object, is an array.array, this is just the wrapper for the IO operations.
-        :param profile: The k-mer profiling data to be written to the .kdb file.
-        :type profile: array.array
-        :returns: 
-        :rtype: NoneType
-        
-        """
-        if not isinstance(profile, array.array):
-            raise TypeError("kdb.fileutil.KDBWriter.write_profile expects an array.array as its first argument")
-        elif type(k) is not int:
-            raise TypeError("kdb.fileutil.KDBWriter.write_profile expects an int as its second positional argument")
-        logger.info("Writing profile to  '{}'...".format(self.filepath))
-        # Write body
-        i=0
-
-        text=''
-        size = 0
-        for idx, c in enumerate(profile):
-            if c > 0:
-                neighbors = filter(lambda x: profile[k] > 0, kmer_converter.get_neighbors(idx, k))
-                newline = "{0}\t{1}\t{2}\n".format(str(idx), str(c), ','.join(list(map(str, neighbors)))) # FIXME should include neighbor ids as csv
-                size += bgzf._as_bytes(newline).__sizeof__()
-                i+=1
-                if i%1000 == 0:
-                    sys.stderr.write("\r")
-                    sys.stderr.write("Wrote {} lines to the file...".format(i))
-                #logger.debug("Line:\n{0}Size in bytes: {1}".format(newline, size))
-                if size > 65534:
-                    self.filehandle._write_block(bgzf._as_bytes(text)) # should this be _write_block?
-                    self.filehandle.flush()
-                    text = ''
-                    size = 0
-                text += newline
-
-        if text != '': # Final flush of text buffer
-            sys.stderr.write("\r")
-            sys.stderr.write("Wrote {} lines to the file...\n".format(i))
-            logger.info("Writing final block...")
-            self.filehandle._write_block(bgzf._as_bytes(text))
-            self.filehandle.flush()
-
-
+            
+                    
 class KDBReader:
-    def __init__(self, fileobj: io.IOBase):
+    def __init__(self, fileobj: io.IOBase, include_neighbors=False, include_metadata=False):
         if not isinstance(fileobj, io.IOBase):
             raise TypeError("kdb.fileutil.KDBReader expects a file object as its first positional argument")
-        self.filehandle = fileobj
-        self.filepath   = self.filehandle.name
-        self.profile    = array.array('H')
-        basename, ext   = os.path.splitext(self.filepath)
-        
+        elif type(include_neighbors) is not bool:
+            raise TypeError("kdb.fileutil.KDBReader expects the keyword argument 'include_neighbors' to be a bool")
+        elif type(include_neighbors) is not bool:
+            raise TypeError("kdb.fileutil.KDBReader expects the keyword argument 'include_metadata' to be a bool")
+        self.include_neighbors = include_neighbors
+        self.include_metadata  = include_metadata
+        self.has_metadata = False
+        self.loaded       = False
+        self.filehandle   = fileobj
+        self.filepath     = self.filehandle.name
+        self.profile      = array.array('L')#array.array('H')
+        self.metadata     = []
+        self.neighbors    = []
+        basename, ext     = os.path.splitext(self.filepath)
+        # Extension validation
         if ext == '':
             raise IOError("kdb.fileutil.KDBReader could not determine the extention of '{0}'".format(self.filepath))
         elif ext != '.bgzf' and ext != ".kdb":
             raise IOError("kdb.file.get_header can only parse .bgzf format '.kdb' files.")
-        bgzfrdr = bgzf.BgzfReader(fileobj=self.filehandle)
-        self.offsets = []
+        # Offset handling
+        self._bgzfrdr = bgzf.BgzfReader(fileobj=self.filehandle)
+        self._offsets = []
+        # # # # # # # # # # # # #
+        # Parse header
+        # # # # # # # # # # # # #
+
         # Ensure the pointers are at the start of the file
-        bgzfrdr.seek(0) 
+        self._bgzfrdr.seek(0) 
         self.filehandle.seek(0)
         for values in bgzf.BgzfBlocks(self.filehandle):
             #logger.debug("Raw start %i, raw length %i, data start %i, data length %i" % values)
-            self.offsets.append(values) # raw start, raw length, data start, data length
-        if len(self.offsets) == 0:
+            self._offsets.append(values) # raw start, raw length, data start, data length
+        if len(self._offsets) == 0:
             raise IOError("kdb.fileutil.KDBReader opened an empty file")
         # Ensure the pointers are at the start of the file
-        bgzfrdr.seek(0) 
+        self._bgzfrdr.seek(0) 
         self.filehandle.seek(0)
         # Read data-length bytes from the zeroth(header) block
-        header=bgzfrdr.read(self.offsets[0][3]) 
+        header=self._bgzfrdr.read(self._offsets[0][3]) 
         logger.info("Read KDB header:\n{0}".format(header))
         data=yaml.safe_load(header)
         if type(data) is not dict:
@@ -359,15 +474,33 @@ class KDBReader:
         else:
             try:
                 jsonschema.validate(instance=data, schema=config.header_schema)
-                data["body_start"] = self.offsets[0][3]+1
+                data["body_start"] = self._offsets[0][3]+1 # Ensure header/body offset information is stored in the header while in memory
                 self.header = data
                 self.k = self.header['k']
             except jsonschema.ValidationError as e:
                 logger.debug(e)
                 logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML")
                 raise e
-            for x in range(4**self.k):
-                self.profile.append(0)
+            if self.include_neighbors:
+                if self.include_metadata:
+                    for x in range(4**self.k):
+                        self.profile.append(0)
+                        self.neighbors.append(None)
+                        self.metadata.append(None)
+                else:
+                    for x in range(4**self.k):
+                        self.profile.append(0)
+                        self.neighbors.append(None)
+            elif self.include_metadata:
+                for x in range(4**self.k):
+                    self.profile.append(0)
+                    self.metadata.append(None)
+            else:
+                for x in range(4**self.k):
+                    self.profile.append(0)
+
+
+
 
             
     def __exit__(self, exc_type, exc_value, traceback):
@@ -378,16 +511,15 @@ class KDBReader:
         Does not mutate the KDBReader object, just reads data from the file. If the file header doesn't validate, it shouldn't get to this point.
         
         :returns: 
-        :rtype: 
+        :rtype: NoneType
 
         """
-        bgzfrdr = bgzf.BgzfReader(fileobj=self.filehandle)
         logger.info("Reading profile from '{}'...".format(self.filepath))
-        offsets = copy.deepcopy(self.offsets)
+        offsets = copy.deepcopy(self._offsets)
         # Omit the header
         offsets.pop(0)
         # Ensure the pointers are at the start of the file
-        bgzfrdr.seek(0) 
+        self._bgzfrdr.seek(0) 
         #self.filehandle.seek(0)
 
         # Read data-length bytes from the zeroth(header) block
@@ -396,9 +528,9 @@ class KDBReader:
             if data_length > 0:
                 #logger.debug("Raw start: {0}, Raw length: {1}, Data start: {2}, Data length: {3}".format(raw_start, raw_length, data_start, data_length))
                 offset = bgzf.make_virtual_offset(raw_start, 0)
-                bgzfrdr.seek(offset)
+                self._bgzfrdr.seek(offset)
                 #self.filehandle.seek(data_start)
-                data = bgzfrdr.read(data_length)
+                data = self._bgzfrdr.read(data_length)
 
                 for line in data.split("\n"):
                     if line != '':
@@ -406,15 +538,130 @@ class KDBReader:
                         # This part should include more data definition.
                         # Type validation, neighbor validation, parameterized on
                         # data types, data mutability constraints, eventually subject to the index.
-                        idx, count, neighbors = line.split("\t")
-                        self.profile[int(idx)] = int(count)
 
+                        
+                        ################
+                        # DATA PARSING
+                        ################
+                        # JSON parsing
+                        idx, count, metadata = line.split("\t")
+                        idx, count = int(idx), int(count)
+                        metadata = yaml.safe_load(metadata) # Exceptions shouldn't be caught
+                        if len(metadata) != 0:
+                            try:
+                                jsonschema.validate(instance=metadata, schema=config.metadata_schema)
+                                neighbors = metadata["neighbors"]
+                                self.has_metadata = True
+                            except jsonschema.ValidationError as e:
+                                logger.debug(e)
+                                logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML")
+                                raise e
+                        else:
+                            metadata = None
+                            neighbors = None
+                        
+                        # Single-line parsing
+                        #idx, count, neighbors = line.split("\t")
+                        #self.profile[int(idx)] = int(count)
+
+                        self.profile[idx] = count
+                        if self.include_metadata:
+                            self.metadata[idx] = metadata
+                        if self.include_neighbors:
+                            self.neighbors[idx] = neighbors
+                self.loaded = True
                     
-    def add_profile(self, x: array.array):
-        if type(x) is not array.array:
-            raise TypeError("kdb.fileutil.KDBReader.add_profile expects an array as its argument")
-        elif len(self.profile) != len(x):
-            raise TypeError("kdb.fileutil.KDBReader.add_profile expects the arrays to have equal length")
-        for i in range(len(x)):
-            self.profile[i] += x[i]
+        
+class KDBWriter:
+    def __init__(self, fileobj: io.IOBase, kdb: KDB):
+        if not isinstance(fileobj, io.IOBase):
+            raise TypeError("kdb.fileutil.KDBWriter expects a file object as its first positional argument")
+        elif not isinstance(kdb, KDB):
+            raise TypeError("kdb.fileutil.KDBWriter expects a KDB objects as its second positional argument")
+        self.kdb = kdb
+        self.filehandle = bgzf.BgzfWriter(fileobj=fileobj, compresslevel=9)
+        self.filepath = fileobj.name
+        
+        # Write header
+        header = kdb.header
+        # Remove header/body offset information
+        if 'body_start' in header:
+            header.pop('body_start')
+        self.filehandle._write_block(bgzf._as_bytes(yaml.dump(header)))
+        self.filehandle.flush()
 
+            
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.filehandle.close()
+        
+    def write_profile(self, include_metadata):
+        """ Write the profile to the file defined during KDBWriter __init__. This is just the wrapper for the IO operations.
+        :param include_metadata: Whether or not to write the k-mer metadata to the file
+        :type include_metadata: bool
+        :returns: 
+        :rtype: NoneType
+        
+        """
+        if type(include_metadata) is not bool:
+            raise TypeError("kdb.fileutil.KDBWriter.write_profile expects a bool as its only positional argument")
+            
+        logger.info("Writing profile to  '{}'...".format(self.filepath))
+        # Write body
+        i=0
+
+        text=''
+        size = 0
+        for idx, c in enumerate(self.kdb.profile):
+            #logger.debug("Writing k-mer to file: {0} - {1}".format(idx, c))
+            node = {
+                "id": idx,
+                "count": c,
+                "metadata": {
+                    "tags": [],
+                    "bools": [],
+                    "floats": [],
+                    "ints": []
+                }
+            }
+
+            if c > 0:
+                if include_metadata and self.kdb.has_metadata: # Use existing metadata
+                    node["metadata"] = self.kdb.metadata[idx]
+                elif include_metadata and self.kdb.has_neighbors: # Use existing neighbor
+                    node["metadata"]["neighbors"] = self.kdb.neighbors[idx]
+                elif include_metadata: # Create the k-mer neighbor metadata from scratch
+                    neighbors = list(filter(lambda x: self.kdb.profile[x] > 0, kmer_utils.get_neighbors(idx, self.kdb.header['k'])))
+                    node["metadata"]["neighbors"] = [
+                        {
+                            "id": x,
+                            "count_delta": abs(self.kdb.profile[idx] - c) # The difference between k-mer counts
+                            # A markov probability delta (0-1) is a one-to-many between neighbors, node centric
+                            #@"markov": vector_ops.markov_probability(profile)
+                        } for x in neighbors
+                    ]
+            else:
+                node["metadata"] = {}
+            newline = "{0}\t{1}\t{2}\n".format(node["id"], node["count"], json.dumps(node["metadata"]))
+            #newline = json.dumps(node)
+            size += bgzf._as_bytes(newline).__sizeof__()
+            i+=1
+            if i%1000 == 0:
+                sys.stderr.write("\r")
+                sys.stderr.write("Wrote {} lines to the file...".format(i))
+            #logger.debug("Line:\n{0}Size in bytes: {1}".format(newline, size))
+            if size > 65534:
+                self.filehandle._write_block(bgzf._as_bytes(text)) # should this be _write_block?
+                self.filehandle.flush()
+                text = ''
+                size = 0
+            text += newline
+
+        if text != '': # Final flush of text buffer
+            sys.stderr.write("\r")
+            sys.stderr.write("Wrote {} lines to the file...\n".format(i))
+            logger.info("Writing final block...")
+            self.filehandle._write_block(bgzf._as_bytes(text))
+            self.filehandle.flush()
+
+        if i != self.kdb.num_kmers:
+            raise IOError("Wrote {0} lines (of {1} k-mers) to the file...".format(i, self.kdb.num_kmers))

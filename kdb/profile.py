@@ -6,6 +6,14 @@ import logging
 logger = logging.getLogger(__file__)
 
 def magnitude(x):
+    """ Calculates the euclidean norm of the unit vector of the input
+
+    :param x: The k-mer profile array (spectrum)
+    :type x: array.array
+    :returns: 
+    :rtype: float
+
+    """
     if not isinstance(x, array.array):
         raise TypeError("kdb.profile.magnitude expects an array as its positional argument")
     return math.sqrt(functools.reduce(lambda a,b: a+(b**2), x, 0))
