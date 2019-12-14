@@ -21,17 +21,18 @@ def profile(arguments):
     files = []
     header = None
     for f in arguments.seqfile:
-        f.close()
-        x = fileutil.SeqReader(f.name, arguments.k)
+        x = fileutil.SeqReader(f, arguments.k, keep_temporary=arguments.keep_S3_file, forward_only=arguments.strand_specific)
         x.read_profile()
         files.append(x)
     final_profile = None
     if path.exists(arguments.kdb):
         logger.debug("Loading header from existing kdb file '{}'...".format(arguments.kdb))
-        final_profile = fileutil.KDBReader(open(arguments.kdb, 'rb'))
-        header = final_profile.get_header()
+        kdbrdr = fileutil.KDBReader(open(arguments.kdb, 'rb'))
+        header = kdbrdr.header
         logger.debug("Existing header:\n{}".format(yaml.dump(header)))
-        final_profile.read_profile()
+        kdbrdr.read_profile()
+        final_profile = fileutil.KDB(kdbrdr.profile, header)
+        
         if header['k'] != arguments.k:
             raise TypeError("The -k parameter {0} did not match the value of k from the profile loaded from '{1}'...".format(header['k'], arguments.kdb))
     else:
@@ -39,22 +40,29 @@ def profile(arguments):
         header={
             "files": [f.header_dict() for f in files],
             "k": arguments.k,
+            "metadata": arguments.with_metadata,
+            "tags": [],
             "kdb_ver": VERSION
         }
         logger.debug("New header:")
         logger.debug("\n{}".format(yaml.dump(header)))
-        final_profile = files.pop(0)
+        prof = files.pop(0)
+        final_profile = fileutil.KDB(prof.profile, header)
+    header["metadata"] = arguments.with_metadata
     if len(files) > 0:
         for f in files:
+            header["files"].append(f.header_dict())
             final_profile.add_profile(f.profile)
-    kdb_writer = fileutil.KDBWriter(open(arguments.kdb, 'wb'), header)
-    kdb_writer.write_profile(final_profile.profile, arguments.k)
+    if arguments.with_metadata is True:
+        final_profile._make_metadata()
+    kdb_writer = fileutil.KDBWriter(open(arguments.kdb, 'wb'), final_profile)
+    kdb_writer.write_profile(arguments.with_metadata)
 
 def similarity(arguments):
     import itertools
     from kdb import fileutil, profile
     files = []
-    for f in arguments.kdbfiles:
+    for f in arguments.kdbfile:
         kdb = fileutil.KDBReader(f)
         kdb.read_profile()
         files.append(kdb)
@@ -121,14 +129,17 @@ if __name__ == '__main__':
 
     profile_parser = subparsers.add_parser("profile", help="Create a kdb file from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
+    profile_parser.add_argument("--strand-specific", action="store_true", help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    profile_parser.add_argument("--with-metadata", action="store_true", help="Include k-mer metadata in the .kdb")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
-    profile_parser.add_argument("seqfile", nargs="*", type=argparse.FileType('rb'), metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
+    profile_parser.add_argument("seqfile", nargs="*", type=str, metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
     similarity_parser = subparsers.add_parser("similarity", help="Create a tsv simlarity matrix")
     similarity_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    similarity_parser.add_argument("kdbfiles", nargs="*", type=argparse.FileType('rb'), metavar="<kdb1 kdb2 ...>", help=".kdb files")
+    similarity_parser.add_argument("kdbfile", nargs="*", type=argparse.FileType('rb'),  help=".kdb files")
     similarity_parser.add_argument("-m", "--metric", default="correlation", choices=["euclidean", "correlation"], help="The distance metric to use for calculating inter-profile similarity [Default: correlation coefficient]")
     similarity_parser.add_argument("--no-column-names", action="store_false", default=True, dest="column_names", help="Do not include the files in the column headers.")
     similarity_parser.add_argument("--no-row-names", action="store_false", default=True, dest="row_names", help="Do not include the files as row names.")
