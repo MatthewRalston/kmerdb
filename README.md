@@ -1,107 +1,68 @@
-# README - KDB
-> A Python CLI and module for k-mer profiles, similarities, and graph databases
+## The "What ?" and the "Why ?"
 
-NOTE: This project is pre-alpha, all of the badge links are broken and are just placeholders at the moment. Development is ongoing. But feel free to clone the repository and play with the code for yourself!
+**Carte** is a simple Jekyll based documentation website for APIs. It is designed as a boilerplate to build your own documentation and is heavily inspired from [Swagger](http://swagger.wordnik.com/) and [I/O docs](http://www.mashery.com/product/io-docs). Fork it, add specifications for your APIs calls and customize the theme. <small>Go ahead, see if we care.</small>
 
-## Development Status
+We built **Carte** because the existing options (Swagger and the likes) were trying to do too much and did not match our needs:
 
-[![PyPI version](https://img.shields.io/pypi/v/kdb.svg)][pip]
-[![Python versions](https://img.shields.io/pypi/pyversions/kdb.svg)][Pythons]
-[![Travis build status](https://travis-ci.com/MatthewRalston/kdb.svg?branch=master)][TravisCI]
-[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
-[![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
+1. Most of our API calls are sending JSON objects, as opposed to a series of parameters,
+1. Being able to query the real API is nice, but running anything but `GET` calls can get tricky ("What do you mean I deleted my stuff? I was just trying out the API calls!"),
+1. Overall, setting up a separate server for what really requires a good static documentation seemed overkill.
 
+The real value of **Carte** is its structure for describing APIs, not its underlying technical stack (or lack-thereof). In a nutshell; **we built a static template for your API documentation, feel free to re-use it**.
 
-[pip]: https://pypi.org/project/kdb/
-[Pythons]: https://pypi.org/project/kdb/
-[TravisCI]: https://travis-ci.com/MatthewRalston/kdb
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
-[RTD]: https://kdb.readthedocs.io/en/stable/
+## Install
 
-## Summary 
+It' Jekyll god dammit:
 
-KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It generates a [De Brujin graph](https://en.wikipedia.org/wiki/De_Bruijn_graph) from the k-mer spectrum of fasta or fastq sequencing data and stores the graph and spectrum to the `.kdb` format spec, a bgzf file similar to BAM. 
+1. Clone this repository on your local,
+1. [Install Jekyll](https://github.com/mojombo/jekyll/wiki/install),
+1. Go at the root of the repository and run ```jekyll serve --watch```,
+1. Go to http://localhost:4000,
+1. [Great success! High five!](http://www.youtube.com/watch?v=wWWyJwHQ-4E)
 
-It could include utilities for exporting the De Brujin graph to graph databases. It could include basic operations about graph properties, even exporting stats about node degree and high-level properties of graph structure could be useful metrics in describing sequence space complexity.
+## How to...
 
-The reason for even including those metrics this early in the project before user interests are investigated is that it would facilitate the conversations about the sequence spaces under consideration. k-mer partitioning and phylogenetic considerations would be high-level abstractions of lower level efforts with sufficient optimization needs, to anticipate physical storage limitations and in memory efficiencies possible to retrieve those statistics, and would shed light on the types of queries common to highly pure and highly multiplexed sample states under consideration during different phases of data cleaning (read cleaning, trimming, data aggregation and merging processes. 
+### Adding a new API call
 
-Artificial metagenomes would be a first dataset to be simulated, and the current distance metrics aren't useful in/with. But if you could partition reads, you could calculate profile distances of the partitions to the mass profile, which should be related to compositions after normalization.
+You can add a new API call by simply adding a new post in the `_posts` folder. Jekyll by default forces you to specify a date in the file path: it makes us sad pandas too, but you'll have to stick to this format. You can use dates to control the order in which API calls are displayed in the interface.
 
-The real question at my level is why would you need to give properties at this stage of the project to transient data projects that haven't even been entered on the issues. It's scope creep certainly, but I wanted to give readers an idea of where the project could have gone if there was more interest and development investment.
+Each API call can define a few values in its YAML header:
 
-And profiling resource usage precludes an understanding or statistical investigation into the basic properties of what the software does at this point. If that's my approach to software.
+Variable | Mandatory | Default | Description
+--- | --- | --- | ---
+``title`` | Y | - | A short description of what that calls does.
+``path`` | N | - | The URL for the API call, including potential parameters.
+``type`` | N | - | Set it to `PUT`, `GET`, `POST`, `DELETE` or nothing (for parts of your documentation that do not relate to an actual API call).
 
-## Installation
+A typical header:
 
-OS X and Linux release:
+```
+---
+path: '/stuff/:id'
+title: 'Delete a thing'
+type: 'DELETE'
 
-```sh
-pip install kdb
+layout: nil
+---
 ```
 
-Development installation:
+We then describe the request and response (or whatever else you wish to talk about) in the body of our post. Check the placeholders present in the `_posts` folder to get an idea of what it can look like.
 
-```sh
-git clone https://github.com/MatthewRalston/kdb.git
-pip install requirements.txt#requirements-dev.txt
-PYTHONPATH=$PYTHONPATH:$(pwd)
+### Grouping calls
+
+Adding a category to your YAML header will allows you to group methods in the navigation. It is particularly helpful as you start having a lot of methods and need to organize them. For example:
+
+```
+---
+category: Stuff
+path: '/stuff/:id'
+title: 'Delete a thing'
+type: 'DELETE'
+
+layout: nil
+---
 ```
 
-## Usage Example
+### Edit the design
 
-CLI Usage
-
-```bash
-kdb --help
-kdb summary --help
-# Build a [composite] profile to a new or existing .kdb file
-kdb profile example1.fq.gz example2.fq.gz profile.kdb
-# Calculate similarity between two (or more) profiles
-kdb similarity profile1.kdb profile2.kdb (...)
-```
-
-API usage
-
-```python
-from kdb import fileutil, kmer_util, profile
-
-# Read a kdb file
-kdb_rdr = fileutil.KDBReader(open("example.kdb", 'rb'))
-kdb_rdr.read_profile()
-
-# Print a profile
-for c in kdb_rdr.profile:
-  print(c)
-
-# ... do something with the counts in the profile
-
-# Save a kdb file
-kdb_wrtr = fileutil.KDBWriter(open("example.kdb", 'wb'), kdb_rdr.get_header)
-kdb_wrtr.write_profile(composite_profile, k)
-```
-
-## Documentation
-
-Check out the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
-
-## Development
-
-```bash
-pipenv run mamba test/*_spec.py
-```
-
-## License
-
-Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.us) - [Email](mailto:mrals89@gmail.com)
-
-Distributed under the GPL v3.0 license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
-
-## Contributing
-
-1. Fork it (<https://github.com/MatthewRalston/kdb/fork>)
-2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Create a new Pull Request
-
+The default UI is mostly described through the `css/style.css` file and a couple short jQuery scripts in the `/_layouts/default.html` layout. Hack it to oblivion.
