@@ -14,6 +14,20 @@ def summarize(arguments):
     kdbfile = fileutil.KDBReader(arguments.kdbfile)
     print(yaml.dump(kdbfile.header))
 
+def build_index(arguments):
+    from kdb import fileutil, index
+    import gzip
+    logger.debug("Indexing existing kdb file '{}'...".format(arguments.kdb))
+    if path.exists(arguments.kdb):
+        with open(arguments.kdb, 'rb') as ifile:
+            kdbrdr = fileutil.KDBReader(ifile)
+            kdbrdr.read_profile()
+            kdb = fileutil.KDB(kdbrdr.profile, kdbrdr.header)
+            idx = index.IndexBuilder(kdb, kdbrdr)
+            with gzip.open("{}.kdbi".format(path.splitext(arguments.kdb)[0]), 'wt') as ofile:
+                for info in idx.line_index: # Print k-mer ids and offsets to file
+                    ofile.write("\t".join(map(str, info)))
+    
 def profile(arguments):
     from kdb import fileutil
 
@@ -31,7 +45,7 @@ def profile(arguments):
         header = kdbrdr.header
         logger.debug("Existing header:\n{}".format(yaml.dump(header)))
         kdbrdr.read_profile()
-        final_profile = fileutil.KDB(kdbrdr.profile, header)
+        final_profile = fileutil.KDB(kdbrdr.profile, header, make_neighbors=arguments.metadata)
         
         if header['k'] != arguments.k:
             raise TypeError("The -k parameter {0} did not match the value of k from the profile loaded from '{1}'...".format(header['k'], arguments.kdb))
@@ -40,23 +54,23 @@ def profile(arguments):
         header={
             "files": [f.header_dict() for f in files],
             "k": arguments.k,
-            "metadata": arguments.with_metadata,
+            "metadata": arguments.metadata,
             "tags": [],
             "kdb_ver": VERSION
         }
         logger.debug("New header:")
         logger.debug("\n{}".format(yaml.dump(header)))
         prof = files.pop(0)
-        final_profile = fileutil.KDB(prof.profile, header)
-    header["metadata"] = arguments.with_metadata
+        final_profile = fileutil.KDB(prof.profile, header, make_neighbors=arguments.metadata)
+    header["metadata"] = arguments.metadata
     if len(files) > 0:
         for f in files:
             header["files"].append(f.header_dict())
             final_profile.add_profile(f.profile)
-    if arguments.with_metadata is True:
+    if arguments.metadata is True:
         final_profile._make_metadata()
     kdb_writer = fileutil.KDBWriter(open(arguments.kdb, 'wb'), final_profile)
-    kdb_writer.write_profile(arguments.with_metadata)
+    kdb_writer.write_profile(arguments.metadata)
 
 def similarity(arguments):
     import itertools
@@ -131,12 +145,18 @@ if __name__ == '__main__':
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
     profile_parser.add_argument("--strand-specific", action="store_true", help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    profile_parser.add_argument("--with-metadata", action="store_true", help="Include k-mer metadata in the .kdb")
+    profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
     profile_parser.add_argument("seqfile", nargs="*", type=str, metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
+    index_parser = subparsers.add_parser("index", help="Create a .kdbi index file from an existing kdb file")
+    index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    index_parser.add_argument("kdb", type=str, help="Kdb file")
+    index_parser.set_defaults(func=build_index)
+
+    
     similarity_parser = subparsers.add_parser("similarity", help="Create a tsv simlarity matrix")
     similarity_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     similarity_parser.add_argument("kdbfile", nargs="*", type=argparse.FileType('rb'),  help=".kdb files")
@@ -148,7 +168,10 @@ if __name__ == '__main__':
 
     
     args=parser.parse_args()
-    logger=get_root_logger(args.verbose)
-    logger.debug(sys.path)
-    args.func(args)
+    if len(sys.argv) == 1:
+        sys.exit(-1)
+    else:
+        logger=get_root_logger(args.verbose)
+        logger.debug(sys.path)
+        args.func(args)
 

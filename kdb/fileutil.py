@@ -20,6 +20,8 @@ import config
 from kdb import kmer_utils
 from kdb import profile as vector_ops
 
+
+
 import logging
 logger = logging.getLogger(__file__)
 
@@ -30,6 +32,9 @@ s3prefix = "s3://"
 
 class SeqReader:
     def __init__(self, seqFile: str, k: int, forward_only=False, keep_temporary=False):
+        """Read k-mers from a fasta or fastq file on local storage or streamed from S3 into a temporary file.
+        
+        """
         if type(seqFile) is not str:
             raise TypeError("kdb.fileutil.SeqReader expects a sequence file (fasta/fastq) filepath or s3 object reference as its first positional argument")
         elif not os.path.exists(seqFile) and seqFile[0:5] != s3prefix:
@@ -44,6 +49,7 @@ class SeqReader:
         # Generate null profile
 
         self.k = k
+        self.kmer_utils = kmer_utils.Utils(self.k)
         self.profile = array.array('L')#array.array('H')
         for x in range(4**k):
             self.profile.append(0)
@@ -85,7 +91,8 @@ class SeqReader:
             self.is_gzipped = True
             self.__validate_seqfile(self.filepath, fasta=False)
             self.filehandle = open(self.filepath, 'rb')
-
+        else:
+            raise TypeError("kdb.fileutil.SeqReader.__validate_seqfile could not determine the file format or compression of '{}'...".format(seqpath))
 
         
     def __exit__(self, exc_type, exc_value, traceback):
@@ -238,9 +245,9 @@ class SeqReader:
                             for c in range(len(record.seq) - self.k + 1):
                                 seq = record.seq[c:(c+self.k)]
                                 if self.forward_only is False:
-                                    idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                    idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
                                 else:
-                                    idx = kmer_utils.sequence_to_binary(str(seq))
+                                    idx = self.kmer_utils.sequence_to_binary(str(seq))
                                 if idx is None:
                                     pass
                                 else:
@@ -251,9 +258,9 @@ class SeqReader:
                         for c in range(len(record.seq) - self.k + 1):
                             seq = record.seq[c:(c+self.k)]
                             if self.forward_only is False:
-                                idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
                             else:
-                                idx = kmer_utils.sequence_to_binary(str(seq))
+                                idx = self.kmer_utils.sequence_to_binary(str(seq))
                             if idx is None:
                                 pass
                             else:
@@ -266,9 +273,9 @@ class SeqReader:
                             for c in range(len(record.seq) - self.k + 1):
                                 seq = record.seq[c:(c+self.k)]
                                 if self.forward_only is False:
-                                    idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                    idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
                                 else:
-                                    idx = kmer_utils.sequence_to_binary(str(seq))
+                                    idx = self.kmer_utils.sequence_to_binary(str(seq))
                                 if idx is None:
                                     pass
                                 else:
@@ -279,9 +286,9 @@ class SeqReader:
                         for c in range(len(record.seq) - self.k + 1):
                             seq = record.seq[c:(c+self.k)]
                             if self.forward_only is False:
-                                idx = kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+                                idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
                             else:
-                                idx = kmer_utils.sequence_to_binary(str(seq))
+                                idx = self.kmer_utils.sequence_to_binary(str(seq))
                             if idx is None:
                                 pass
                             else:
@@ -320,12 +327,16 @@ class KDB:
         except jsonschema.ValidationError as e:
             logger.debug(e)
             raise TypeError("kdb.fileutil.KDB expects valid YAML header data as its fourth positional argument")
-        self.num_kmers     = len(profile)
-        num_neighbors = len(neighbors)
-        num_metadata  = len(metadata)
-        self.has_metadata = False
+        self.profile       = profile
+        self.num_kmers     = len(self.profile)
+        self.has_metadata  = False
         self.has_neighbors = False
-        self.header    = header
+        self.header        = header
+        self.metadata      = neighbors
+        self.neighbors     = metadata
+        num_neighbors      = len(self.neighbors)
+        num_metadata       = len(self.metadata)
+
         if 4**self.header['k'] != self.num_kmers:
             raise TypeError("kdb.fileutil.KDB expects the k-mer profile array to have length equal to 4^{0} = {1} but it was {2}...".format(self.header['k'], 4**self.header['k'], num_kmers))
         if num_neighbors != 0 and num_metadata != 0:
@@ -337,18 +348,16 @@ class KDB:
                 self.has_neighbors = True
         else:
             logger.debug("KDB instance has no metadata or neighbor information...")
-
-        if self.has_neighbors is False and make_neighbors is True and self.metadata["metadata"] is True:
-            logger.debug("kdb.fileutil.KDB.__init__() is creating neighbor information")
-            self._make_neighbors()
-        elif self.has_neighbors is True and make_neighbors is True and self.header["metadata"] is True:
-            logger.warning("kdb.fileutil.KDB.__init__() is re-creating neighbor information")
+            self.kmer_utils = kmer_utils.Utils(self.header['k'])
+        if make_neighbors is True and self.header["metadata"] is True:
+            if self.has_neighbors is False:
+                logger.debug("kdb.fileutil.KDB.__init__() is creating neighbor information")
+            else:
+                logger.warning("kdb.fileutil.KDB.__init__() is re-creating neighbor information")                
             self._make_neighbors()
         elif self.has_neighbors is True:
             logger.debug("kdb.fileutil.KDB.__init__() was initialized with a neighbor array")
-        self.metadata  = metadata
-        self.neighbors = neighbors
-        self.profile   = profile
+
 
     def _make_neighbors(self):
         if self.has_neighbors is True:
@@ -370,7 +379,7 @@ class KDB:
                             "count_delta": abs(self.profile[y] - c) # The difference between k-mer counts
                             # A markov probability delta (0-1) is a one-to-many between neighbors, node centric
                             #@"markov": vector_ops.markov_probability(profile)
-                        } for y in list(filter(lambda x: self.profile[x] > 0, kmer_utils.get_neighbors(idx, self.header['k'])))]
+                        } for y in list(filter(lambda x: self.profile[x] > 0, self.kmer_utils.get_neighbors(idx)))]
             self.has_neighbors = True
 
     def _make_metadata(self):
@@ -394,7 +403,7 @@ class KDB:
                                 "count_delta": abs(self.profile[idx] - c) # The difference between k-mer counts
                                 # A markov probability delta (0-1) is a one-to-many between neighbors, node centric
                                 #@"markov": vector_ops.markov_probability(profile)
-                            } for x in list(filter(lambda x: self.profile[x] > 0, kmer_utils.get_neighbors(idx, self.header['k'])))]
+                            } for x in list(filter(lambda x: self.profile[x] > 0, self.kmer_utils.get_neighbors(idx)))]
                     }
                     if self.has_neighbors is True:
                         metadata["neighbors"] = self.neighbors[idx]
@@ -550,11 +559,17 @@ class KDBReader:
                         if len(metadata) != 0:
                             try:
                                 jsonschema.validate(instance=metadata, schema=config.metadata_schema)
-                                neighbors = metadata["neighbors"]
+
                                 self.has_metadata = True
+                                if "neighbors" in metadata:
+                                    neighbors = metadata["neighbors"]
+                                else:
+                                    logger.warning("kdb.fileutil.KDBReader couldn't validate a k-mer's metadata YAML : no key 'neighbor'")
+                                    neighbors = None
+                                    self.has_neighbors = False
                             except jsonschema.ValidationError as e:
                                 logger.debug(e)
-                                logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML")
+                                logger.error("kdb.fileutil.KDBReader couldn't validate a k-mer's metadata YAML")
                                 raise e
                         else:
                             metadata = None
@@ -630,7 +645,7 @@ class KDBWriter:
                 elif include_metadata and self.kdb.has_neighbors: # Use existing neighbor
                     node["metadata"]["neighbors"] = self.kdb.neighbors[idx]
                 elif include_metadata: # Create the k-mer neighbor metadata from scratch
-                    neighbors = list(filter(lambda x: self.kdb.profile[x] > 0, kmer_utils.get_neighbors(idx, self.kdb.header['k'])))
+                    neighbors = list(filter(lambda x: self.kdb.profile[x] > 0, self.kmer_utils.get_neighbors(idx)))
                     node["metadata"]["neighbors"] = [
                         {
                             "id": x,
