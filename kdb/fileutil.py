@@ -35,6 +35,7 @@ class SeqReader:
         """Read k-mers from a fasta or fastq file on local storage or streamed from S3 into a temporary file.
         
         """
+        # Type check the arguments
         if type(seqFile) is not str:
             raise TypeError("kdb.fileutil.SeqReader expects a sequence file (fasta/fastq) filepath or s3 object reference as its first positional argument")
         elif not os.path.exists(seqFile) and seqFile[0:5] != s3prefix:
@@ -45,11 +46,14 @@ class SeqReader:
             raise TypeError("kdb.fileutil.SeqReader expects the keyword argument 'forward_only' to be a bool")
         elif type(keep_temporary) is not bool:
             raise TypeError("kdb.fileutil.SeqReader expects the keyword argument 'keep_temporary' to be a bool")
-        self.forward_only = forward_only
-        # Generate null profile
 
+        # Addditional attribute initialization
+        self.forward_only = forward_only
         self.k = k
         self.kmer_utils = kmer_utils.Utils(self.k)
+        self.total_kmers, self.unique_kmers, self.total_reads = (0, 0, 0)
+        self.is_fasta, self.is_fastq, self.is_gzipped = (False, False, False)        
+        # Generate null profile
         self.profile = array.array('L')#array.array('H')
         for x in range(4**k):
             self.profile.append(0)
@@ -63,37 +67,23 @@ class SeqReader:
             self.filepath = seqFile
         # Get checksums
         self.md5, self.sha256 = self.__checksum(self.filepath)
-        # Initialize other attributes
-        self.total_kmers, self.unique_kmers, self.total_reads = (0, 0, 0)
-        self.is_fasta, self.is_fastq, self.is_gzipped = (False, False, False)
         
         if (self.filepath[-3:] == ".fa" or self.filepath[-6:] == ".fasta"): # It's a fasta file
-            self.is_fasta = True
-            self.is_fastq = False
-            self.is_gzipped = False
-            self.__validate_seqfile(self.filepath, fasta=True)
-            self.filehandle = open(self.filepath, 'r')
+            self.is_fasta, self.is_fastq, self.is_gzipped = True, False, False
+            mode = 'r'
         elif (self.filepath[-6:] == ".fa.gz" or self.filepath[-9:] == ".fasta.gz"): # It's a gzipped fasta file
-            self.is_fasta = True
-            self.is_fastq = False
-            self.is_gzipped = True
-            self.__validate_seqfile(self.filepath, fasta=True)
-            self.filehandle = open(self.filepath, 'rb')
+            self.is_fasta, self.is_fastq, self.is_gzipped = True, False, True
+            mode = 'rb'
         elif (self.filepath[-3:] == ".fq" or self.filepath[-6:] == ".fastq"): # It's a fastq file
-            self.is_fasta = False
-            self.is_fastq = True
-            self.is_gzipped = False
-            self.__validate_seqfile(self.filepath, fasta=False)
-            self.filehandle = open(self.filepath, 'r')
+            self.is_fasta, self.is_fastq, self.is_gzipped = False, True, False
+            mode = 'r'
         elif (self.filepath[-6:] == ".fq.gz" or self.filepath[-9:] == ".fastq.gz"): # It's a gzipped fastq file
-            self.is_fasta = False
-            self.is_fastq = True
-            self.is_gzipped = True
-            self.__validate_seqfile(self.filepath, fasta=False)
-            self.filehandle = open(self.filepath, 'rb')
+            self.is_fasta, self.is_fastq, self.is_gzipped = False, True, True
+            mode = 'rb'
         else:
             raise TypeError("kdb.fileutil.SeqReader.__validate_seqfile could not determine the file format or compression of '{}'...".format(seqpath))
-
+        self.__validate_seqfile(self.filepath, fasta=self.is_fasta)
+        self.filehandle = open(self.filepath, mode)
         
     def __exit__(self, exc_type, exc_value, traceback):
         self.filehandle.close()
@@ -158,7 +148,7 @@ class SeqReader:
 
         try:
             logger.debug("Validating format of sequence file '{0}'...".format(seqpath))
-            if fasta is True and (seqpath[-3:] == ".fa" or seqpath[-6:] == ".fa.gz" or seqpath[-6:] == ".fasta" or seqpath[-9:] == ".fasta.gz"): # It's a fasta file
+            if fasta is True: #  F A S T A 
                 logger.info("Parsing '{}' as fasta format...".format(seqpath))
                 if seqpath[-3:] == ".gz":
                     logger.debug("Gzip compression detected...")
@@ -170,7 +160,7 @@ class SeqReader:
                     with open(result["filepath"], 'r') as ifile:
                         for record in SeqIO.parse(ifile, "fasta"):
                             pass
-            elif fasta is False and (seqpath[-3:] == ".fq" or seqpath[-6:] == ".fq.gz" or seqpath[-6:] == ".fastq" or seqpath[-9:] == ".fastq.gz"): # It's a fastq file
+            elif fasta is False: # F A S T Q
                 logger.info("Parsing '{}' as fastq format...".format(seqpath))
                 if seqpath[-3:] == ".gz":
                     logger.debug("Gzip compression detected...")
@@ -178,7 +168,7 @@ class SeqReader:
                         with gzip.open(ifile, mode='rt') as data:
                             for record in SeqIO.parse(data, "fastq"):
                                 pass
-                else: # Uncompressed fasta
+                else: # Uncompressed fastq
                     with open(result["filepath"], 'r') as ifile:
                         for record in SeqIO.parse(ifile, "fastq"):
                             pass
@@ -228,6 +218,30 @@ class SeqReader:
             "nullomers": self.nullomers
         }
     
+    def _shred_seqio_record(self, record):
+        """FIXME! briefly describe function
+
+        :param record: a SeqIO record
+        :type record: Bio.SeqIO.SeqRecord
+        :param j: A total k-mer count to increment
+        :type j: int
+        :returns: The index of the k-mer, its reverse complement, the total count of k-mers
+        :rtype: (int, int, int)
+
+        """
+        indexes = []
+        for c in range(len(record.seq) - self.k + 1):
+            seq = record.seq[c:(c+self.k)]
+            idx1, idx2 = self.kmer_utils.sequence_to_binary(str(seq)), self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
+            if idx1 is None or idx2 is None: # Can only happen if there's a k-mer with a 'N'
+                pass
+            else:
+                indexes.append(idx1)
+                if self.forward_only is False:
+                    indexes.append(idx2)
+                
+        return indexes
+    
     def read_profile(self):
         """ Read the profile into memory from the sequencing file. No return, just mutates the object, stores the profile in the .profile attribute.
 
@@ -236,64 +250,39 @@ class SeqReader:
 
 
         """
-        i=0
+
+
+        
+        i=1 # Number of fasta sequences / fastq reads
         try:
             if self.is_fastq:
                 if self.is_gzipped:
                     with gzip.open(self.filehandle, mode='rt') as data:
                         for record in SeqIO.parse(data, "fastq"):
-                            for c in range(len(record.seq) - self.k + 1):
-                                seq = record.seq[c:(c+self.k)]
-                                if self.forward_only is False:
-                                    idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
-                                else:
-                                    idx = self.kmer_utils.sequence_to_binary(str(seq))
-                                if idx is None:
-                                    pass
-                                else:
-                                    self.profile[idx] += 1                    
-                                    i+=1
+                            i+=1
+                            indexes = self._shred_seqio_record(record)
+                            for idx in indexes:
+                                self.profile[idx] += 1
                 else:
                     for record in SeqIO.parse(self.filehandle, "fastq"):
-                        for c in range(len(record.seq) - self.k + 1):
-                            seq = record.seq[c:(c+self.k)]
-                            if self.forward_only is False:
-                                idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
-                            else:
-                                idx = self.kmer_utils.sequence_to_binary(str(seq))
-                            if idx is None:
-                                pass
-                            else:
-                                self.profile[idx] += 1                    
-                                i+=1
+                            i+=1
+                            indexes = self._shred_seqio_record(record)
+                            for idx in indexes:
+                                self.profile[idx] += 1
             elif self.is_fasta:
                 if self.is_gzipped:
                     with gzip.open(self.filehandle, mode='rt') as data:
                         for record in SeqIO.parse(data, "fasta"):
-                            for c in range(len(record.seq) - self.k + 1):
-                                seq = record.seq[c:(c+self.k)]
-                                if self.forward_only is False:
-                                    idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
-                                else:
-                                    idx = self.kmer_utils.sequence_to_binary(str(seq))
-                                if idx is None:
-                                    pass
-                                else:
-                                    self.profile[idx] += 1                    
-                                    i+=1
+                            i+=1
+                            indexes = self._shred_seqio_record(record)
+                            for idx in indexes:
+                                self.profile[idx] += 1
                 else:
                     for record in SeqIO.parse(self.filehandle, "fasta"):
-                        for c in range(len(record.seq) - self.k + 1):
-                            seq = record.seq[c:(c+self.k)]
-                            if self.forward_only is False:
-                                idx = self.kmer_utils.sequence_to_binary(str(seq.reverse_complement()))
-                            else:
-                                idx = self.kmer_utils.sequence_to_binary(str(seq))
-                            if idx is None:
-                                pass
-                            else:
-                                self.profile[idx] += 1                    
-                                i+=1
+                        i+=1
+                        indexes = self._shred_seqio_record(record)
+                        for idx in indexes:
+                            self.profile[idx] += 1
             else:
                 raise TypeError("Could not determine the type of file to parse:\nis_fasta: {0}\nis_fastq: {1}\nis_gzipped: {2}".format(self.is_fasta, self.is_fastq, self.is_gzipped))
         except OverflowError as e:
@@ -332,6 +321,7 @@ class KDB:
         self.has_metadata  = False
         self.has_neighbors = False
         self.header        = header
+        self.k             = self.header['k']
         self.metadata      = neighbors
         self.neighbors     = metadata
         num_neighbors      = len(self.neighbors)
