@@ -4,6 +4,14 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+* Comment code
+** TODO fileutil
+** profile
+** DONE index
+   CLOSED: [2020-02-11 Tue 17:14]
+
+
+
 * Bugs
 ** 0-length blocks
 *** 307 0-length blocks out of 607 in Bsubtilis.kdb
