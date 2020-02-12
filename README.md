@@ -22,15 +22,8 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It generates a [De Brujin graph](https://en.wikipedia.org/wiki/De_Bruijn_graph) from the k-mer spectrum of fasta or fastq sequencing data and stores the graph and spectrum to the `.kdb` format spec, a bgzf file similar to BAM. 
 
-It could include utilities for exporting the De Brujin graph to graph databases. It could include basic operations about graph properties, even exporting stats about node degree and high-level properties of graph structure could be useful metrics in describing sequence space complexity.
+The principle goal of the library is k-mer statistics and rapid access to specific k-mers and associated abundances with a Python CLI and API. Other goals include access to the k-mer count distribution, k-mer transition probabilities, and more by leveraging the bgzf specification. Another low-hanging fruit could be approximating demultiplexing coefficients for artificial metagenomes.
 
-The reason for even including those metrics this early in the project before user interests are investigated is that it would facilitate the conversations about the sequence spaces under consideration. k-mer partitioning and phylogenetic considerations would be high-level abstractions of lower level efforts with sufficient optimization needs, to anticipate physical storage limitations and in memory efficiencies possible to retrieve those statistics, and would shed light on the types of queries common to highly pure and highly multiplexed sample states under consideration during different phases of data cleaning (read cleaning, trimming, data aggregation and merging processes. 
-
-Artificial metagenomes would be a first dataset to be simulated, and the current distance metrics aren't useful in/with. But if you could partition reads, you could calculate profile distances of the partitions to the mass profile, which should be related to compositions after normalization.
-
-The real question at my level is why would you need to give properties at this stage of the project to transient data projects that haven't even been entered on the issues. It's scope creep certainly, but I wanted to give readers an idea of where the project could have gone if there was more interest and development investment.
-
-And profiling resource usage precludes an understanding or statistical investigation into the basic properties of what the software does at this point. If that's my approach to software.
 
 ## Installation
 
@@ -70,11 +63,19 @@ from kdb import fileutil, kmer_util, profile
 kdb_rdr = fileutil.KDBReader(open("example.kdb", 'rb'))
 kdb_rdr.read_profile()
 
-# Print a profile
+# Print a profile (a lightweight wrapper around array.array)
 for c in kdb_rdr.profile:
   print(c)
 
-# ... do something with the counts in the profile
+# Create a KDB object
+kdb = fileutil.KDB(kdbrdr.profile, kdbrdr.header)
+
+# ... do something with the KDB object
+
+# Create a KDB index
+
+idx = index.IndexBuilder(kdb, kdb_rdr)
+index_tuple = idx._index_lines()
 
 # Save a kdb file
 kdb_wrtr = fileutil.KDBWriter(open("example.kdb", 'wb'), kdb_rdr.get_header)
