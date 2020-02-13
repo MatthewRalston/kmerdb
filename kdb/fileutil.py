@@ -656,7 +656,9 @@ class KDBWriter:
             #logger.debug("Line:\n{0}Size in bytes: {1}".format(newline, size))
             if size > 65534:
                 self.filehandle._write_block(bgzf._as_bytes(text)) # should this be _write_block?
-                self.filehandle.flush()
+                self.filehandle._buffer = b""
+                self.filehandle._handle.flush()
+                #self.filehandle.flush()
                 text = ''
                 size = 0
             text += newline
@@ -666,7 +668,10 @@ class KDBWriter:
             sys.stderr.write("Wrote {} lines to the file...\n".format(i))
             logger.info("Writing final block...")
             self.filehandle._write_block(bgzf._as_bytes(text))
-            self.filehandle.flush()
+            self.filehandle._buffer = b""
+            self.filehandle._handle.flush()
+
+            #self.filehandle.flush()
 
         if i != self.kdb.num_kmers:
             raise IOError("Wrote {0} lines (of {1} k-mers) to the file...".format(i, self.kdb.num_kmers))
