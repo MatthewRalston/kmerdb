@@ -1,123 +1,126 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import logging
 import argparse
-from os import path
+import os
 import sys
 import yaml
+from multiprocessing import cpu_count
+
+from Bio import bgzf
+
+#import concurrent.futures
 
 logger=None
 
 
-def summarize(arguments):
-    from kdb import fileutil
-    kdbfile = fileutil.KDBReader(arguments.kdbfile)
-    print(yaml.dump(kdbfile.header))
+def distances(arguments):
+    if len(arguments.kdb) < 2:
+        logger.error("kdb distance requires at least two .kdb files.")
+        sys.exit(1)
 
-def build_index(arguments):
-    from kdb import fileutil, index
-    import gzip
-    logger.debug("Indexing existing kdb file '{}'...".format(arguments.kdb))
-    if path.exists(arguments.kdb):
-        with open(arguments.kdb, 'rb') as ifile:
-            kdbrdr = fileutil.KDBReader(ifile)
-            kdbrdr.read_profile()
-            kdb = fileutil.KDB(kdbrdr.profile, kdbrdr.header)
-            idx = index.IndexBuilder(kdb, kdbrdr)
-            with gzip.open("{}.kdbi".format(path.splitext(arguments.kdb)[0]), 'wt') as ofile:
-                for info in idx.line_index: # Print k-mer ids and offsets to file
-                    ofile.write("\t".join(map(str, info)))
-    
-def profile(arguments):
+    from kdb import distance
+    n = len(arguments.kdb)
+    data = [['' for x in range(n)] for y in range(n)]
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                data[i][j] = distance.identity[arguments.metric]
+            elif i > j:
+                data[i][j] = ''
+            else:
+                data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+
+    logger.info("Printing distance matrix...")
+    if len(arguments.kdb) == 2:
+        print(data[0][1])
+    else:
+        for x in range(len(arguments.kdb)):
+            print("\t".join(map(str, data[x])))
+                
+def summarize(arguments):
     from kdb import fileutil
 
     from config import VERSION
-    files = []
-    header = None
+
+    with fileutil.open(arguments.kdb, mode='r') as kdb:
+        if kdb.header["version"] != VERSION:
+            logger.warning("KDB version is out of date")
+        print(yaml.dump(kdb.header))
+
+def profile(arguments):
+    from kdb import parse, fileutil
+
+    from config import VERSION
+
+    metadata = []
+    tempdbs = []
     for f in arguments.seqfile:
-        x = fileutil.SeqReader(f, arguments.k, keep_temporary=arguments.keep_S3_file, forward_only=arguments.strand_specific)
-        x.read_profile()
-        files.append(x)
-    final_profile = None
-    if path.exists(arguments.kdb):
-        logger.debug("Loading header from existing kdb file '{}'...".format(arguments.kdb))
-        kdbrdr = fileutil.KDBReader(open(arguments.kdb, 'rb'))
-        header = kdbrdr.header
-        logger.debug("Existing header:\n{}".format(yaml.dump(header)))
-        kdbrdr.read_profile()
-        final_profile = fileutil.KDB(kdbrdr.profile, header, make_neighbors=arguments.metadata)
-        
-        if header['k'] != arguments.k:
-            raise TypeError("The -k parameter {0} did not match the value of k from the profile loaded from '{1}'...".format(header['k'], arguments.kdb))
-    else:
-        logger.info("Generating new .kdb file '{}'...".format(arguments.kdb))
-        header={
-            "files": [f.header_dict() for f in files],
-            "k": arguments.k,
-            "metadata": arguments.metadata,
-            "tags": [],
-            "kdb_ver": VERSION
-        }
-        logger.debug("New header:")
-        logger.debug("\n{}".format(yaml.dump(header)))
-        prof = files.pop(0)
-        final_profile = fileutil.KDB(prof.profile, header, make_neighbors=arguments.metadata)
-    header["metadata"] = arguments.metadata
-    if len(files) > 0:
-        for f in files:
-            header["files"].append(f.header_dict())
-            final_profile.add_profile(f.profile)
-    if arguments.metadata is True:
-        final_profile._make_metadata()
-    kdb_writer = fileutil.KDBWriter(open(arguments.kdb, 'wb'), final_profile)
-    kdb_writer.write_profile(arguments.metadata)
+        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, stranded=arguments.not_strand_specific)
+        metadata.append(m)
+        tempdbs.append(db)
+    header={
+        "files": metadata,
+        "k": arguments.k,
+        "metadata": False,
+        "tags": [],
+        "version": VERSION
+    }
 
-def similarity(arguments):
-    import itertools
-    from kdb import fileutil, profile
-    files = []
-    for f in arguments.kdbfile:
-        kdb = fileutil.KDBReader(f)
-        kdb.read_profile()
-        files.append(kdb)
-    numfiles = len(files)
-    if numfiles == 1:
-        raise Exception("Similarity requires more than one .kdb file")
-    elif numfiles == 2:
-        logger.info("Calculating {} similarity...".format(arguments.metric))
-        if arguments.metric == "correlation":
-            similarity = profile.correlation_distance(files[0].profile, files[1].profile)
-        elif arguments.metric == "euclidean":
-            similarity = profile.euclidean_distance(files[0].profile, files[1].profile)
-        print(similarity)
-    else:
-        if arguments.metric == "correlation":
-            identity = '1.0'
-        elif arguments.metric == "euclidean":
-            identity = '0.0'
-        data = [[identity if x == y else '' for x in range(numfiles)] for y in range(numfiles)]
-        logger.info("Calculating inter-profile {} similarities...".format(arguments.metric))
-        for x, y in itertools.combinations(list(range(numfiles)), 2):
-            logger.debug("Calculating {0} similarity between '{1}' and '{2}'...".format(arguments.metric, files[x].filehandle.name, files[y].filehandle.name))
-            if arguments.metric == "correlation":
-                data[x][y] = profile.correlation_distance(files[x].profile, files[y].profile)
-            elif arguments.metric == "euclidean":
-                data[x][y] = profile.euclidean_distance(files[x].profile, files[y].profile)
-        logger.info("Printing distance matrix...")
-        # Print tsv
-        if arguments.column_names is True: 
-            if arguments.row_names is True: # n+1 columns
-                print("\t" + "\t".join(list(map(lambda y: path.splitext(y.filehandle.name)[0], files))))
+    try:
+        kdb_out = fileutil.KDBWriter(header, fileobj=open(arguments.kdb, 'wb'))
+        iterating = True
+        while iterating:
+            # The 0th element is the count
+            try:
+                recs = list(map(next, tempdbs))
+                if len(recs):
+                    i = recs[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
+                    count = sum([x[1] for x in recs]) # The 1th element is the k-mer count
+                    kdb_out.write("{0}\t{1}\n".format(i, count))
+                else:
+                    iterating = False
+            except StopIteration as e:
+                logger.warn("Shouldn't have encountered StopIteration error...")
+                iterating = False
+    finally:
+        for db in tempdbs:
+            db.conn.close()
+            db._engine.dispose()
+            if not arguments.keep_sqlite:
+                os.unlink(db.filepath)
             else:
-                print("\t".join(list(map(lambda y: path.splitext(y.filehandle.name)[0], files))))
-        for x in range(numfiles):
-            if arguments.row_names is True:
-                print(path.splitext(files[x].filehandle.name)[0] + "\t" + "\t".join(map(str, data[x])))
-            else: # No row names
-                print("\t".join(map(str, data[x])))
+                logger.debug("    Database file retained:    {0}".format(db.filepath))
+        kdb_out._write_block(kdb_out._buffer)
+        kdb_out._handle.flush()
+        kdb_out._handle.close()
 
 
-            
+    
+# def gen_hist(arguments):
+#     from kdb import fileutil
+
+
+#     hist = {}
+
+#     with fileutil.open(arguments.kdb, mode='r') as ifile:
+#         i = 0
+#         for line in ifile:
+#             kmer_id, count = (int(x) for x in line.rstrip().split("\t"))
+#             if "\t" in line:
+#                 try:
+#                     hist[count] += 1
+#                 except KeyError as e:
+#                     hist[count] = 1
+#             else:
+#                 print(line)
+#                 print(i)
+#             i +=1
+
+#     for k, v in hist.items():
+#         print(k, v)
+        
 def get_root_logger(level):
     levels=[logging.WARNING, logging.INFO, logging.DEBUG]
     if level < 0 or level > 2:
@@ -129,42 +132,37 @@ def get_root_logger(level):
 
 if __name__ == '__main__':
     sys.path.append("..")
-    sys.path.remove(path.dirname(path.abspath(__file__)))
+    sys.path.remove(os.path.dirname(os.path.abspath(__file__)))
     
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers(help="Use --help with sub-commands")
-    # Summary
 
-    summary_parser = subparsers.add_parser("summary", help="Print summary information from the YAML header of the .kdb file")
-    summary_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    summary_parser.add_argument("kdbfile", type=argparse.FileType('rb'), help="A bgzf .kdb file")
-    summary_parser.set_defaults(func=summarize)
 
-    profile_parser = subparsers.add_parser("profile", help="Create a kdb file from one or more sequence files")
+    profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
-    profile_parser.add_argument("--strand-specific", action="store_true", help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
+    profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=range(1, cpu_count()+1), help=argparse.SUPPRESS)
+    profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help=argparse.SUPPRESS)
+    #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
+    profile_parser.add_argument("--keep-sqlite", action="store_true", default=False, help=argparse.SUPPRESS)
+    profile_parser.add_argument("--not-strand-specific", action="store_false", default=True, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    #profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
-    profile_parser.add_argument("seqfile", nargs="*", type=str, metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
+    profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
-    index_parser = subparsers.add_parser("index", help="Create a .kdbi index file from an existing kdb file")
-    index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    index_parser.add_argument("kdb", type=str, help="Kdb file")
-    index_parser.set_defaults(func=build_index)
 
+    summary_parser = subparsers.add_parser("summary", help="Print the YAML header from the first block of the kdb file")
+    summary_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    summary_parser.add_argument("kdb", type=str, help="A k-mer database file")
+    summary_parser.set_defaults(func=summarize)
     
-    similarity_parser = subparsers.add_parser("similarity", help="Create a tsv simlarity matrix")
-    similarity_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    similarity_parser.add_argument("kdbfile", nargs="*", type=argparse.FileType('rb'),  help=".kdb files")
-    similarity_parser.add_argument("-m", "--metric", default="correlation", choices=["euclidean", "correlation"], help="The distance metric to use for calculating inter-profile similarity [Default: correlation coefficient]")
-    similarity_parser.add_argument("--no-column-names", action="store_false", default=True, dest="column_names", help="Do not include the files in the column headers.")
-    similarity_parser.add_argument("--no-row-names", action="store_false", default=True, dest="row_names", help="Do not include the files as row names.")
-
-    similarity_parser.set_defaults(func=similarity)
+    dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
+    dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    dist_parser.add_argument("metric", choices=["correlation"], default=None, help="Choice of distance metric between two profiles")
+    dist_parser.add_argument("kdb", nargs="+", type=str, metavar="<kdbfile1 kdbfile2 ...>", help="Two or more KDB files")
+    dist_parser.set_defaults(func=distances)
 
     
     args=parser.parse_args()
@@ -172,6 +170,5 @@ if __name__ == '__main__':
         sys.exit(-1)
     else:
         logger=get_root_logger(args.verbose)
-        logger.debug(sys.path)
+        #logger.debug(sys.path)
         args.func(args)
-
