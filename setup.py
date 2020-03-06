@@ -7,8 +7,70 @@ import sys
 from shutil import rmtree
 from config import VERSION
 
-from setuptools import find_packages, setup, Command
+try:
+    from setuptools import find_packages
+    from setuptools import setup
+    from setuptools import Command
+    from setuptools import Extension
+except ImportError:
+    sys.exit(
+        "We need the Python library 'setuptools' to be installed."
+        "Try running: python -m ensurepip"
+    )
 
+if sys.version_info[:2] < (3, 7):
+    sys.stderr.write(
+        "KDB is tested on Python 3.7 or later. "
+        "Python %d.%d detected. \n" % sys.version_info[:2]
+    )
+    sys.exit(1)
+
+
+class test_biopython(Command):
+        """Run all of the tests for the package.
+    This is a automatic test run class to make distutils kind of act like
+    perl. With this you can do:
+    python setup.py build
+    python setup.py install
+    python setup.py test
+    """
+
+    description = "Automatically run the test suite for Biopython."
+    user_options = [("offline", None, "Don't run online tests")]
+
+    def initialize_options(self):
+        """No-op, initialise options."""
+        self.offline = None
+
+    def finalize_options(self):
+        """No-op, finalise options."""
+        pass
+
+    def run(self):
+        """Run the tests."""
+        this_dir = os.getcwd()
+
+        # change to the test dir and run the tests
+        os.chdir("test")
+        sys.path.insert(0, "")
+        import run_tests
+        
+        if self.offline:
+            run_tests.main(["--offline"])
+        else:
+            run_tests.main([])
+            
+        # change back to the current directory
+        os.chdir(this_dir)
+
+
+def can_import(module_name):
+    """Check we can import the requested module."""
+    try:
+        return __import__(module_name)
+    except ImportError:
+        return None
+                
 # Package meta-data.
 NAME = 'kdb'
 DESCRIPTION = 'Yet another kmer library for Python'
@@ -38,10 +100,25 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
+    classifiers=[
+        "Development Status :: 1 - Planning",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
     #packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     # If your package is a single module, use this instead of 'packages':
-    py_modules=['mypackage'],
-    scripts=['bin/myscript'],
+    py_modules=['kdb'],
+    scripts=['bin/kdb'],
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
@@ -49,15 +126,4 @@ setup(
     extras_require=EXTRAS,
     include_package_data=True,
     license='GPLv3+',
-    classifiers=[
-        # Trove classifiers
-        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy'
-    ],
-
 )
