@@ -14,6 +14,13 @@ from Bio import bgzf
 logger=None
 
 
+def index_file(arguments):
+    from kdb import fileutil, index
+    with fileutil.open(arguments.kdb, mode='r') as kdb:
+        header = kdb.header
+    line_index = index.build_line_index_from_kdb(arguments.kdb, header['k'])
+    index._write_line_index(arguments.kdbi, line_index)
+
 def distances(arguments):
     if len(arguments.kdb) < 2:
         logger.error("kdb distance requires at least two .kdb files.")
@@ -155,7 +162,7 @@ if __name__ == '__main__':
 
     summary_parser = subparsers.add_parser("summary", help="Print the YAML header from the first block of the kdb file")
     summary_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    summary_parser.add_argument("kdb", type=str, help="A k-mer database file")
+    summary_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     summary_parser.set_defaults(func=summarize)
     
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
@@ -163,6 +170,12 @@ if __name__ == '__main__':
     dist_parser.add_argument("metric", choices=["correlation"], default=None, help="Choice of distance metric between two profiles")
     dist_parser.add_argument("kdb", nargs="+", type=str, metavar="<kdbfile1 kdbfile2 ...>", help="Two or more KDB files")
     dist_parser.set_defaults(func=distances)
+
+    index_parser = subparsers.add_parser("index", help="Create a index file that can be held in memory")
+    index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    index_parser.add_argument("kdbi", type=str, help="Output index file (.kdbi)")
+    index_parser.set_defaults(func=index_file)
 
     
     args=parser.parse_args()

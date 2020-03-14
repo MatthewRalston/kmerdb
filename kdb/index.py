@@ -50,15 +50,15 @@ def _write_line_index(indexfile, index):
             ofile.write(str(kmer) + "\n")
 
                 
-def _read_line_index(indexfile):
+def _read_line_index(indexfile, k):
     if type(indexfile) is not str:
         raise TypeError("kdb.index._read_index expects a str as its first positional argument")
-    line_index = array.array('Q') #, range(4**self.k))
-    #i = 0
+    line_index = array.array('Q', range(4**self.k))
+    i = 0
     with gzip.open(indexfile, 'rt') as ifile:
         for line in ifile:
-            #idx[i] = int(line.rstrip()) # FIXME
-            idx.append(int(line.rstrip()))
+            idx[i] = int(line.rstrip()) # FIXME
+            #idx.append(int(line.rstrip()))
     return idx
 
         
