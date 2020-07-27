@@ -7,7 +7,7 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 [![PyPI version](https://img.shields.io/pypi/v/kdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kdb.svg)][Pythons]
-[![Travis build status](https://travis-ci.com/MatthewRalston/kdb.svg?branch=master)][TravisCI]
+[![Travis Build Status](https://travis-ci.org/MatthewRalston/kdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kdb)
 [![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
 [![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
 
@@ -37,7 +37,7 @@ Development installation:
 
 ```sh
 git clone https://github.com/MatthewRalston/kdb.git
-pip install requirements.txt#requirements-dev.txt
+pip install -r requirements.txt#requirements-dev.txt
 PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
