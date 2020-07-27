@@ -75,9 +75,9 @@ def kmer_to_id(s):
 
     """
 
-    # if not isinstance(s, str): # Typecheck the input k-mer
-    #     raise TypeError("kdb.kmer.kmer_to_id expects a Biopython Seq object as its argument")
-    if s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
+    if not isinstance(s, str): # Typecheck the input k-mer
+        raise TypeError("kdb.kmer.kmer_to_id expects a Biopython Seq object as its argument")
+    elif s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None
     else: 
