@@ -34,9 +34,11 @@ class SqliteKdb:
     def __init__(self, filename:str, k:int):
         
         if type(filename) is not str:
-            raise TypeError("kdb.database.build_sqlite_file expects a str as its first positional argument")
+            raise TypeError("kdb.database.SqliteKdb expects a str as its first positional argument")
+        elif not os.path.exists(filename):
+            raise OSError("kdb.database.SqliteKdb could not find the file '{0}' on the filesystem".format(filename))
         elif type(k) is not int:
-            raise TypeError("kdb.database.build_sqlite_file expects an int as its second positional argument")
+            raise TypeError("kdb.database.SqliteKdb expects an int as its second positional argument")
         self._max_records = 4**k
         self.filepath = filename
         self._engine = create_engine("sqlite:///{0}".format(filename), echo=False, poolclass=NullPool)
