@@ -14,9 +14,8 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 [pip]: https://pypi.org/project/kdb/
 [Pythons]: https://pypi.org/project/kdb/
-[TravisCI]: https://travis-ci.com/MatthewRalston/kdb
 [Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
-[RTD]: https://kdb.readthedocs.io/en/stable/
+[RTD]: https://kdb.readthedocs.io/en/latest/
 
 ## Summary 
 
