@@ -38,7 +38,7 @@ class Kmers:
         self.strand_specific = strand_specific
 
     def shred(self, seqRecord):
-        """
+        """Shred a sequence into all possible substrings of length k
 
         :param seqRecord: 
         :type seqRecord: Bio.SeqRecord.SeqRecord
