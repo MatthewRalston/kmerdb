@@ -78,22 +78,15 @@ class Test_Kmers(unittest.TestCase):
             kmer.Kmers({'hello': 'world'})
 
     def test_init_sets_k(self):
-        """
-        kmer.Kmers has an attribute 'k', an int, that is the only accepted argument
-        """
-        self.assertIs(type(self.kmer.k), int)
-        self.assertEqual(self.kmer.k, 3)
+        testKmers = kmer.Kmers(3)
+        self.assertIs(type(testKmers.k), int)
+        self.assertEqual(testKmers.k, 3)
             
     def test_shred(self):
-        """
-        kmer.Kmers has a method shred that returns a dictionary with only 'id' and 'kmers' keys
-        """
         seqrec = SeqRecord.SeqRecord(Seq.Seq(self.seq, Seq.IUPAC.unambiguous_dna))
         shredded = self.kmer.shred(seqrec)
         self.assertIs(type(shredded), dict)
-        self.assertListEqual(list(shredded.keys()), ["id", "kmers"])
-        self.assertIn("id", shredded)
-        self.assertIn("kmers", shredded)
+        
 
 if __name__ == '__main__':
     unittest.main()
