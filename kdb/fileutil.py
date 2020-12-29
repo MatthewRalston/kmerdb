@@ -4,7 +4,9 @@ import os
 import gzip
 import tempfile
 import yaml, json
-from collections import deque
+from collections import deque, OrderedDict
+import pdb
+
 
 from builtins import open as _open
 
@@ -117,15 +119,53 @@ class KDBReader(bgzf.BgzfReader):
         self._buffers     = {}
         self._block_start_offset = None
         self._block_raw_length = None
+        '''
+        Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
+        '''
+        # 0th block
+        logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
         self._load_block(handle.tell())
         header_data = yaml.safe_load(self._buffer)
+        num_header_blocks = None
+        if type(header_data) is str:
+            raise TypeError("kdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
+        elif type(header_data) is dict:
+            logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
+            if "version" not in header_data.keys():
+                raise TypeError("kdb.fileutil.KDBReader couldn't validate the header YAML")
+            elif "metadata_blocks" not in header_data.keys():
+                raise TypeError("kdb.fileutil.KDBReader couldn't validate the header YAML")
+            else:
+                logger.debug(header_data)
+                logger.debug(handle.tell())
+                if header_data["metadata_blocks"] == 1:
+                    logger.info("1 metadata block: Not loading any additional blocks")
+                else:
+                    for i in range(header_data["metadata_blocks"] - 1):
+                        self._load_block(handle.tell())
+                        addtl_header_data = yaml.safe_load(self._buffer)
+                        if type(addtl_header_data) is str:
+                            logger.error(addtl_header_data)
+                            raise TypeError("kdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
+                        elif type(addtl_header_data) is dict:
+                            sys.stderr.write("\r")
+                            sys.stderr.write("Successfully parsed {0} blocks of YAML formatted metadata".format(i))
+                            header_data.update(addtl_header_data)
+                            num_header_blocks = i
+                        else:
+                            logger.error(addtl_header_data)
+                            raise RuntimeError("kdb.fileutil.KDBReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
+        else:
+            raise RuntimeError("kdb.fileutil.KDBReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
+        sys.stderr.write("\n")
+        logger.info("Validating the header data against the schema...")
         try:
             jsonschema.validate(instance=header_data, schema=config.header_schema)
             self.header = header_data
             self.k = self.header['k']
         except jsonschema.ValidationError as e:
             logger.debug(e)
-            logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML")
+            logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML from {0} header blocks".format(num_header_blocks))
             raise e
 
         self._offsets = deque()
@@ -196,15 +236,24 @@ class KDBReader(bgzf.BgzfReader):
     #     return self._buffer
     
 
+def setup_yaml():
+    """
+    https://stackoverflow.com/a/8661021
+    """
+    represent_dict_order = lambda self, data: self.represent_mapping('tag:yaml.org,2002:map', data.items())
+    yaml.add_representer(OrderedDict, represent_dict_order)
 
 
+
+    
 class KDBWriter(bgzf.BgzfWriter):
     def __init__(self, header:dict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
-        if type(header) is not dict:
+        if not isinstance(header, OrderedDict):
             raise TypeError("kdb.fileutil.KDBWriter expects a valid header object as its first positional argument")
         try:
-            jsonschema.validate(instance=header, schema=config.header_schema)
+            logger.debug("Validating header schema against the config.py header schema")
+            jsonschema.validate(instance=dict(header), schema=config.header_schema)
             self.header = header
             self.k = self.header['k']
         except jsonschema.ValidationError as e:
@@ -228,28 +277,58 @@ class KDBWriter(bgzf.BgzfWriter):
         self._buffer = b""
         self.compresslevel = compresslevel
 
-        self._write_block(bgzf._as_bytes(yaml.dump(self.header)))
+        """
+        Write the header to the file
+        """
+        logger.info("Constructing a new kdb file '{0}'...".format(self._handle.name))
+        logger.debug("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
+        setup_yaml()
+        header_bytes = bgzf._as_bytes(yaml.dump(self.header))
+        for i in range(self.header["metadata_blocks"]):
+            header_slice = header_bytes[:65536]
+            header_bytes = header_bytes[65536:]
+            self._write_block(header_slice)
+
+        #self._write_block
         self._buffer = b""
         self._handle.flush()
         
-    def write_block(self, recs):
-        if type(recs) is not list:
-            raise TypeError("kdb.fileutil.KDBWriter expects a str as its first positional argument")
-        self._block_size = bgzf._as_bytes(self._buffer).__sizeof__()
-        while len(recs):
-            while self._block_size < 65530:
-                newline = "\t".join(recs.pop()) + "\n"
+    # def write(self, data):
+    #     if not isinstance(data, str):
+    #         raise TypeError("kdb.fileutil.KDBWriter.write() expects a str as its first positional argument")
+    #     else:
+    #         data = data.encode('latin-1')
 
-                if self._block_size + bgzf.as_bytes(newline).__sizeof__() < 65530:
-                    self._buffer += newline
-                    self._block_size += bgzf._as_bytes(newline).__sizeof__()
-                else:
-                    self._write_block(bgzf._as_bytes(self._buffer))
-                    self._buffer = b""
-                    self._handle.flush()
-                    self._buffer = newline
-                    self._block_size = bgzf._as_bytes(newline).__sizeof__()
-        self._write_block(bgzf._as_bytes(self._buffer))
-        self._buffer = b""
-        self._handle.flush()
+    #     data_len = len(data)
+    #     if len(self._buffer) + data_len < 65536:
+    #         self._buffer += data
+    #     else:
+    #         self._buffer += data
+    #         while len(self._buffer) >= 65536:
+    #             self._write_block(self._buffer[:65536])
+    #             self._buffer = self._buffer[65536:]
+    #         self.flush()
+
+    # def write_block(self, recs):
+    #     if type(recs) is not list:
+    #         raise TypeError("kdb.fileutil.KDBWriter.write_block() expects a list as its first positional argument")
+
+    #     self._block_size = bgzf._as_bytes(self._buffer).__sizeof__()
+    #     while len(recs):
+        
+    #         while self._block_size < 65530:
+    #             newline = "\t".join(recs.pop()) + "\n"
+
+    #             if self._block_size + bgzf.as_bytes(newline).__sizeof__() < 65530:
+    #                 self._buffer += newline
+    #                 self._block_size += bgzf._as_bytes(newline).__sizeof__()
+    #             else:
+    #                 self._write_block(bgzf._as_bytes(self._buffer))
+    #                 self._buffer = b""
+    #                 self._handle.flush()
+    #                 self._buffer = newline
+    #                 self._block_size = bgzf._as_bytes(newline).__sizeof__()
+    #     self._write_block(bgzf._as_bytes(self._buffer))
+    #     self._buffer = b""
+    #     self._handle.flush()
         
