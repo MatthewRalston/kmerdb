@@ -1,4 +1,5 @@
 import sys
+import os
 import unittest
 import tempfile
 
@@ -35,7 +36,9 @@ class Test_parsefile(unittest.TestCase):
         SqliteKdb throws an OSError if it receives a filepath that doesnt exist
         """
         with self.assertRaises(OSError):
-            database.SqliteKdb("helloworld.txt", self.k)
+            db = database.SqliteKdb("helloworld.txt", self.k)
+            db.conn.close()
+            os.unlink("helloworld.txt")
 
     def test_k_is_int_only(self):
         """
