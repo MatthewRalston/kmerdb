@@ -51,12 +51,21 @@ def parsefile(filepath, k, p=1, b=50000, stranded=True):
 
     try:
         # Build fasta/fastq parser object to stream reads into memory
-        logger.debug("Constructing fastq parser object...")
+        logger.debug("Constructing SeqParser object...")
         seqprsr = seqparser.SeqParser(filepath, b, k)
-        
+        logger.debug("Constructing multiprocessing pool with {0} processors".format(p))
         pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
         Kmer = kmer.Kmers(k, strand_specific=stranded) # A wrapper class to shred k-mers with
+        # Look inside the seqprsr object for the type of file
+        s = "fastq" if seqprsr.fastq else "fasta"
+
         recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
+        if s == "fastq":
+            logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
+            assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
+        else:
+            logger.debug("Read {0} sequences from the {1} seqparser object".format(len(recs), s))
+            logger.debug("Skipping the block size assertion for fasta files")
         while len(recs): # While the seqprsr continues to produce blocks of reads
             # Run each read through the shred method
             list_of_dicts = pool.map(Kmer.shred, recs)
@@ -69,7 +78,10 @@ def parsefile(filepath, k, p=1, b=50000, stranded=True):
                             list(map(lambda x: (x+1,), kmer_ids)))
             #db.conn.execute("INSERT INTO reads(read_id, kmer_id) VALUES (?, ?)", read_kmer_relations)
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
-
+            # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
+            #sys.stderr("\n")
+            #logger.debug("Read {0} more records from the {1} seqparser object".format(len(recs), s))
+            
         seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
         seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
     finally:
