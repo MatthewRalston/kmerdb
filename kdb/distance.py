@@ -3,7 +3,7 @@ logger = logging.getLogger(__file__)
 
 import math
 import numpy as np
-#from numba import jit
+from numba import jit
 import functools
 
 
@@ -23,9 +23,9 @@ def correlation(fname1, fname2):
             if k is None:
                 k = kdb1.header['k']
             if k != kdb1.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(fname1, kdb1.header['k'], k))
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.header['k'], k))
             elif k != kdb2.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(fname2, kdb2.header['k'], k))
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.header['k'], k))
             N = 4 ** k
             x_bar = functools.reduce(lambda a,b: a+b, map(lambda x: x['total_kmers'], kdb1.header['files']), 0) / N
             y_bar = functools.reduce(lambda a,b: a+b, map(lambda y: y['total_kmers'], kdb2.header['files']), 0) / N
@@ -42,7 +42,13 @@ def correlation(fname1, fname2):
                 ssyy += np.square(y - y_bar)
                 ssxy += (x - x_bar)*(y - y_bar)
 
-            return ssxy/np.sqrt(ssxx*ssyy)
+            logger.debug("Sum of squared xy errors: {0}".format(ssxy))
+            logger.debug("Sum of squared xx errors: {0}".format(ssxx))
+            logger.debug("Sum of squared yy errors: {0}".format(ssyy))
+            if ssxx*ssyy == 0: # Handle an irrational number
+                return 0
+            else:
+                return ssxy/np.sqrt(ssxx*ssyy)
 
 
 

@@ -1,70 +1,10 @@
-import jsonschema
-
-VERSION="0.0.1"
-
-metadata_schema = {
-            "type": "object",
-            "properties": {
-                "neighbors": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "number"},
-                            "count_delta": {"type": "number"}
-                        }
-                    } # int k-mer ids
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {"type": "string"} # k-mer tags
-                },
-                "bools": {
-                    "type": "array", 
-                    "items": { # key-value boolean name, value
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "value": {"type": "boolean"}
-                        }
-                    }
-                },
-                "floats": {
-                    "type": "array",
-                    "items": { # numerical annotations, floating-point name, value
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "value": {"type": "number"}
-                        }
-                    }
-                },
-                "ints": {
-                    "type": "array",
-                    "items": { # numerical annotations, integer name, value (e.g. degree
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "value": {"type": "number"}
-                        }
-                    }
-                }
-            }
-    }
-
-node_schema = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "number"},
-        "count": {"type": "number"},
-        "metadata": metadata_schema
-    }
-}
+VERSION="0.0.2"
 
 header_schema = {
     "type": "object",
     "properties": {
-        "kdb_ver": {"type": "string"},
+        "version": {"type": "string"},
+        "metadata_blocks": {"type": "number"},
         "k": {"type": "number"},
         "metadata": {"type": "boolean"},
         "tags": {
@@ -90,13 +30,24 @@ header_schema = {
                     "total_reads": {"type": "number"},
                     "total_kmers": {"type": "number"},
                     "unique_kmers": {"type": "number"},
-                    "nullomers": {"type": "number"}
-                }
+                    "nullomers": {"type": "number"},
+                    "mononucleotides": {
+                        "type": "object",
+                        "properties": {
+                            "A": {"type": "number"},
+                            "C": {"type": "number"},
+                            "G": {"type": "number"},
+                            "T": {"type": "number"}
+                        }
+                    }
+                },
+                "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers"]
             }
         },
         "comments": {
             "type": "array",
             "items": {"type": "string"}
         }
-    }
+    },
+    "required": ["version", "metadata_blocks", "k", "tags", "files"]
 }

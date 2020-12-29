@@ -38,7 +38,7 @@ class Kmers:
         self.strand_specific = strand_specific
 
     def shred(self, seqRecord):
-        """Shred a sequence into all possible substrings of length k
+        """
 
         :param seqRecord: 
         :type seqRecord: Bio.SeqRecord.SeqRecord
@@ -46,8 +46,8 @@ class Kmers:
         :rtype: 
 
         """
-        # if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
-        #     raise TypeError("kdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+        if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
+            raise TypeError("kdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
         kmers = []
         # Each of the n-k+1 string slices become the k-mers
         for c in range(len(seqRecord.seq) - self.k + 1):
