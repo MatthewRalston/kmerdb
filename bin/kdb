@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import logging
 import argparse
@@ -6,6 +6,8 @@ import os
 import sys
 import yaml
 from multiprocessing import cpu_count
+from collections import OrderedDict
+
 
 from Bio import bgzf
 
@@ -38,7 +40,7 @@ def distances(arguments):
                 data[i][j] = ''
             else:
                 data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
-
+    print(data)
     logger.info("Printing distance matrix...")
     if len(arguments.kdb) == 2:
         print(data[0][1])
@@ -57,6 +59,7 @@ def summarize(arguments):
         print(yaml.dump(kdb.header))
 
 def profile(arguments):
+    import math
     from kdb import parse, fileutil
 
     from config import VERSION
@@ -67,30 +70,43 @@ def profile(arguments):
         db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, stranded=arguments.not_strand_specific)
         metadata.append(m)
         tempdbs.append(db)
-    header={
-        "files": metadata,
+    header=OrderedDict({
+        "version": VERSION,
+        "metadata_blocks": 1,
         "k": arguments.k,
         "metadata": False,
         "tags": [],
-        "version": VERSION
-    }
-
+        "files": metadata
+    })
+    
+    header_bytes = bgzf._as_bytes(yaml.dump(header))
+    # The number of metadata blocks is the number of bytes of the header block(s) / the number of bytes per block in the BGZF specification
+    header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # First estimate
+    header_bytes = bgzf._as_bytes(yaml.dump(header))
+    header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # Second estimate
+    logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb))    
     try:
         kdb_out = fileutil.KDBWriter(header, fileobj=open(arguments.kdb, 'wb'))
         iterating = True
         while iterating:
             # The 0th element is the count
             try:
-                recs = list(map(next, tempdbs))
-                if len(recs):
-                    i = recs[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
-                    count = sum([x[1] for x in recs]) # The 1th element is the k-mer count
+
+                kmer_counts_per_file = list(map(next, tempdbs)) # T
+                if len(kmer_counts_per_file):
+                    i = kmer_counts_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
+                    count = sum([x[1] for x in kmer_counts_per_file]) # The 1th element is the k-mer count
+                    #sys.stderr.write("\r")
+                    sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_counts_per_file)), count))
                     kdb_out.write("{0}\t{1}\n".format(i, count))
                 else:
                     iterating = False
             except StopIteration as e:
                 logger.warn("Shouldn't have encountered StopIteration error...")
+                logger.warn("Continuing anyways...")
                 iterating = False
+        logger.info("Completed the transfer of data from the temporary SQLite3 databases to the kdb file '{0}'".format(arguments.kdb))
+        logger.info("Done")
     finally:
         for db in tempdbs:
             db.conn.close()
@@ -148,14 +164,14 @@ if __name__ == '__main__':
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=range(1, cpu_count()+1), help=argparse.SUPPRESS)
+    profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help=argparse.SUPPRESS)
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help=argparse.SUPPRESS)
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
-    profile_parser.add_argument("--keep-sqlite", action="store_true", default=False, help=argparse.SUPPRESS)
+    profile_parser.add_argument("--keep-sqlite", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--not-strand-specific", action="store_false", default=True, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     #profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
-    profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<seqfile1 seqfile2 ...>", help="Fasta or fastq files")
+    profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
@@ -170,6 +186,7 @@ if __name__ == '__main__':
     dist_parser.add_argument("metric", choices=["correlation"], default=None, help="Choice of distance metric between two profiles")
     dist_parser.add_argument("kdb", nargs="+", type=str, metavar="<kdbfile1 kdbfile2 ...>", help="Two or more KDB files")
     dist_parser.set_defaults(func=distances)
+
 
     index_parser = subparsers.add_parser("index", help="Create a index file that can be held in memory")
     index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
