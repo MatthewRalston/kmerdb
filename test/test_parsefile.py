@@ -1,4 +1,5 @@
 import sys
+import os
 import unittest
 
 sys.path.append("..")
@@ -33,7 +34,9 @@ class Test_parsefile(unittest.TestCase):
         parsefile throws an OSError if it receives a filepath that doesnt exist
         """
         with self.assertRaises(OSError):
-            parse.parsefile("helloworld.txt", self.k)
+            db, header = parse.parsefile("foobar.txt", self.k)
+            db.conn.close()
+            os.unlink("foobar.txt")
 
     def test_k_is_int_only(self):
         """
@@ -111,11 +114,11 @@ class Test_parsefile(unittest.TestCase):
         testdb, headerDict = parse.parsefile(self.fasta, self.k)
         self.assertDictEqual({'filename': 'test/data/Ctetani_E88.fasta.gz',
                               'md5': '3a8682befcdba8ca6405a4bc238e6f06',
-                              'mononucleotides': {'A': 988498, 'C': 410071, 'G': 394694, 'T': 1005988},
+                              'mononucleotides': {'A': 1016563, 'C': 418556, 'G': 404380, 'T': 1033834},
                               'nullomers': 0,
                               'sha256': '438446b1081c6aa65c88cc81fbe5e65c85077f1c46951e52793f8f4bc5fe7b67',
-                              'total_kmers': 148160,
-                              'total_reads': 3,
+                              'total_kmers': 5746658,
+                              'total_reads': 2,
                               'unique_kmers': 64}
                              , headerDict)
         self.assertTrue(isinstance(testdb, database.SqliteKdb))        
