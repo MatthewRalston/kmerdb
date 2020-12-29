@@ -40,14 +40,14 @@ def distances(arguments):
                 data[i][j] = ''
             else:
                 data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
-    print(data)
+    #print(data)
     logger.info("Printing distance matrix...")
     if len(arguments.kdb) == 2:
         print(data[0][1])
     else:
         for x in range(len(arguments.kdb)):
             print("\t".join(map(str, data[x])))
-                
+
 def summarize(arguments):
     from kdb import fileutil
 
@@ -84,6 +84,7 @@ def profile(arguments):
     header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # First estimate
     header_bytes = bgzf._as_bytes(yaml.dump(header))
     header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # Second estimate
+    #header["metadata_blocks"] = 2
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb))    
     try:
         kdb_out = fileutil.KDBWriter(header, fileobj=open(arguments.kdb, 'wb'))
@@ -105,7 +106,7 @@ def profile(arguments):
                 logger.warn("Shouldn't have encountered StopIteration error...")
                 logger.warn("Continuing anyways...")
                 iterating = False
-        logger.info("Completed the transfer of data from the temporary SQLite3 databases to the kdb file '{0}'".format(arguments.kdb))
+        logger.info("Completed the transfer of data from the {0} temporary SQLite3 databases to the kdb file '{1}'".format(len(tempdbs), arguments.kdb))
         logger.info("Done")
     finally:
         for db in tempdbs:
