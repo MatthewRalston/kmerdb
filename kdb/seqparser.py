@@ -61,17 +61,17 @@ class SeqParser:
                 
         if self.compressed:
             if self.fastq:
-                logger.info("\nOpening gzipped fastq file '{0}'...".format(filepath))                
+                logger.info("Opening gzipped fastq file '{0}'...".format(filepath))
                 self._handle = SeqIO.parse(gzip.open(self.filepath, 'rt'), "fastq")
             else:
-                logger.info("\nOpening gzipped fasta file '{0}'...".format(filepath))                
+                logger.info("Opening gzipped fasta file '{0}'...".format(filepath))
                 self._handle = SeqIO.parse(gzip.open(self.filepath, 'rt'), "fasta")
         else:
             if self.fastq:
-                logger.info("\nOpening uncompressed fastq file '{0}'...".format(filepath))
+                logger.info("Opening uncompressed fastq file '{0}'...".format(filepath))
                 self._handle = SeqIO.parse(open(self.filepath, 'r'), "fastq")
             else:
-                logger.info("\nOpening uncompressed fasta file '{0}'...".format(filepath))
+                logger.info("Opening uncompressed fasta file '{0}'...".format(filepath))
                 self._handle = SeqIO.parse(open(self.filepath, 'r'), "fasta")
 
         # Get checksums
@@ -140,26 +140,33 @@ class SeqParser:
             self.total_reads += 1
             sys.stderr.write("\r")
             sys.stderr.write("Read {0} reads from '{1}'...".format(self.total_reads, self.filepath))
-            # read = self.reads.pop()
-            # self.mononucleotides["A"] += read.seq.count('A')
-            # self.mononucleotides["T"] += read.seq.count('T')
-            # self.mononucleotides["C"] += read.seq.count('C')
-            # self.mononucleotides["G"] += read.seq.count('G')
-            return self.reads.pop()
+            read = self.reads.pop()
+            self.mononucleotides["A"] += read.seq.count('A')
+            self.mononucleotides["T"] += read.seq.count('T')
+            self.mononucleotides["C"] += read.seq.count('C')
+            self.mononucleotides["G"] += read.seq.count('G')
+            # If you needed to see the fastq mononucleotides go up during parsing
+            #sys.stderr.write("\r")
+            #sys.stderr.write("Mononucleotides | A: {0}, C: {1}, G: {2}, T{3}".format(self.mononucleotides["A"], self.mononucleotides["C"], self.mononucleotides["G"], self.mononucleotides["T"]))
+            return read
 
     def _iter_fasta(self):
         return self
 
     def _next_fasta(self):
-        self.total_reads += 1
 
         seq = next(self._handle)
         self.mononucleotides["A"] += seq.seq.count('A')
         self.mononucleotides["T"] += seq.seq.count('T')
         self.mononucleotides["C"] += seq.seq.count('C')
         self.mononucleotides["G"] += seq.seq.count('G')
+
+        logger.debug("Mononucleotides | A: {0}, C: {1}, G: {2}, T: {3}".format(self.mononucleotides["A"], self.mononucleotides["C"], self.mononucleotides["G"], self.mononucleotides["T"]))
+        self.total_reads += 1
+        sys.stderr.write("\r")
+        sys.stderr.write("Read {0} sequences from '{1}'...\n".format(self.total_reads, self.filepath))
         
-        return next(self._handle)
+        return seq
         
         
 
