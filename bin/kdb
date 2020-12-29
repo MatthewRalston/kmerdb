@@ -48,15 +48,31 @@ def distances(arguments):
         for x in range(len(arguments.kdb)):
             print("\t".join(map(str, data[x])))
 
-def summarize(arguments):
+def header(arguments):
+    from kdb import fileutil
+    from config import VERSION
+
+    with fileutil.open(arguments.kdb, mode='r') as kdb:
+        if kdb.header["version"] != VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.json:
+            print(kdb.header)
+        else:
+            print(yaml.dump(kdb.header))
+    
+            
+def view(arguments):
     from kdb import fileutil
 
     from config import VERSION
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         if kdb.header["version"] != VERSION:
-            logger.warning("KDB version is out of date")
-        print(yaml.dump(kdb.header))
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.header:
+            print(yaml.dump(kdb.header))
+        for line in kdb:
+            print(line.rstrip())
 
 def profile(arguments):
     import math
@@ -176,11 +192,17 @@ if __name__ == '__main__':
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
-
-    summary_parser = subparsers.add_parser("summary", help="Print the YAML header from the first block of the kdb file")
-    summary_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    summary_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
-    summary_parser.set_defaults(func=summarize)
+    header_parser = subparsers.add_parser("header", help="Print the YAML header and exit")
+    header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
+    header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    header_parser.set_defaults(func=header)
+    
+    view_parser = subparsers.add_parser("view", help="View the contents of the kdb file")
+    view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
+    view_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    view_parser.set_defaults(func=view)
     
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
