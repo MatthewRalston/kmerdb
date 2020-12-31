@@ -264,7 +264,7 @@ class KDBReader(bgzf.BgzfReader):
                 self.profile[kmer_id] = count
         else:
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
-
+        return self.profile
 
 def setup_yaml():
     """
