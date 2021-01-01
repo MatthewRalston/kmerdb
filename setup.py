@@ -87,11 +87,23 @@ REQUIRED = [
     'biopython==1.74',
     'boto3==1.10.8',
     'botocore==1.13.8',
+    'Cython==0.29.21',
+    'distlib==0.3.0',
+    'docutils==0.15.2',
+    '-e git://github.com/MatthewRalston/ecopy.git#egg=ecopy',
     'jsonschema==3.1.1',
     'matplotlib==3.1.3',
+    'more-itertools==8.2.0',
+    'numba==0.52.0',
+    'numpy==1.18.1',
+    'pandas==1.2.0',
+    'psutil==5.8.0',
     'PyYAML==5.1.2',
     'SQLAlchemy==1.3.13',
-    'Sphinx==2.2.0']
+    'Sphinx==3.1.2',
+    'sphinx_rtd_theme==0.5.0',
+    'urllib3==1.25.8',
+    'virtualenv==20.0.8']
 
 # What packages are optional?
 EXTRAS = {

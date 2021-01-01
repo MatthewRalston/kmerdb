@@ -4,6 +4,14 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+
+* MASTHEADS
+** DEBUG_MASTHEAD
+*** other figure filepaths
+*** Memory issue regarding matrix formation
+**** Can we calculate for them how much memory would be required?
+**** Can we print that as the final line of the error?
+
 * [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
 ** Uses the LAPACK implementation
 ** 
