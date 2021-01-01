@@ -50,10 +50,13 @@ def distances(arguments):
             print("\t".join(map(str, data[x])))
 
 def get_matrix(arguments):
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
     import numpy as np
     import pandas as pd
-    from sklearn.decomposition import PCA
     import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
     
     import ecopy as ep
     from kdb import fileutil
@@ -81,8 +84,10 @@ def get_matrix(arguments):
     normalized = ep.transform(df, method="normalize", axis=0) # Normalizing across the 0th axis will normalize across the row meaning between samples. To arrive at this I checked the column sums of both to be sure I understood what was being normalized.
     # We don't necessarily need to standardize, and not standardizing will make rationalizations or sensitivity to the real number range more clear.
     if arguments.method == "Normalized":
-        normalized.to_csv(sys.stdout, sep="\t", index=False)
-    if arguments.method == "PCA":
+        normalized.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+    elif arguments.method == "Unnormalized":
+        df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+    elif arguments.method == "PCA":
         # This method is actually dimensionality reduction via SVD, and this process is used during principal components analysis.
         # We generate the elbow graph in this step if the required dimensionality parameter '-n' is not supplied.
         # In this case we assume they have not provided the parameter because they'd like to use the so-called 'auto-detection'
@@ -120,26 +125,33 @@ def get_matrix(arguments):
             score_df = pd.DataFrame(np.transpose(score_matrix), columns=column_names)
 
             
-            score_df.to_csv(sys.stdout, sep="\t", index=False)
+            score_df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
         else:
             logger.warning("You must look at '{0}' to decide on the choice of '-n' for specify when generating the dimensionally reduced matrix for clustering function".format(pca_variance_fig_filepath))
             sys.exit(1)
         #logger.debug("Components:\n{0}".format(pca.components_))
         # The shape for my first run was 10x11 and I have 11 samples. So I decided to not transpose this matrix to simply add it to a DataFrame and rename the samples.
         #df = pd.DataFrame(pca.components_, columns=list(map(lambda kdbrdr: os.path.splitext(os.path.basename(kdbrdr._filepath))[0], files)))
-        
-
+    elif arguments.method == "tSNE":
+        '''
+        In t-SNE, perplexity or k is defined as 2^S, where S is the Shannon entropy of the conditional probability distribution.
+        '''
+        print("Fix Me")
 
 
 
 def cluster(arguments):
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
     import numpy as np
     import pandas as pd
+    import matplotlib.pyplot as plt
     from sklearn import metrics
     from sklearn.cluster import KMeans
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
-    import matplotlib.pyplot as plt
+
 
     logging.getLogger('matplotlib.font_manager').disabled = True
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
@@ -214,28 +226,47 @@ def cluster(arguments):
 
     formatter_result = ("{:9s}\t{:.3f}s\t{:.0f}\t{:.3f}\t{:.3f}"
                         "\t{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}")
-    print("\t".join(["Name", "Fit_time", "Inertia", "Homogeneity_score", "Completeness_score", "V_measure_score", "Adj_rand_score", "Adj_mutual_info_score"]))
-    print(formatter_result.format(*results))
-    sys.exit(1)
+    sys.stderr.write("\t".join(["Name", "Fit_time", "Inertia", "Homogeneity_score", "Completeness_score", "V_measure_score", "Adj_rand_score", "Adj_mutual_info_score"]) + "\n")
+    sys.stderr.write(formatter_result.format(*results))
+
     #kmer_pca = pca(df, scale=False) # It's already been normalized (scaled) in get_matrix()
     #print(kmer.summary_rot())
 
 def rarefy(arguments):
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    
     from ecopy.diversity import rarefy
     import ecopy as ep
 
-    df = get_matrix(arguments)
-    
-    # PCA via ecopy (deprecated)
-    #kmer_pca = ep.pca(matrix, scale=False)
-    #kmer_pca.biplot(type='correlation', obsNames=True)
-    if len(arguments.kdb) == 1:
-        logger.warning("1 file: Untested behavior with ecopy.diversity.rarefy")
-    elif len(arguments.kdb) == 2:
-        logger.warning("2 files: Untested behavior with ecopy.diversity.rarefy")
+
+
+    if isinstance(arguments.input, argparse.FileType):
+        df = pd.read_csv(arguments.input, sep=arguments.delimiter)
+        column_names = df.columns
+        df = df.transpose()
+    elif arguments.input is None:
+        df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
+        column_names = df.columns
+        df = df.transpose()
     else:
-        logger.warning("Multiple files: Untested behavior with ecopy.diversity.rarefy")
-        test = rarefy(df, 'ecopy_rarefaction_curve.png', 'rarecurve')
+        logger.error("An unknown IO type was detected in bin/kdb.cluster()")
+        sys.exit(1)
+
+    num_samples, num_features = df.shape
+    t0 = time.time()
+
+    logger.warning("Multiple files: Untested behavior with ecopy.diversity.rarefy")
+    test = rarefy(df, 'ecopy_rarefaction_curve.png', 'rarecurve')
+    #arguments.output.write(test)
+    if arguments.output is not None and isinstance(arguments.output, argparse.FileType):
+        arguments.output.write(test)
+    else:
         print(test)
         
 
@@ -404,14 +435,17 @@ if __name__ == '__main__':
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("-k", default=None, type=int, help="The choice of k that unifies all the files")
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA. DEFAULT: auto-detect")
-    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized"], default=None, help="Choice of distance metric between two profiles")
+    matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the DataFrame with")
+    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized"], default=None, help="Choice of distance metric between two profiles")
     matrix_parser.add_argument("kdb", nargs="+", type=str, metavar="<.kdb>", help="Two or more .kdb files")
     matrix_parser.set_defaults(func=get_matrix)
     
     rarefy_parser = subparsers.add_parser("rarefy", help="Generate rarefaction information using ecopy.diversity.rarefy for the supplied .kdb files")
     rarefy_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     rarefy_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the DataFrame with")
-    rarefy_parser.add_argument("matrix", type=argparse.FileType('r'), default=sys.stdin, help="A csv/tsv of k-mer counts ")
+    rarefy_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
+    rarefy_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=None, help="The input reduced dimension or simply normalized matrix to use with K-means clustering")
+    rarefy_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default=None, help="THe output csv/tsv of rarefied data")
     rarefy_parser.set_defaults(func=rarefy)
 
     cluster_parser = subparsers.add_parser("cluster", help="Cluster the files according to their k-mer profile")
@@ -419,8 +453,8 @@ if __name__ == '__main__':
     cluster_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter of the input csv/tsv to parse, presumably produced by 'kdb matrix'.")
     cluster_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
     cluster_parser.add_argument("-k", default=None, type=int, help="The choice of k for clustering", required=True)
-    cluster_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=sys.stdin, help="The input reduced dimension or mereley normalized matrix to use with K-means clustering")
-    cluster_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default=sys.stdout, help="The output csv/tsv with added 'label' to use for graphing in R, if the matplotlib graphs are not sufficient.")
+    cluster_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=None, help="The input reduced dimension or mereley normalized matrix to use with K-means clustering")
+    cluster_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default=None, help="The output csv/tsv with added 'label' to use for graphing in R, if the matplotlib graphs are not sufficient.")
     cluster_parser.set_defaults(func=cluster)
     
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
