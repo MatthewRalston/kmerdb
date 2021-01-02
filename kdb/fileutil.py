@@ -5,8 +5,10 @@ import gzip
 import tempfile
 import yaml, json
 from collections import deque, OrderedDict
-import pdb
+import psutil
+import numpy as np
 
+#import pdb
 
 from builtins import open as _open
 
@@ -234,7 +236,35 @@ class KDBReader(bgzf.BgzfReader):
     #         self._handle.close()
     #         raise StopIteration
     #     return self._buffer
-    
+
+    def slurp(self, dtype:int="int32"):
+        """
+        A function to read an entire .kdb file into memory
+        """
+        if type(dtype) is not str:
+            raise TypeError("kdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a str")
+
+        try:
+            np.dtype(dtype)
+        except TypeError as e:
+            logger.error(e)
+            logger.error("kdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
+            raise TypeError("kdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a valid numpy data type")
+        
+        # First calculate the amount of memory required by the array
+        N = 4**self.k # The dimension of the k-space, or the number of elements for the array
+        num_bytes = 4 * N
+        vmem = psutil.virtual_memory()
+        if vmem.available > num_bytes:
+            # Do the slurp
+            self.profile = np.zeros(4**self.k, dtype="int32")
+            for kmer_id in range(N):
+                line = next(self)
+                _, count = (int(_count) for _count in line.rstrip().split("\t"))
+                self.profile[kmer_id] = count
+        else:
+            raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
+        return self.profile
 
 def setup_yaml():
     """
