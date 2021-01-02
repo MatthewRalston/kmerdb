@@ -4,6 +4,28 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+
+* MASTHEADS
+** DEBUG_MASTHEAD
+*** other figure filepaths
+*** Memory issue regarding matrix formation
+**** Can we calculate for them how much memory would be required?
+**** Can we print that as the final line of the error?
+
+* [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
+** Uses the LAPACK implementation
+** 
+* Manifold learning
+** Isomap (derived from multidimensional scaling (MDS) or Kernel PCA)
+*** Lower dimensional projectsion of the data preserving geodesic distances between all points
+** (Modified) Locally Linear Embedding
+*** Lower dimensional projection of the data preserving local neighborhood distances
+*** locally_linear_embedding or LocallyLinearEmbedding with method="modified"
+** t-SNE
+*** While isomap, LLE, and variants are best tuited to unfold a single continuous low-dimensional manifold
+*** t-SNE will focus on the local structure of the data and will tend to extract clustered local groups of samples.
+*** This ability to group samples based on the local structure might be beneficial to visually disentangle a dataset that comprises several manifolds at once.
+
 * Comment code
 ** TODO fileutil
 ** profile
