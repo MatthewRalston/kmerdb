@@ -477,8 +477,8 @@ if __name__ == '__main__':
 
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the n * 4^k (sample x k-mer) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    matrix_parser.add_argument("-k", default=None, type=int, help="The choice of k that unifies all the files")
-    matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA. DEFAULT: auto-detect")
+    matrix_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
+    matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
     matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the DataFrame with")
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
     matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized"], default=None, help="Choice of distance metric between two profiles")
