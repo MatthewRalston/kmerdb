@@ -25,12 +25,15 @@ def index_file(arguments):
     index._write_line_index(arguments.kdbi, line_index)
 
 def distances(arguments):
+    import pandas as pd
+    import numpy as np
     if len(arguments.kdb) < 2:
         logger.error("kdb distance requires at least two .kdb files.")
         sys.exit(1)
 
     from kdb import distance
     n = len(arguments.kdb)
+    filenames = list(map(lambda f: os.path.basename(f).split(".")[0], arguments.kdb))
     data = [['' for x in range(n)] for y in range(n)]
 
     for i in range(n):
@@ -38,16 +41,30 @@ def distances(arguments):
             if i == j:
                 data[i][j] = distance.identity[arguments.metric]
             elif i > j:
-                data[i][j] = ''
-            else:
+                data[i][j] = None
+            elif i < j and arguments.metric == "correlation":
+                logger.info("Calculating correlation distance between '{0}' and '{1}'...".format(arguments.kdb[i], arguments.kdb[j]))
                 data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+            else:
+                logger.error("Other distances are not implemented yet")
+                sys.exit(1)
+
+    # This double loop quickly identifies empty cells and sets the data correctly from the permutation above
+    for i in range(n):
+        for j in range(n):
+            if data[i][j] is None:
+                data[i][j] = data[j][i]
     #print(data)
-    logger.info("Printing distance matrix...")
+
     if len(arguments.kdb) == 2:
+        logger.info("Printing single distance")
         print(data[0][1])
     else:
-        for x in range(len(arguments.kdb)):
-            print("\t".join(map(str, data[x])))
+        logger.info("Printing distance matrix...")
+        df = pd.DataFrame(np.array(data), columns=filenames)
+        df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+        # for x in range(n):
+        #     print("\t".join(map(str, data[x])))
 
 def get_matrix(arguments):
     logging.getLogger('matplotlib.font_manager').disabled = True
@@ -369,7 +386,7 @@ def profile(arguments):
     #header["metadata_blocks"] = 2
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb))    
     try:
-        kdb_out = fileutil.KDBWriter(header, fileobj=open(arguments.kdb, 'wb'))
+        kdb_out = fileutil.open(arguments.kdb, 'wb', header)
         iterating = True
         while iterating:
             # The 0th element is the count
@@ -380,7 +397,8 @@ def profile(arguments):
                     i = kmer_counts_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
                     count = sum([x[1] for x in kmer_counts_per_file]) # The 1th element is the k-mer count
                     #sys.stderr.write("\r")
-                    sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_counts_per_file)), count))
+                    if arguments.verbose == 2:
+                        sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_counts_per_file)), count))
                     kdb_out.write("{0}\t{1}\n".format(i, count))
                 else:
                     iterating = False

@@ -18,7 +18,7 @@ import boto3
 sys.path.append('..')
 
 import config
-from kdb import kmer, database
+from kdb import kmer, database, util
 
 # Logging configuration
 import logging
@@ -65,15 +65,19 @@ def _s3_file_download(self, seqpath, temporary=True):
     return filepath.name
 
 
-def open(filepath, mode="r"):
+def open(filepath, mode="r", *args):
     if type(filepath) is not str:
         raise TypeError("kdb.fileutil.open expects a str as its first positional argument")
     elif type(mode) is not str:
         raise TypeError("kdb.fileutil.open expects the keyword argument 'mode' to be a str")
+    elif "w" in mode and (len(args) != 1 or not isinstance(args[0], OrderedDict)):
+        raise TypeError("kdb.fileutil.open expects an additional header dictionary")
     modes = set(mode)
     if modes - set("xrwbt") or len(mode) > len(modes):
         raise ValueError("invalid mode: {}".format(mode))
 
+
+    
     creating = "x" in modes
     reading  = "r" in modes
     writing  = "w" in modes
@@ -86,9 +90,9 @@ def open(filepath, mode="r"):
         raise ValueError("must have exactly one or read/write")
 
     if "r" in mode.lower():
-        return KDBReader(filepath, mode=mode)
+        return KDBReader(filename=filepath, mode=mode)
     elif "w" in mode.lower() or "a" in mode.lower():
-        return KDBWriter(filepath, mode=mode)
+        return KDBWriter(args[0], filename=filepath, mode=mode)
     else:
         raise ValueError("Bad mode %r" % mode)
 
@@ -127,11 +131,11 @@ class KDBReader(bgzf.BgzfReader):
         # 0th block
         logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
         self._load_block(handle.tell())
-        header_data = yaml.safe_load(self._buffer)
+        header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
         if type(header_data) is str:
             raise TypeError("kdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
-        elif type(header_data) is dict:
+        elif type(header_data) is OrderedDict:
             logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
             if "version" not in header_data.keys():
                 raise TypeError("kdb.fileutil.KDBReader couldn't validate the header YAML")
@@ -277,7 +281,7 @@ def setup_yaml():
 
     
 class KDBWriter(bgzf.BgzfWriter):
-    def __init__(self, header:dict, filename=None, mode="w", fileobj=None, compresslevel=6):
+    def __init__(self, header:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
         if not isinstance(header, OrderedDict):
             raise TypeError("kdb.fileutil.KDBWriter expects a valid header object as its first positional argument")
@@ -311,9 +315,11 @@ class KDBWriter(bgzf.BgzfWriter):
         Write the header to the file
         """
         logger.info("Constructing a new kdb file '{0}'...".format(self._handle.name))
-        logger.debug("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
-        setup_yaml()
-        header_bytes = bgzf._as_bytes(yaml.dump(self.header))
+        logger.info("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
+        logger.debug(self.header)
+        logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.header, sort_keys=False)))
+        yaml.add_representer(OrderedDict, util.represent_ordereddict)
+        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
         for i in range(self.header["metadata_blocks"]):
             header_slice = header_bytes[:65536]
             header_bytes = header_bytes[65536:]
