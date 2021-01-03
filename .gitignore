@@ -6,3 +6,5 @@
 __pycache__
 kdb/__pycache__
 **.kdb
+_site
+Gemfile.lock

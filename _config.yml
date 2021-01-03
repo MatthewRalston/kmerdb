@@ -1,6 +1,62 @@
----
-exclude: ['README.markdown']
-permalink: ':title'
-pygments: true
-safe: false
-title: 'K-mer Database [.kdb]'
+# site settings
+title: kdb
+subtitle: A Pythonic k-mer module and CLI for k-mer calculations. 
+email: mrals89@gmail.com
+description: A bgzf file format for the analysis and storage of k-mer abundances.
+baseurl: "/" # the subpath of your site, e.g. /blog
+url: # the base hostname & protocol for your site
+author:
+  name: "Matthew Ralston"
+  email: mralston.development@gmail.com
+  url: "https://matthewralston.github.io"
+  twitter: "TheWaterAndWind"
+
+street_address: 1170 Old Wilmington Rd.
+city: Hockessin
+state: DE
+zip_code: 19707
+country: United States of America
+phone: (302) 547-2437
+
+# homepage tiles
+tiles-source: pages # accepts "posts" or "pages"
+tiles-count: 6
+
+
+
+google_analytics: UA-158080285-1
+
+plugins:
+  - jekyll-toc
+  - kramdown
+  - rouge
+
+
+exclude: 
+  - Gemfile
+  - forty_jekyll_theme.gemspec
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# social settings
+500px_url:
+facebook_url: https://facebook.com/matthewthomasralston
+github_url: https://github.com/MatthewRalston/kdb
+linkedin_url: https://www.linkedin.com/in/matthewralston
+#patreon_url: https://www.patreon.com/TheWaterAndWind
+reddit_url: https://www.reddit.com/user/SomePersonWithAFace
+spotify_url: https://open.spotify.com/user/waterandwindmusic
+
+# build settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+
+sass:
+  style: compressed

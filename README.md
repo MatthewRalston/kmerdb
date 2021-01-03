@@ -1,68 +1,73 @@
-## The "What ?" and the "Why ?"
+# Forty - Jekyll Theme
 
-**Carte** is a simple Jekyll based documentation website for APIs. It is designed as a boilerplate to build your own documentation and is heavily inspired from [Swagger](http://swagger.wordnik.com/) and [I/O docs](http://www.mashery.com/product/io-docs). Fork it, add specifications for your APIs calls and customize the theme. <small>Go ahead, see if we care.</small>
+A Jekyll version of the "Forty" theme by [HTML5 UP](https://html5up.net/).  
 
-We built **Carte** because the existing options (Swagger and the likes) were trying to do too much and did not match our needs:
+![Forty Theme](assets/images/forty.jpg "Forty Theme")
 
-1. Most of our API calls are sending JSON objects, as opposed to a series of parameters,
-1. Being able to query the real API is nice, but running anything but `GET` calls can get tricky ("What do you mean I deleted my stuff? I was just trying out the API calls!"),
-1. Overall, setting up a separate server for what really requires a good static documentation seemed overkill.
+# How to Use
 
-The real value of **Carte** is its structure for describing APIs, not its underlying technical stack (or lack-thereof). In a nutshell; **we built a static template for your API documentation, feel free to re-use it**.
+For those unfamiliar with how Jekyll works, check out [jekyllrb.com](https://jekyllrb.com/) for all the details, 
+or read up on just the basics of [front matter](https://jekyllrb.com/docs/frontmatter/), [writing posts](https://jekyllrb.com/docs/posts/), 
+and [creating pages](https://jekyllrb.com/docs/pages/).
 
-## Install
+- **GitLab**: Simply fork this repository and start editing the `_config.yml` file!  
+- **GitHub**: Fork this repository and create a branch named `gh-pages`, then start editing the `_config.yml` file.
 
-It' Jekyll god dammit:
+# Added Features
 
-1. Clone this repository on your local,
-1. [Install Jekyll](https://github.com/mojombo/jekyll/wiki/install),
-1. Go at the root of the repository and run ```jekyll serve --watch```,
-1. Go to http://localhost:4000,
-1. [Great success! High five!](http://www.youtube.com/watch?v=wWWyJwHQ-4E)
+* **[Formspree.io](https://formspree.io/) contact form integration** - just add your email to the `_config.yml` and it works!
+* Use `_config.yml` to **set whether the homepage tiles should pull pages or posts**, as well as how many to display.
+* Add your **social profiles** easily in `_config.yml`. Only social profiles buttons you enter in `config.yml` show up on the site footer!
+* Set **featured images** in front matter.
 
-## How to...
+# Issues
 
-### Adding a new API call
+If you would like to report a bug, ask a question, request a feature, feel free to do so on [the GitLab repository](https://gitlab.com/andrewbanchich/forty-jekyll-theme) and I will be more than happy to help!
 
-You can add a new API call by simply adding a new post in the `_posts` folder. Jekyll by default forces you to specify a date in the file path: it makes us sad pandas too, but you'll have to stick to this format. You can use dates to control the order in which API calls are displayed in the interface.
+Alternatively, you can open an issue via email by emailing [incoming+andrewbanchich/forty-jekyll-theme@incoming.gitlab.com](mailto:incoming+andrewbanchich/forty-jekyll-theme@incoming.gitlab.com).
 
-Each API call can define a few values in its YAML header:
+The GitHub repository is simply a mirror of the GitLab repository.
 
-Variable | Mandatory | Default | Description
---- | --- | --- | ---
-``title`` | Y | - | A short description of what that calls does.
-``path`` | N | - | The URL for the API call, including potential parameters.
-``type`` | N | - | Set it to `PUT`, `GET`, `POST`, `DELETE` or nothing (for parts of your documentation that do not relate to an actual API call).
+# Credits
 
-A typical header:
+Original README from HTML5 UP:
 
 ```
----
-path: '/stuff/:id'
-title: 'Delete a thing'
-type: 'DELETE'
+Forty by HTML5 UP
+html5up.net | @ajlkn
+Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
 
-layout: nil
----
+
+This is Forty, my latest and greatest addition to HTML5 UP and, per its incredibly
+creative name, my 40th (woohoo)! It's built around a grid of "image tiles" that are
+set up to smoothly transition to secondary landing pages (for which a separate page
+template is provided), and includes a number of neat effects (check out the menu!),
+extra features, and all the usual stuff you'd expect. Hope you dig it!
+
+Demo images* courtesy of Unsplash, a radtastic collection of CC0 (public domain) images
+you can use for pretty much whatever.
+
+(* = not included)
+
+AJ
+aj@lkn.io | @ajlkn
+
+
+Credits:
+
+	Demo Images:
+		Unsplash (unsplash.com)
+
+	Icons:
+		Font Awesome (fortawesome.github.com/Font-Awesome)
+
+	Other:
+		jQuery (jquery.com)
+		html5shiv.js (@afarkas @jdalton @jon_neal @rem)
+		background-size polyfill (github.com/louisremi)
+		Misc. Sass functions (@HugoGiraudel)
+		Respond.js (j.mp/respondjs)
+		Skel (skel.io)
 ```
 
-We then describe the request and response (or whatever else you wish to talk about) in the body of our post. Check the placeholders present in the `_posts` folder to get an idea of what it can look like.
-
-### Grouping calls
-
-Adding a category to your YAML header will allows you to group methods in the navigation. It is particularly helpful as you start having a lot of methods and need to organize them. For example:
-
-```
----
-category: Stuff
-path: '/stuff/:id'
-title: 'Delete a thing'
-type: 'DELETE'
-
-layout: nil
----
-```
-
-### Edit the design
-
-The default UI is mostly described through the `css/style.css` file and a couple short jQuery scripts in the `/_layouts/default.html` layout. Hack it to oblivion.
+Repository [Jekyll logo](https://github.com/jekyll/brand) icon licensed under a [Creative Commons Attribution 4.0 International License](http://choosealicense.com/licenses/cc-by-4.0/).
