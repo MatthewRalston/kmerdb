@@ -10,6 +10,8 @@ Thank you to the authors of kPAL and Jellyfish for the early inspiration. And th
 
 The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project has begun under GPL v3.0 and hopefully could gain some interest.
 
+Also thank you to patelvivek (github/viviensio) for the Github ribbon on this page.
+
 
 Thanks to my former mentors BC, MR, IN, CR, and my newer bosses PJ and KL.
 Thanks of course to Liftco Gymdustries for the facelift.
