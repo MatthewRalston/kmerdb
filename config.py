@@ -1,4 +1,4 @@
-VERSION="0.0.2"
+VERSION="0.0.3"
 
 header_schema = {
     "type": "object",
