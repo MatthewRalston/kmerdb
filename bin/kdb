@@ -334,13 +334,15 @@ def rarefy(arguments):
 def header(arguments):
     from kdb import fileutil
     from config import VERSION
+    from kdb import util
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         if kdb.header["version"] != VERSION:
             logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
         if arguments.json:
-            print(kdb.header)
+            print(dict(kdb.header))
         else:
+            yaml.add_representer(OrderedDict, util.represent_ordereddict)
             print(yaml.dump(kdb.header))
     
             

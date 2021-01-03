@@ -38,7 +38,7 @@ Development installation:
 git clone https://github.com/MatthewRalston/kdb.git
 pip install -r requirements.txt#requirements-dev.txt
 PYTHONPATH=$PYTHONPATH:$(pwd)
-pip install -e
+pip install -e .
 ```
 
 ## Usage Example
@@ -51,52 +51,27 @@ kdb summary --help
 # Build a [composite] profile to a new or existing .kdb file
 kdb profile example1.fq.gz example2.fq.gz profile.kdb
 # Calculate similarity between two (or more) profiles
-kdb similarity profile1.kdb profile2.kdb (...)
+kdb distance correlation profile1.kdb profile2.kdb (...)
 ```
 
-API usage
-
-```python
-from kdb import fileutil, kmer_util, profile
-
-# Read a kdb file
-kdb_rdr = fileutil.KDBReader(open("example.kdb", 'rb'))
-kdb_rdr.read_profile()
-
-# Print a profile (a lightweight wrapper around array.array)
-for c in kdb_rdr.profile:
-  print(c)
-
-# Create a KDB object
-kdb = fileutil.KDB(kdbrdr.profile, kdbrdr.header)
-
-# ... do something with the KDB object
-
-# Create a KDB index
-
-idx = index.IndexBuilder(kdb, kdb_rdr)
-index_tuple = idx._index_lines()
-
-# Save a kdb file
-kdb_wrtr = fileutil.KDBWriter(open("example.kdb", 'wb'), kdb_rdr.get_header)
-kdb_wrtr.write_profile(composite_profile, k)
-```
 
 ## Documentation
 
-Check out the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
+Check out the [main webpage](https://matthewralston.github.io/kdb) and the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
 
 ## Development
 
 ```bash
-pipenv run mamba test/*_spec.py
+python setup.py test
 ```
 
 ## License
 
-Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.us) - [Email](mailto:mrals89@gmail.com)
+Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.github.io) - [Email](mailto:mrals89@gmail.com)
 
-Distributed under the GPL v3.0 license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
+Distributed under the Apache license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
+
+
 
 ## Contributing
 
@@ -112,7 +87,7 @@ Thank you to the authors of kPAL and Jellyfish for the early inspiration. And th
 
 The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project has begun under GPL v3.0 and hopefully could gain some interest.
 
-More on the flip-side. Literally. And figuratively. It's so complex with technology these days.
+More on the flip-side of this file. Literally. And figuratively. It's so complex with technology these days.
 
 <!--
 Thanks to my former mentors BC, MR, IN, CR, and my newer bosses PJ and KL.
@@ -124,5 +99,5 @@ Thanks to Rachel for the good memories and friendship.
 Thanks to Yasmeen for the usual banter.
 Thanks to Max, Robin, and Robert for the halfway decent memories in St. Louis.
 And thanks to my family and friends.
-Go Blue Hens
+Go Blue Hens 2021.
 -->

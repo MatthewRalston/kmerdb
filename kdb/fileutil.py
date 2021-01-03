@@ -270,15 +270,6 @@ class KDBReader(bgzf.BgzfReader):
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
         return self.profile
 
-def setup_yaml():
-    """
-    https://stackoverflow.com/a/8661021
-    """
-    represent_dict_order = lambda self, data: self.represent_mapping('tag:yaml.org,2002:map', data.items())
-    yaml.add_representer(OrderedDict, represent_dict_order)
-
-
-
     
 class KDBWriter(bgzf.BgzfWriter):
     def __init__(self, header:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
