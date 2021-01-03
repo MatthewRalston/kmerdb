@@ -19,7 +19,7 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 ## Summary 
 
-KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It generates a [De Brujin graph](https://en.wikipedia.org/wiki/De_Bruijn_graph) from the k-mer spectrum of fasta or fastq sequencing data and stores the graph and spectrum to the `.kdb` format spec, a bgzf file similar to BAM. 
+KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. A per-kmer metadata feature is planned for the future. The k-mer spectrum of the fasta or fastq sequencing data is stored in the `.kdb` format spec, a bgzf file similar to `.bam`.
 
 The principle goal of the library is k-mer statistics and rapid access to specific k-mers and associated abundances with a Python CLI and API. Other goals include access to the k-mer count distribution, k-mer transition probabilities, and more by leveraging the bgzf specification. Another low-hanging fruit could be approximating demultiplexing coefficients for artificial metagenomes.
 
@@ -38,6 +38,7 @@ Development installation:
 git clone https://github.com/MatthewRalston/kdb.git
 pip install -r requirements.txt#requirements-dev.txt
 PYTHONPATH=$PYTHONPATH:$(pwd)
+pip install -e
 ```
 
 ## Usage Example
