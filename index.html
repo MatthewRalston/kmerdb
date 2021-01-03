@@ -3,10 +3,12 @@ layout: default
 ---
 
 <nav id='sidebar'>
-	{% include nav.html %}
+    {% include nav.html %}
 </nav>
 
 <section id='content'>
+
+    <img class="right" src="https://matthewralston.github.io/assets/img/dna-3888228__480.jpg" alt="The k-mer database project" width=700px height=393px>
 {% for post in site.posts %}
   <article class='{{ post.type }}'>
     <a name='{{ post.url }}' href='#{{ post.url }}'><h2>{% if post.type %}<code><b>{{ post.type }}</b> {{ post.path }}</code> {% endif %}{{ post.title }}</h2></a>
@@ -14,5 +16,17 @@ layout: default
       {{ post.content }}
     </section>
   </article>
-{% endfor %}
+  {% endfor %}
+
+  
 </section>
+<script>
+ /**
+  * Fork me baby
+  **/
+ forkMeBaby({
+     position: 'bottom-left',
+     link: 'https://www.github.com/MatthewRalston/kdb',
+     sticky: true
+ });
+</script>
