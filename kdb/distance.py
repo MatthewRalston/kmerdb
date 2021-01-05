@@ -11,12 +11,17 @@ from kdb import kmer, fileutil
 
 identity = {
     'correlation': '1.0',
+    'euclidean'  : '0.0',
     'hamming'    : '1.0',
-    'euclidean'  : '0.0'
+    'spearman'   : '1.0'
 }
 
 
 def correlation(fname1, fname2):
+    if type(fname1) is not str:
+        raise TypeError("kdb.distance.correlation expects a str as its first positional argument")
+    elif type(fname2) is not str:
+        raise TypeError("kdb.distance.correlation expects a str as its second positional argument")
     k = None
     with fileutil.open(fname1, mode='r') as kdb1:
         with fileutil.open(fname2, mode='r') as kdb2:
@@ -52,6 +57,39 @@ def correlation(fname1, fname2):
 
 
 
+def euclidean(fname1, fname2):
+    from math import sqrt
+    if type(fname1) is not str:
+        raise TypeError("kdb.distance.euclidean expects a str as its first positional argument")
+    elif type(fname2) is not str:
+        raise TypeError("kdb.distance.euclidean expects a str as its second positional argument")
+    k = None
+    sum_of_squared_differences = 0
+    with fileutil.open(fname1, mode='r') as kdb1:
+        with fileutil.open(fname2, mode='r') as kdb2:
+            if k is None:
+                k = kdb1.header['k']
+            if k != kdb1.header['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.header['k'], k))
+            elif k != kdb2.header['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.header['k'], k))
+            N = 4 ** k
+
+            for kmer_id in range(N):
+                line1 = next(kdb1)
+                line2 = next(kdb2)
+                _, x = (int(_x) for _x in line1.rstrip().split("\t"))
+                _, y = (int(_y) for _y in line2.rstrip().split("\t"))
+                sum_of_squared_differences += (x - y)**2
+            return sqrt(sum_of_squared_differences)
+
+
+def spearman(x, y):
+    from scipy.stats import spearmanr
+    cor, pval = spearmanr(x, b=y)
+    return cor, pval
+
+        
 def hamming(k, x, y):
     sum = 0
     for i in range(len(x)):
