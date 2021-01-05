@@ -4,13 +4,16 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+* TODO arguments.method == "Biopython (has a FIXME in bin/kdb)
+** Check this [[https://www.analyticsvidhya.com/blog/2019/05/beginners-guide-hierarchical-clustering/][link]]
+** Needs a euclidean distance matrix
 
-* MASTHEADS
-** DEBUG_MASTHEAD
-*** other figure filepaths
-*** Memory issue regarding matrix formation
-**** Can we calculate for them how much memory would be required?
-**** Can we print that as the final line of the error?
+* Need an Rmd and a report directory that autopopulates a report
+** 
+
+* Priorities
+** Connect this to meme suite
+** 
 
 * [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
 ** Uses the LAPACK implementation
