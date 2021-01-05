@@ -116,6 +116,21 @@ DONE = """
 """
 
 
+DISTANCE_MASTHEAD = """
+
+==========================================
+           ./bin/kdb distance
+==========================================
+
+Distance matrix generation beginning!
+
+Distance matrix will be written to STDOUT as this is the first step of the pipeline.
+
+"""
+for i in range(42, 1, -1):
+    DISTANCE_MASTHEAD += i*"=" + "\n"
+
+
 MATRIX_MASTHEAD = """
 
 ==========================================
@@ -131,18 +146,29 @@ for i in range(42, 1, -1):
     MATRIX_MASTHEAD += i*"=" + "\n"
 
 
-CLUSTER_MASTHEAD = """
+KMEANS_MASTHEAD = """
 
 ==========================================
-           ./bin/kdb cluster
+           ./bin/kdb kmeans
 ==========================================
 
 K-means clustering beginning!
 
 """
 for i in range(42, 1, -1):
-    CLUSTER_MASTHEAD += i*"=" + "\n"
+    KMEANS_MASTHEAD += i*"=" + "\n"
 
+
+HIERARCHICAL_MASTHEAD = """
+
+==========================================
+           ./bin/kdb hierarchical
+==========================================
+
+Hierarchical clustering beginning!
+
+"""
+    
 RAREFY_MASTHEAD = """
 
 ==========================================
@@ -197,7 +223,7 @@ parallel 'kdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.g
 #
 #
 ##################
-# Cluster analysis
+# PCA + k-means
 ##################
 # The first step ('kdb matrix') generates one from different profiles with the same choice of k.
 # This command uses ecopy to normalize between sample k-mer total counts before PCA/tSNE.
@@ -206,23 +232,24 @@ parallel 'kdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.g
 # will be produced named '{0}'. Please use this graph to select
 # the number of principal components to use.
 # The pipeline will not continue until -n $N is selected by the user.
-# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kdb cluster'
+# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kdb kmeans'
 # 
 # The PCA/tSNE matrix will be dimReduced ($N) * N, where N is the number of samples/files/profiles.
 #
 # And finally, a k-means clustering will be done on the reduced dimensionality dataset
+# Please note the randomness parameter 'random_state=42' for sklearn's kmeans is fixed at 42.
 # Note here that the -k $K is not related to the choice of substring length 'k' for profile generation.
-# The 'kdb cluster' command produces two figures, first is an elbow graph looking at up to N clusters.
+# The 'kdb kmeans' command produces two figures, first is an elbow graph looking at up to N clusters.
 # This elbow graph will be written to '{1}'.
 # The second is the more typical scatterplot of the first two reduced dimensions
 # and the k-means clustering labels shown over the scatter.
 # This file will be written to '{2}'.
-kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb cluster -k $K
-
+kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb kmeans -k $K sklearn
+kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb kmeans -k $K --distance e Biopython
 #
 # If you wanted to save a matrix from kdb matrix for use on your own
 # it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
-# which we will see is used downstream in the rarefaction analytical pathway.
+# which we will see is used downstream in the rarefaction and hierarchical analytics pathways.
 #
 ##################
 # Rarefaction
@@ -230,5 +257,18 @@ kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb cluster -k $K
 # The Unnormalized and Normalized matrices go to ecopy's rarefy function to produce a rarefaction plot
 # This plot will be written to '{3}'.
 kdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb | kdb rarefy
+
+
+##################
+# Hierarchical
+##################
+#
+# The Normalized matrix goes to the distance subcommand, which can use any of scipy's pdist distances
+# to form the m x m distance matrix.
+# The third step (kdb hierarchical)  is to build a dendrogram with scipy.cluster.hierarchy.
+# This final step produces a plot in addition to the tsvs produced in the prior steps,
+# which can be captured as independent steps or with tee in a pipeline.
+kdb matrix [ Normalized ] test/data/*.$K.kdb | kdb distance spearman | kdb hiearchical
+
 '''.format(*files)
 
