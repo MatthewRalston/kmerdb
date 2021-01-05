@@ -406,7 +406,7 @@ def hierarchical(arguments):
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-
+    import scipy.cluster.hierarchy as shc
 
     from Bio.Cluster import treecluster
     
@@ -435,8 +435,14 @@ def hierarchical(arguments):
     logger.info("Input DataFrame shape: {0}".format(df.shape))
 
     #tree = treecluster(distancematrix=np.array(df)) # Can this be exported to Newick?
+    plt.figure(figsize=(16, 9)) # figsize=(10, 7)
+    plt.title("Dendrogram")
+    dend = shc.dendrogram(shc.linkage(df, method=arguments.method), labels=column_names, leaf_rotation=90)
+    #plt.show()
+    plt.savefig(config.hierarchical_clustering_dendrogram_fig_filepath)
 
-    
+    sys.stderr.write("Saving the dendrogram to '{0}'...".format(config.hierarchical_clustering_dendrogram_fig_filepath))
+    sys.stderr.write(config.DONE)
 
 def rarefy(arguments):
     logging.getLogger('matplotlib.font_manager').disabled = True
@@ -684,7 +690,7 @@ if __name__ == '__main__':
     hierarchical_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     hierarchical_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
     hierarchical_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=None, help="The input distance matrix for hierarchical clustering")
-    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["ward"], default="ward", help="The method for linkage fitting in R to use")
+    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["singe", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting in R to use")
     hierarchical_parser.set_defaults(func=hierarchical)
     
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
