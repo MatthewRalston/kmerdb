@@ -89,6 +89,8 @@ The intention is that more developers would want to add functionality to the cod
 
 More on the flip-side of this file. Literally. And figuratively. It's so complex with technology these days.
 
+Also thank you to patelvivek (github/viensio) for the Github forking ribbon on the kdb website.
+
 <!--
 Thanks to my former mentors BC, MR, IN, CR, and my newer bosses PJ and KL.
 Thanks to the Pap lab for the first dataset that I continue to use.
