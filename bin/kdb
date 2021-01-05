@@ -127,10 +127,11 @@ def get_matrix(arguments):
     from sklearn.decomposition import PCA
     from sklearn.manifold import TSNE
     
-    import ecopy as ep
     from kdb import fileutil
     import config
 
+
+    
     if len(arguments.kdb) > 1:
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.kdb))
         if arguments.k is None:
@@ -146,12 +147,18 @@ def get_matrix(arguments):
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
 
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
+        logger.info("============================================================")
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
+        logger.info("============================================================")
+
         column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
         df = pd.DataFrame(profiles, columns=column_names)
-    elif len(arguments.kdb) == 1:
-        logger.info("Hidden: 1 argument. Reading input as tsv")
-        df = pd.read_csv(arguments.kdb[0])
+    elif len(arguments.kdb) == 1 and (arguments.kdb == "STDIN" or arguments.kdb == "/dev/stdin"):
+        logger.info("Hidden: 1 argument. Reading input as tsv from STDIN")
+        df = pd.read_csv(arguments.kdb[0], sep=arguments.delimiter)
+    elif len(arguments.kdb) == 1 and (os.path.splitext(arguments.kdb[0])[-1] == "tsv"):
+        logger.info("Hidden: 1 argument. Reading input as tsv from {0}".format(arguments.kdb[0]))
+        df = pd.read_csv(arguments.kdb[0], sep=arguments.delimiter)
     else:
         logger.error("bin/kdb.get_matrix() received {0} arguments as input, and this is not supported.".format(len(arguments.kdb)))
         sys.exit(1)
@@ -160,15 +167,60 @@ def get_matrix(arguments):
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.MATRIX_MASTHEAD)
 
-    logger.info("Normalizing the DataFrame for sample size with ecopy...")
-    normalized = ep.transform(df, method="normalize", axis=0) # Normalizing across the 0th axis will normalize across the row meaning between samples. To arrive at this I checked the column sums of both to be sure I understood what was being normalized.
-    # We don't necessarily need to standardize, and not standardizing will make rationalizations or sensitivity to the real number range more clear.
+
     final_df = None
     if arguments.method == "Normalized":
-        normalized.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+        if arguments.normalize_with == "ecopy":
+            import ecopy as ep
+            logger.info("Normalizing the DataFrame for sample size with ecopy...")
+            normalized = ep.transform(df, method="normalize", axis=0) # Normalizing across the 0th axis will normalize across the row meaning between samples. To arrive at this I checked the column sums of both to be sure I understood what was being normalized.
+        elif arguments.normalize_with == "DESeq2":
+        
+            # We don't necessarily need to standardize, and not standardizing will make rationalizations or sensitivity to the real number range more clear.
+            logger.info("Normalizing the DataFrame with DESeq2 NB-compatible count normalization via rpy2...")
+            '''
+            The following was shown to me by the following medium post.
+            https://w1ndy.medium.com/calling-r-libraries-from-python-5ffbf3c3e5a8
+            '''
+            from rpy2.robjects.packages import importr, PackageNotInstalledError
+            from rpy2.robjects import FloatVector, DataFrame, r, pandas2ri, Formula
+            pandas2ri.activate()
+            try:
+                #fitdistrplus = importr('fitdistrplus')
+                deseq = importr('DESeq2')
+                count_matrix = pandas2ri.py2rpy(df)
+                ncol = r['ncol']
+                seq = r['seq']
+                colData = pd.DataFrame(np.transpose(column_names), columns=["Species"])
+                logger.info("colData:\n{0}".format(colData))
+                
+                dds = r['DESeqDataSetFromMatrix'](count_matrix, colData, Formula('~ Species'))
+                logger.info("DESeq dataset:\n{0}".format(str(dds)))
+                dds = r['estimateSizeFactors'](dds)
+                
+                normalized = r['counts'](dds, normalized = True)
+                if not arguments.normalized_ints:
+                    normalized = np.array(np.rint(normalized), dtype="int32")
+                normalized = pd.DataFrame(normalized, columns=column_names)
+                logger.debug(normalized)
+                logger.info("Normalized matrix shape: {0}".format(normalized.shape))
+
+                #     if arguments.method == "Unnormalized":
+                #         cf = r['descdist'](r_dataframe, discrete=True)
+                #     else:
+                #         cf = r['descdist'](r_dataframe, discrete=False)
+            except PackageNotInstalledError as e:
+                logger.error(e)
+                logger.error("One or more R packages were not installed. Please see the install documentation about installing the associated R packages")
+                sys.exit(1)
+        #normalized.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
+
+        # logger.error("False ending of Normalized")
+        # logger.debug("final_df should be set as normalized")
+        # sys.exit(1)
         final_df = normalized
     elif arguments.method == "Unnormalized":
-        df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+        #df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = df
     elif arguments.method == "PCA":
         # This method is actually dimensionality reduction via SVD, and this process is used during principal components analysis.
@@ -207,7 +259,7 @@ def get_matrix(arguments):
             score_matrix = pca.transform(np.transpose(normalized))
             score_df = pd.DataFrame(np.transpose(score_matrix), columns=column_names)
 
-            score_df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+            #score_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
             final_df = score_df
         else:
             logger.warning("You must look at '{0}' to decide on the choice of '-n' for specify when generating the dimensionally reduced matrix for clustering function".format(pca_variance_fig_filepath))
@@ -223,32 +275,14 @@ def get_matrix(arguments):
             raise TypeError("'kdb matrix tSNE' requires a keyword argument '-n' equal to the number of components of the subspace for tSNE to project the data into. A choice of 2 is recommended")
         tsne = TSNE(n_components=arguments.n, perplexity=arguments.perplexity).fit_transform(np.transpose(normalized))
         tsne_df = pd.DataFrame(np.transpose(tsne), columns=column_names)
-        tsne_df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+        #tsne_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = tsne_df
+    final_df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=arguments.with_index)
     logger.info("Done printing {0} matrix to STDOUT".format(arguments.method))
 
-    # logger.info("Beginning distribution analysis in R...")
-    # '''
-    # The following was shown to me by the following medium post.
-    # https://w1ndy.medium.com/calling-r-libraries-from-python-5ffbf3c3e5a8
-    # '''
-    # from rpy2.robjects.packages import importr, PackageNotInstalledError
-    # from rpy2.robjects import FloatVector, DataFrame, r, pandas2ri
-    # pandas2ri.activate()
-    # try:
-    #     importr('fitdistrplus')
-    #     r_dataframe = pandas2ri.py2rpy(final_df)
-
-    #     if arguments.method == "Unnormalized":
-    #         cf = r['descdist'](r_dataframe, discrete=True)
-    #     else:
-    #         cf = r['descdist'](r_dataframe, discrete=False)
-    # except PackageNotInstalledError as e:
-    #     logger.error(e)
-    #     logger.error("One or more R packages were not installed. Please see the install documentation about installing the associated R packages")
-
-
-        
+    logger.info("Beginning distribution analysis in R...")
+    logger.warn("Not implemented in Python...")
+    
     sys.stderr.write(config.DONE)
 
 
@@ -657,9 +691,15 @@ if __name__ == '__main__':
 
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the n * 4^k (sample x k-mer) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    matrix_parser.add_argument("--with-index", default=False, action="store_true", help="Print the row indices as well")
+    matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
+    matrix_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. DEFAULT: '\t'")
+        
+    matrix_parser.add_argument("--normalize-with", type=str, choices=["ecopy", "DESeq2"], default="DESeq2", help="Normalize with which method? DEFAULT: DESeq2")
+    matrix_parser.add_argument("--no-normalized-ints", action="store_true", default=False, help="Don't round normalized counts to the nearest integer")
     matrix_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
-    matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the DataFrame with")
+
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
     matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized"], default=None, help="Choice of distance metric between two profiles")
     matrix_parser.add_argument("kdb", nargs="+", type=str, metavar="<.kdb>", help="Two or more .kdb files")

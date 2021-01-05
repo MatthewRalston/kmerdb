@@ -90,7 +90,6 @@ REQUIRED = [
     'Cython==0.29.21',
     'distlib==0.3.0',
     'docutils==0.15.2',
-    '-e git://github.com/MatthewRalston/ecopy.git#egg=ecopy',
     'jsonschema==3.1.1',
     'matplotlib==3.1.3',
     'more-itertools==8.2.0',
@@ -139,9 +138,11 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+    package_dir={'kdb': 'kdb'},
+    package_data={'kdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd']},
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['kdb'],
-    scripts=['bin/kdb'],
+    scripts=['bin/kdb', 'bin/kdb_report.R'],
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
