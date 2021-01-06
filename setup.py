@@ -76,6 +76,7 @@ NAME = 'kmerdb'
 DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
 URL = 'https://github.com/MatthewRalston/kmerdb'
+CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/0.0.3.tar.gz"
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
@@ -105,11 +106,13 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
+    download_url=CURRENT_RELEASE,
+    keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
     classifiers=[
         "Development Status :: 1 - Planning",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License"
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
