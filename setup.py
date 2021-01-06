@@ -79,34 +79,17 @@ URL = 'https://github.com/MatthewRalston/kdb'
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.0.1'
-
+VERSION = "0.0.3"
 # What packages are required for this module to be executed?
-#REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
-REQUIRED = [
-    'biopython==1.74',
-    'boto3==1.10.8',
-    'botocore==1.13.8',
-    'Cython==0.29.21',
-    'distlib==0.3.0',
-    'docutils==0.15.2',
-    'jsonschema==3.1.1',
-    'matplotlib==3.1.3',
-    'more-itertools==8.2.0',
-    'numba==0.52.0',
-    'numpy==1.18.1',
-    'pandas==1.2.0',
-    'psutil==5.8.0',
-    'PyYAML==5.1.2',
-    'SQLAlchemy==1.3.13',
-    'Sphinx==3.1.2',
-    'sphinx_rtd_theme==0.5.0',
-    'urllib3==1.25.8',
-    'virtualenv==20.0.8']
+
+REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
+#REQUIRED.remove("-e git://github.com/MatthewRalston/ecopy.git#egg=ecopy")
+#REQUIRED.append("ecopy @ git+https://github.com/MatthewRalston/ecopy@master")
+
 
 # What packages are optional?
 EXTRAS = {
-    #'development': [l.rstrip() for l in open('./requirements-dev.txt', 'r')]
+    'development': [l.rstrip() for l in open('./requirements-dev.txt', 'r')]
 
     # 'fancy feature': ['django'],
 }
@@ -142,11 +125,11 @@ setup(
     package_data={'kdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd']},
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['kdb'],
-    scripts=['bin/kdb', 'bin/kdb_report.R'],
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
-    install_requires=REQUIRED,
+    #scripts=['bin/kdb', 'bin/kdb_report.R'],
+    entry_points={
+        'console_scripts': ['kdb=kdb:cli'],
+    },
+    install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
     extras_require=EXTRAS,
     include_package_data=True,
     license='GPLv3+',

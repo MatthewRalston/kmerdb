@@ -17,8 +17,7 @@ from Bio import SeqIO, bgzf
 import boto3
 sys.path.append('..')
 
-import config
-from kdb import kmer, database, util
+from kdb import kmer, database, util, config
 
 # Logging configuration
 import logging
