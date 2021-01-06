@@ -4,6 +4,8 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+
+
 * TODO arguments.method == "Biopython (has a FIXME in bin/kdb)
 ** Check this [[https://www.analyticsvidhya.com/blog/2019/05/beginners-guide-hierarchical-clustering/][link]]
 ** Needs a euclidean distance matrix
@@ -11,8 +13,30 @@ The final prototype would be .bgzf format from biopython
 * Need an Rmd and a report directory that autopopulates a report
 ** 
 
+
 * Priorities
 ** Connect this to meme suite
+** Hypotheses:
+*** Suppose that k-mer spectra have a positive and negative saturation direction.
+*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
+*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
+* Rmd
+** Accurately describe kdb counting algorithm
+*** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
+*** First, a selection of sequences is shredded into k-mers in memory
+*** Second, the counts are tallied on-disk using SQLite3.
+*** Third, the SQLite3 database iterator is used to pull row from row out and print line by line into the kdb datastructure.
+*** Fourth, at this point, an index may be created.
+** Distribution fitting
+*** Cullen-Frey
+*** Negative binomial fit
+*** Poissonian imitation (average, geom. mean, median, mode) [each] vs negative binomial fit to the data
+** Count normalization
+*** Next, we want to judge the effect of DESeq2 normalization on the counts values.
+*** We use a boxplot to address the null-hypothesis that DESeq2 normalization does not meaningfully harmonize each samples quartiles with one another.
+*** We must check this often when addressing our normalized data because failure to normalize properly
+*** due to an issue that is not library size or total counts, 
+*** suggests another issue with the distribution of that sample.
 ** 
 
 * [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
