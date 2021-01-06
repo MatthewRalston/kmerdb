@@ -1,3 +1,22 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
 VERSION="0.0.3"
 
 header_schema = {
@@ -89,10 +108,10 @@ files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clus
 DEFAULT_MASTHEAD = """
 
 ==========================================
-                 k d b
+               k m e r d b
 ==========================================
 
-Thank you for using kdb. Please feel free
+Thank you for using kmerdb. Please feel free
 to submit issues and requests to 
 https://github.com/MatthewRalston/kdb
 
@@ -120,7 +139,7 @@ DONE = """
 DISTANCE_MASTHEAD = """
 
 ==========================================
-           ./bin/kdb distance
+           kmerdb distance
 ==========================================
 
 Distance matrix generation beginning!
@@ -135,7 +154,7 @@ for i in range(42, 1, -1):
 MATRIX_MASTHEAD = """
 
 ==========================================
-           ./bin/kdb matrix
+           kmerdb matrix
 ==========================================
 
 Matrix generation beginning!
@@ -150,7 +169,7 @@ for i in range(42, 1, -1):
 KMEANS_MASTHEAD = """
 
 ==========================================
-           ./bin/kdb kmeans
+           kmerdb kmeans
 ==========================================
 
 K-means clustering beginning!
@@ -163,28 +182,13 @@ for i in range(42, 1, -1):
 HIERARCHICAL_MASTHEAD = """
 
 ==========================================
-           ./bin/kdb hierarchical
+           kmerdb hierarchical
 ==========================================
 
 Hierarchical clustering beginning!
 
 """
     
-RAREFY_MASTHEAD = """
-
-==========================================
-           ./bin/kdb rarefy
-==========================================
-
-
-Rarefaction beginning!
-
-"""
-for i in range(42, 1, -1):
-    RAREFY_MASTHEAD += i*"=" + "\n"
-
-
-
 
 
 DEBUG_MASTHEAD = '''
@@ -203,7 +207,7 @@ The workflow is roughly as follows:
 # This command uses SQLite3 behind the scenes for on-disk k-mer counting
 # since memory is rate limiting for profile generation when dealing 
 # with biologically conventional choices of k (20 < k < 35).
-parallel 'kdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
+parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
 
 
 
@@ -245,20 +249,13 @@ parallel 'kdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.g
 # The second is the more typical scatterplot of the first two reduced dimensions
 # and the k-means clustering labels shown over the scatter.
 # This file will be written to '{2}'.
-kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb kmeans -k $K sklearn
-kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb kmeans -k $K --distance e Biopython
+kmerdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kmerdb kmeans -k $K sklearn
+kmerdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kmerdb kmeans -k $K --distance e Biopython
 #
 # If you wanted to save a matrix from kdb matrix for use on your own
 # it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
 # which we will see is used downstream in the rarefaction and hierarchical analytics pathways.
 #
-##################
-# Rarefaction
-##################
-# The Unnormalized and Normalized matrices go to ecopy's rarefy function to produce a rarefaction plot
-# This plot will be written to '{3}'.
-kdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb | kdb rarefy
-
 
 ##################
 # Hierarchical
@@ -269,7 +266,7 @@ kdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb | kdb rarefy
 # The third step (kdb hierarchical)  is to build a dendrogram with scipy.cluster.hierarchy.
 # This final step produces a plot in addition to the tsvs produced in the prior steps,
 # which can be captured as independent steps or with tee in a pipeline.
-kdb matrix [ Normalized ] test/data/*.$K.kdb | kdb distance spearman | kdb hiearchical
+kmerdb matrix [ Normalized ] test/data/*.$K.kdb | kmerdb distance spearman | kmerdb hiearchical
 
 '''.format(*files)
 

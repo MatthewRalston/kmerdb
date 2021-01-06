@@ -1,3 +1,23 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
+
 import logging
 logger = logging.getLogger(__file__)
 
@@ -34,11 +54,11 @@ class SqliteKdb:
     def __init__(self, filename:str, k:int):
         
         if type(filename) is not str:
-            raise TypeError("kdb.database.SqliteKdb expects a str as its first positional argument")
+            raise TypeError("kmerdb.database.SqliteKdb expects a str as its first positional argument")
         elif not os.path.exists(filename):
-            raise OSError("kdb.database.SqliteKdb expects an existing .kdb file as its first positional argument")
+            raise OSError("kmerdb.database.SqliteKdb expects an existing .kmerdb file as its first positional argument")
         elif type(k) is not int:
-            raise TypeError("kdb.database.build_sqlite_file expects an int as its second positional argument")
+            raise TypeError("kmerdb.database.SqliteKdb expects an int as its second positional argument")
         self._max_records = 4**k
         self.filepath = filename
         self._engine = create_engine("sqlite:///{0}".format(filename), echo=False, poolclass=NullPool)
