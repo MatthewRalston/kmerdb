@@ -1,61 +1,61 @@
-kdb package
+kmerdb package
 ===========
 
 Submodules
 ----------
 
-kdb.database module
+kmerdb.database module
 -------------------
 
-.. automodule:: kdb.database
+.. automodule:: kmerdb.database
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.distance module
+kmerdb.distance module
 -------------------
 
-.. automodule:: kdb.distance
+.. automodule:: kmerdb.distance
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.fileutil module
+kmerdb.fileutil module
 -------------------
 
-.. automodule:: kdb.fileutil
+.. automodule:: kmerdb.fileutil
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.index module
+kmerdb.index module
 ----------------
 
-.. automodule:: kdb.index
+.. automodule:: kmerdb.index
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.kmer module
+kmerdb.kmer module
 ---------------
 
-.. automodule:: kdb.kmer
+.. automodule:: kmerdb.kmer
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.parse module
+kmerdb.parse module
 ----------------
 
-.. automodule:: kdb.parse
+.. automodule:: kmerdb.parse
    :members:
    :undoc-members:
    :show-inheritance:
 
-kdb.seqparser module
+kmerdb.seqparser module
 --------------------
 
-.. automodule:: kdb.seqparser
+.. automodule:: kmerdb.seqparser
    :members:
    :undoc-members:
    :show-inheritance:
@@ -64,7 +64,7 @@ kdb.seqparser module
 Module contents
 ---------------
 
-.. automodule:: kdb
+.. automodule:: kmerdb
    :members:
    :undoc-members:
    :show-inheritance:
