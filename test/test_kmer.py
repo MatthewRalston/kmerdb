@@ -5,7 +5,7 @@ from Bio import SeqRecord, Seq
 
 sys.path.append("..")
 
-from kdb import kmer
+from kmerdb import kmer
 
 class Test_kmer_to_id(unittest.TestCase):
 
