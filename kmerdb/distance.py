@@ -1,3 +1,23 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
+
 import logging
 logger = logging.getLogger(__file__)
 
@@ -7,7 +27,7 @@ from numba import jit
 import functools
 
 
-from kdb import kmer, fileutil
+from kmerdb import kmer, fileutil
 
 identity = {
     'correlation': '1.0',
@@ -19,9 +39,9 @@ identity = {
 
 def correlation(fname1, fname2):
     if type(fname1) is not str:
-        raise TypeError("kdb.distance.correlation expects a str as its first positional argument")
+        raise TypeError("kmerdb.distance.correlation expects a str as its first positional argument")
     elif type(fname2) is not str:
-        raise TypeError("kdb.distance.correlation expects a str as its second positional argument")
+        raise TypeError("kmerdb.distance.correlation expects a str as its second positional argument")
     k = None
     with fileutil.open(fname1, mode='r') as kdb1:
         with fileutil.open(fname2, mode='r') as kdb2:
@@ -60,9 +80,9 @@ def correlation(fname1, fname2):
 def euclidean(fname1, fname2):
     from math import sqrt
     if type(fname1) is not str:
-        raise TypeError("kdb.distance.euclidean expects a str as its first positional argument")
+        raise TypeError("kmerdb.distance.euclidean expects a str as its first positional argument")
     elif type(fname2) is not str:
-        raise TypeError("kdb.distance.euclidean expects a str as its second positional argument")
+        raise TypeError("kmerdb.distance.euclidean expects a str as its second positional argument")
     k = None
     sum_of_squared_differences = 0
     with fileutil.open(fname1, mode='r') as kdb1:
@@ -85,6 +105,10 @@ def euclidean(fname1, fname2):
 
 
 def spearman(x, y):
+    if not isinstance(x, np.array):
+        raise TypeError("kmerdb.distance.spearman expects a Numpy array as its first positional argument")
+    elif not isinstance(y, np.array):
+        raise TypeError("kmerdb.distance.spearman expects a Numpy array as its second positional argument")
     from scipy.stats import spearmanr
     cor, pval = spearmanr(x, b=y)
     return cor, pval

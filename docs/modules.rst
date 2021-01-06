@@ -1,7 +1,7 @@
-kdb
+kmerdb
 ===
 
 .. toctree::
    :maxdepth: 4
 
-   kdb
+   kmerdb

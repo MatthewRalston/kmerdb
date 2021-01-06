@@ -1,3 +1,22 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
 import logging
 logger = logging.getLogger(__file__)
 from Bio import SeqIO, Seq
@@ -31,9 +50,9 @@ class Kmers:
 
         """
         if type(k) is not int:
-            raise TypeError("kdb.kmer.Kmers.__init__() expects an int as its first positional argument")
+            raise TypeError("kmerdb.kmer.Kmers.__init__() expects an int as its first positional argument")
         elif type(strand_specific) is not bool:
-            raise TypeError("kdb.kmer.Kmers.__init__() expects a bool as its second positional argument")
+            raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its second positional argument")
         self.k = k 
         self.strand_specific = strand_specific
 
@@ -47,7 +66,7 @@ class Kmers:
 
         """
         if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
-            raise TypeError("kdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
         kmers = []
         # Each of the n-k+1 string slices become the k-mers
         for c in range(len(seqRecord.seq) - self.k + 1):
@@ -76,7 +95,7 @@ def kmer_to_id(s):
     """
 
     if not isinstance(s, str): # Typecheck the input k-mer
-        raise TypeError("kdb.kmer.kmer_to_id expects a Biopython Seq object as its argument")
+        raise TypeError("kmerdb.kmer.kmer_to_id expects a Biopython Seq object as its argument")
     elif s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None

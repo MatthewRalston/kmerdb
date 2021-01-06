@@ -20,7 +20,7 @@ except ImportError:
 
 if sys.version_info[:2] < (3, 7):
     sys.stderr.write(
-        "KDB is tested on Python 3.7 or later. "
+        "KMERDB is tested on Python 3.7 or later. "
         "Python %d.%d detected. \n" % sys.version_info[:2]
     )
     sys.exit(1)
@@ -72,10 +72,10 @@ def can_import(module_name):
         return None
                 
 # Package meta-data.
-NAME = 'kdb'
+NAME = 'kmerdb'
 DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
-URL = 'https://github.com/MatthewRalston/kdb'
+URL = 'https://github.com/MatthewRalston/kmerdb'
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
@@ -121,13 +121,13 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
-    package_dir={'kdb': 'kdb'},
-    package_data={'kdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd']},
+    package_dir={'kmerdb': 'kmerdb'},
+    package_data={'kmerdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd']},
     # If your package is a single module, use this instead of 'packages':
-    #py_modules=['kdb'],
-    #scripts=['bin/kdb', 'bin/kdb_report.R'],
+    #py_modules=['kmerdb'],
+    #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
     entry_points={
-        'console_scripts': ['kdb=kdb:cli'],
+        'console_scripts': ['kmerdb=kmerdb:cli'],
     },
     install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
     extras_require=EXTRAS,

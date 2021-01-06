@@ -1,3 +1,22 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
 import logging
 logger = logging.getLogger(__file__)
 
@@ -19,9 +38,9 @@ class SeqParser:
         if type(filepath) is not str:
             raise TypeError("kdb.seqrecord.SeqParser expects a str as its first positional argument")
         elif type(num) is not int:
-            raise TypeError("kdb.seqparser.SeqParser expects an int as its second positional argument")
+            raise TypeError("kmerdb.seqparser.SeqParser expects an int as its second positional argument")
         elif type(k) is not int:
-            raise TypeError("kdb.seqparser.SeqParser expects an int as its third positional argument")
+            raise TypeError("kmerdb.seqparser.SeqParser expects an int as its third positional argument")
         
         self.k = k
         self.num = num
@@ -84,7 +103,7 @@ class SeqParser:
         :rtype: tuple
         """
         if not os.path.exists(self.filepath):
-            raise IOError("kdb.seqparser.FastqParser.__checksum could not find '{}' on the filesystem".format(filepath))
+            raise IOError("kmerdb.seqparser.FastqParser.__checksum could not find '{}' on the filesystem".format(filepath))
         hash_md5 = hashlib.md5()
         hash_sha256 = hashlib.sha256()
         with open(self.filepath, 'rb') as ifile:

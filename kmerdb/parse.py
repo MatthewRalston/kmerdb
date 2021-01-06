@@ -1,3 +1,21 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
 import os
 import sys
 import yaml
@@ -8,7 +26,7 @@ import tempfile
 from multiprocessing import Pool
 
 
-from kdb import seqparser, database, kmer
+from kmerdb import seqparser, database, kmer
 
 import logging
 logger = logging.getLogger(__file__)
@@ -32,17 +50,17 @@ def parsefile(filepath, k, p=1, b=50000, stranded=True):
 
     """
     if type(filepath) is not str:
-        raise TypeError("kdb.parse.parsefile expects a str as its first positional argument")
+        raise TypeError("kmerdb.parse.parsefile expects a str as its first positional argument")
     elif not os.path.exists(filepath):
-        raise OSError("kdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
+        raise OSError("kmerdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
     elif type(k) is not int:
-        raise TypeError("kdb.parse.parsefile expects an int as its second positional argument")
+        raise TypeError("kmerdb.parse.parsefile expects an int as its second positional argument")
     elif type(p) is not int:
-        raise TypeError("kdb.parse.parsefile expects the keyword argument 'p' to be an int")
+        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'p' to be an int")
     elif type(b) is not int:
-        raise TypeError("kdb.parse.parsefile expects the keyword argument 'b' to be an int")
+        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
     elif type(stranded) is not bool:
-        raise TypeError("kdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
+        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
     # Create temporary SQLite3 database file for on-disk k-mer counting
     temp = tempfile.NamedTemporaryFile(mode="w+", suffix=".sqlite3", delete=False)
     logger.debug("Creating temporary database to tally k-mers: '{0}'".format(temp.name))
