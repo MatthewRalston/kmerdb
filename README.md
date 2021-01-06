@@ -29,15 +29,13 @@ The principle goal of the library is k-mer statistics and rapid access to specif
 OS X and Linux release:
 
 ```sh
-pip install kdb
+pip install kmerdb
 ```
 
 Development installation:
 
 ```sh
 git clone https://github.com/MatthewRalston/kdb.git
-pip install -r requirements.txt#requirements-dev.txt
-PYTHONPATH=$PYTHONPATH:$(pwd)
 pip install -e .
 ```
 

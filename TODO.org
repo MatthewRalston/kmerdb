@@ -37,7 +37,7 @@ The final prototype would be .bgzf format from biopython
 *** We must check this often when addressing our normalized data because failure to normalize properly
 *** due to an issue that is not library size or total counts, 
 *** suggests another issue with the distribution of that sample.
-** 
+*** State why we refuse to standardize the data at this point.
 
 * [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
 ** Uses the LAPACK implementation
