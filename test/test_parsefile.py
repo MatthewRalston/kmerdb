@@ -4,7 +4,7 @@ import unittest
 
 sys.path.append("..")
 
-from kdb import parse, database
+from kmerdb import parse, database
 
 class Test_parsefile(unittest.TestCase):
 
