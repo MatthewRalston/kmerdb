@@ -1,3 +1,22 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
+
 import io
 import sys
 import os
@@ -17,7 +36,7 @@ from Bio import SeqIO, bgzf
 import boto3
 sys.path.append('..')
 
-from kdb import kmer, database, util, config
+from kmerdb import kmer, database, util, config
 
 # Logging configuration
 import logging
@@ -38,11 +57,11 @@ def _s3_file_download(self, seqpath, temporary=True):
     :rtype: str
     """
     if type(seqpath) is not str:
-        raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects a str 'seqpath' as its first positional argument")
+        raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects a str 'seqpath' as its first positional argument")
     elif seqpath[0:5] != s3prefix:
-        raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects a s3 object reference its first positional argument. e.g. 's3://bucket/example.txt'")
+        raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects a s3 object reference its first positional argument. e.g. 's3://bucket/example.txt'")
     elif type(temporary) is not bool:
-        raise TypeError("kdb.fileutil.SeqReader.__s3_file_download expects the keyword argument temporary to be a bool")
+        raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects the keyword argument temporary to be a bool")
     seqpath = seqpath.lstrip(s3prefix)
     pathsegs =seqpath.split('/')
     bucket = pathsegs.pop(0)
@@ -66,11 +85,11 @@ def _s3_file_download(self, seqpath, temporary=True):
 
 def open(filepath, mode="r", *args):
     if type(filepath) is not str:
-        raise TypeError("kdb.fileutil.open expects a str as its first positional argument")
+        raise TypeError("kmerdb.fileutil.open expects a str as its first positional argument")
     elif type(mode) is not str:
-        raise TypeError("kdb.fileutil.open expects the keyword argument 'mode' to be a str")
+        raise TypeError("kmerdb.fileutil.open expects the keyword argument 'mode' to be a str")
     elif "w" in mode and (len(args) != 1 or not isinstance(args[0], OrderedDict)):
-        raise TypeError("kdb.fileutil.open expects an additional header dictionary")
+        raise TypeError("kmerdb.fileutil.open expects an additional header dictionary")
     modes = set(mode)
     if modes - set("xrwbt") or len(mode) > len(modes):
         raise ValueError("invalid mode: {}".format(mode))
@@ -101,9 +120,9 @@ def open(filepath, mode="r", *args):
 class KDBReader(bgzf.BgzfReader):
     def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
-            raise TypeError("kdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
+            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
-            raise TypeError("kdb.fileutil.KDBReader expects the keyword argument 'filename' to be a str")
+            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'filename' to be a str")
         if fileobj:
             assert filename is None
             handle = fileobj
@@ -133,13 +152,13 @@ class KDBReader(bgzf.BgzfReader):
         header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
         if type(header_data) is str:
-            raise TypeError("kdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
+            raise TypeError("kmerdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
         elif type(header_data) is OrderedDict:
             logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
             if "version" not in header_data.keys():
-                raise TypeError("kdb.fileutil.KDBReader couldn't validate the header YAML")
+                raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             elif "metadata_blocks" not in header_data.keys():
-                raise TypeError("kdb.fileutil.KDBReader couldn't validate the header YAML")
+                raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             else:
                 logger.debug(header_data)
                 logger.debug(handle.tell())
@@ -151,7 +170,7 @@ class KDBReader(bgzf.BgzfReader):
                         addtl_header_data = yaml.safe_load(self._buffer)
                         if type(addtl_header_data) is str:
                             logger.error(addtl_header_data)
-                            raise TypeError("kdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
+                            raise TypeError("kmerdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
                         elif type(addtl_header_data) is dict:
                             sys.stderr.write("\r")
                             sys.stderr.write("Successfully parsed {0} blocks of YAML formatted metadata".format(i))
@@ -159,9 +178,9 @@ class KDBReader(bgzf.BgzfReader):
                             num_header_blocks = i
                         else:
                             logger.error(addtl_header_data)
-                            raise RuntimeError("kdb.fileutil.KDBReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
+                            raise RuntimeError("kmerdb.fileutil.KDBReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
         else:
-            raise RuntimeError("kdb.fileutil.KDBReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
+            raise RuntimeError("kmerdb.fileutil.KDBReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
         sys.stderr.write("\n")
         logger.info("Validating the header data against the schema...")
         try:
@@ -170,7 +189,7 @@ class KDBReader(bgzf.BgzfReader):
             self.k = self.header['k']
         except jsonschema.ValidationError as e:
             logger.debug(e)
-            logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML from {0} header blocks".format(num_header_blocks))
+            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML from {0} header blocks".format(num_header_blocks))
             raise e
 
         self._offsets = deque()
@@ -178,7 +197,7 @@ class KDBReader(bgzf.BgzfReader):
             #logger.debug("Raw start %i, raw length %i, data start %i, data length %i" % values)
             self._offsets.appendleft(values) # raw start, raw length, data start, data length
         if len(self._offsets) == 0:
-            raise IOError("kdb.fileutil.KDBReader opened an empty file")
+            raise IOError("kmerdb.fileutil.KDBReader opened an empty file")
         # Skip the zeroth block
         self._load_block()
         # print(str(self._buffer)) # 1
@@ -245,14 +264,14 @@ class KDBReader(bgzf.BgzfReader):
         A function to read an entire .kdb file into memory
         """
         if type(dtype) is not str:
-            raise TypeError("kdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a str")
+            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a str")
 
         try:
             np.dtype(dtype)
         except TypeError as e:
             logger.error(e)
-            logger.error("kdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
-            raise TypeError("kdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a valid numpy data type")
+            logger.error("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
+            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a valid numpy data type")
         
         # First calculate the amount of memory required by the array
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
@@ -274,7 +293,7 @@ class KDBWriter(bgzf.BgzfWriter):
     def __init__(self, header:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
         if not isinstance(header, OrderedDict):
-            raise TypeError("kdb.fileutil.KDBWriter expects a valid header object as its first positional argument")
+            raise TypeError("kmerdb.fileutil.KDBWriter expects a valid header object as its first positional argument")
         try:
             logger.debug("Validating header schema against the config.py header schema")
             jsonschema.validate(instance=dict(header), schema=config.header_schema)
@@ -282,7 +301,7 @@ class KDBWriter(bgzf.BgzfWriter):
             self.k = self.header['k']
         except jsonschema.ValidationError as e:
             logger.debug(e)
-            logger.error("kdb.fileutil.KDBReader couldn't validate the header YAML")
+            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             raise e
 
         if fileobj:
@@ -304,7 +323,7 @@ class KDBWriter(bgzf.BgzfWriter):
         """
         Write the header to the file
         """
-        logger.info("Constructing a new kdb file '{0}'...".format(self._handle.name))
+        logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
         logger.info("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
         logger.debug(self.header)
         logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.header, sort_keys=False)))

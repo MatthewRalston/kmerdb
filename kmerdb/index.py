@@ -1,3 +1,21 @@
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
+
+
 import sys
 import os
 import copy
@@ -7,7 +25,7 @@ import gzip
 #import jsonschema
 sys.path.append('..')
 
-from kdb import fileutil
+from kmerdb import fileutil
 
 
 import logging
@@ -42,9 +60,9 @@ logger = logging.getLogger(__file__)
 
 def _write_line_index(indexfile, index):
     if type(indexfile) is not str:
-        raise TypeError("kdb.index._write_index expects a str as its first positional argument")
+        raise TypeError("kmerdb.index._write_index expects a str as its first positional argument")
     elif not isinstance(index, array.array):
-        raise TypeError("kdb.index._write_index expects an array.array as its second positional argument")
+        raise TypeError("kmerdb.index._write_index expects an array.array as its second positional argument")
     with gzip.open(indexfile, 'wt') as ofile:
         for kmer in index:
             ofile.write(str(kmer) + "\n")
@@ -52,7 +70,7 @@ def _write_line_index(indexfile, index):
                 
 def _read_line_index(indexfile):
     if type(indexfile) is not str:
-        raise TypeError("kdb.index._read_index expects a str as its first positional argument")
+        raise TypeError("kmerdb.index._read_index expects a str as its first positional argument")
     line_index = array.array('Q') #, range(4**self.k))
     #i = 0
     with gzip.open(indexfile, 'rt') as ifile:
@@ -64,9 +82,9 @@ def _read_line_index(indexfile):
         
 def build_line_index_from_kdb(kdbfile, k):
     if type(kdbfile) is not str:
-        raise TypeError("kdb.index.build_line_index_from_kdb expects a str as its first positional argument")
+        raise TypeError("kmerdb.index.build_line_index_from_kdb expects a str as its first positional argument")
     elif type(k) is not int:
-        raise TypeError("kdb.index.build_line_index_from_kdb expects an int as its second positional argument")
+        raise TypeError("kmerdb.index.build_line_index_from_kdb expects an int as its second positional argument")
     line_index = array.array('Q', range(4**k))
     with fileutil.open(kdbfile, mode='r') as kdbrdr:
 
