@@ -5,7 +5,7 @@ import tempfile
 
 sys.path.append("..")
 
-from kdb import database
+from kmerdb import database
 
 class Test_parsefile(unittest.TestCase):
 

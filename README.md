@@ -8,14 +8,13 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
 [![Travis Build Status](https://travis-ci.org/MatthewRalston/kmerdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kmerdb)
-[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kmerdb/master.svg)][Coveralls]
-[![ReadTheDocs status](https://readthedocs.org/projects/kmerdb/badge/?version=stable&style=flat)][RTD]
+[![Coveralls code coverage](https://coveralls.io/repos/github/MatthewRalston/kmerdb/badge.svg?branch=master)](https://coveralls.io/github/MatthewRalston/kmerdb?branch=master)
+[![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
 
 
 [pip]: https://pypi.org/project/kmerdb/
 [Pythons]: https://pypi.org/project/kmerdb/
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kmerdb?branch=master
-[RTD]: https://kmerdb.readthedocs.io/en/latest/
+[RTD]: https://kdb.readthedocs.io/en/latest/
 
 ## Summary 
 
@@ -35,27 +34,29 @@ pip install kmerdb
 Development installation:
 
 ```sh
-git clone https://github.com/MatthewRalston/kdb.git
+git clone https://github.com/MatthewRalston/kmerdb.git
 pip install -e .
 ```
 
 ## Usage Example
 
+Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kdb/quickstart.html#usage)
+
 CLI Usage
 
 ```bash
-kdb --help
-kdb summary --help
+kmerdb --help
+kmerdb summary --help
 # Build a [composite] profile to a new or existing .kdb file
-kdb profile example1.fq.gz example2.fq.gz profile.kdb
+kmerdb profile example1.fq.gz example2.fq.gz profile.kdb
 # Calculate similarity between two (or more) profiles
-kdb distance correlation profile1.kdb profile2.kdb (...)
+kmerdb distance correlation profile1.kdb profile2.kdb (...)
 ```
 
 
 ## Documentation
 
-Check out the [main webpage](https://matthewralston.github.io/kdb) and the [Readthedocs documentation](https://kmerdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
+Check out the [main webpage](https://matthewralston.github.io/kmerdb) and the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
 
 ## Development
 
