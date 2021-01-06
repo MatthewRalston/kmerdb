@@ -1,21 +1,21 @@
-# README - KDB
+# README - kmerdb
 > A Python CLI and module for k-mer profiles, similarities, and graph databases
 
 NOTE: This project is pre-alpha, all of the badge links are broken and are just placeholders at the moment. Development is ongoing. But feel free to clone the repository and play with the code for yourself!
 
 ## Development Status
 
-[![PyPI version](https://img.shields.io/pypi/v/kdb.svg)][pip]
-[![Python versions](https://img.shields.io/pypi/pyversions/kdb.svg)][Pythons]
-[![Travis Build Status](https://travis-ci.org/MatthewRalston/kdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kdb)
-[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
-[![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
+[![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
+[![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
+[![Travis Build Status](https://travis-ci.org/MatthewRalston/kmerdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kmerdb)
+[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kmerdb/master.svg)][Coveralls]
+[![ReadTheDocs status](https://readthedocs.org/projects/kmerdb/badge/?version=stable&style=flat)][RTD]
 
 
-[pip]: https://pypi.org/project/kdb/
-[Pythons]: https://pypi.org/project/kdb/
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
-[RTD]: https://kdb.readthedocs.io/en/latest/
+[pip]: https://pypi.org/project/kmerdb/
+[Pythons]: https://pypi.org/project/kmerdb/
+[Coveralls]: https://coveralls.io/r/MatthewRalston/kmerdb?branch=master
+[RTD]: https://kmerdb.readthedocs.io/en/latest/
 
 ## Summary 
 
@@ -55,7 +55,7 @@ kdb distance correlation profile1.kdb profile2.kdb (...)
 
 ## Documentation
 
-Check out the [main webpage](https://matthewralston.github.io/kdb) and the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
+Check out the [main webpage](https://matthewralston.github.io/kdb) and the [Readthedocs documentation](https://kmerdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
 
 ## Development
 
@@ -69,7 +69,21 @@ Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewral
 
 Distributed under the Apache license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
 
+```
+   Copyright 2020 Matthew Ralston
 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+```
 
 ## Contributing
 
