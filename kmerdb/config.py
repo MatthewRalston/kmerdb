@@ -103,6 +103,7 @@ kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
 kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
 ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
 hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
+hierarchical_clustering_phy = "dendrogram.phy"
 files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
 
 DEFAULT_MASTHEAD = """
