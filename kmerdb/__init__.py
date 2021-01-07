@@ -514,7 +514,16 @@ def hierarchical(arguments):
     #plt.show()
     plt.savefig(config.hierarchical_clustering_dendrogram_fig_filepath)
 
-    sys.stderr.write("Saving the dendrogram to '{0}'...".format(config.hierarchical_clustering_dendrogram_fig_filepath))
+    sys.stderr.write("Saving the matplotlib dendrogram to '{0}'...".format(config.hierarchical_clustering_dendrogram_fig_filepath))
+
+    from Bio import Phylo
+    dm = Phylo.TreeConstruction.DistanceMatrix(column_names, np.array(df))
+    constructor = Phylo.TreeConstruction.DistanceTreeConstructor()
+    upgmatree = constructor.upgma(dm)
+    Phylo.draw(tree, branch_labels=column_names)
+    print(upgmatree)
+    sys.stderr.write("Saving the phylip format tree to '{0}'".format(config.hierarchical_clustering_phy)
+    
     sys.stderr.write(config.DONE)
 
 # def rarefy(arguments):
