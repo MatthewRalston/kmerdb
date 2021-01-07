@@ -281,6 +281,7 @@ class KDBReader(bgzf.BgzfReader):
             # Do the slurp
             self.profile = np.zeros(4**self.k, dtype="int32")
             for kmer_id in range(N):
+                #logger.debug("Reading {0}th line...".format(kmer_id))
                 line = next(self)
                 _, count = (int(_count) for _count in line.rstrip().split("\t"))
                 self.profile[kmer_id] = count
