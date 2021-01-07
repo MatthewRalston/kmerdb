@@ -491,7 +491,7 @@ def hierarchical(arguments):
         df = pd.read_csv(arguments.input, sep=arguments.delimiter)
         column_names = df.columns
         df = df.transpose()
-    elif arguments.input is None:
+    elif arguments.input is None or arguments.input == "STDIN" or arguments.input == "/dev/stdin":
         df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
         column_names = df.columns
         df = df.transpose()
