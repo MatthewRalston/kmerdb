@@ -36,7 +36,7 @@ logger = None
 
 
 def index_file(arguments):
-    from kdb import fileutil, index
+    from kmerdb import fileutil, index
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         header = kdb.header
     line_index = index.build_line_index_from_kdb(arguments.kdb, header['k'])
@@ -48,12 +48,13 @@ def distances(arguments):
     from scipy.spatial.distance import pdist, squareform
 
 
-    from kdb import fileutil, distance, config
+    from kmerdb import fileutil, distance, config
     n = len(arguments.kdb)
 
 
     if len(arguments.kdb) > 1:
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.kdb))
+        logger.debug("Files: {0}".format(files))
         if arguments.k is None:
             arguments.k = files[0].k
         if not all(kdbrdr.k == arguments.k for kdbrdr in files):
@@ -61,14 +62,26 @@ def distances(arguments):
             logger.error("Choices of k: {0}".format([kdbrdr.k for kdbrdr in files]))
             logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-        profiles = np.array(list(map(lambda kdbrdr: kdbrdr.slurp(), files)), dtype="int32")
+        logger.debug("Files: {0}".format(files))
+        data = [kdbrdr.slurp() for kdbrdr in files]
+        logger.debug(data)
+        profiles = np.transpose(np.array(data, dtype="int32"))
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
 
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
+
         column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
+        if len(column_names) != len(files):
+            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(column_names), len(files)))
+        logger.debug("Shape: {0}".format(profiles.shape))
+        expected = (4**arguments.k, len(column_names))
+        if profiles.shape != expected:
+            logger.error("Expected shape: {0}".format(expected))
+            logger.error("Actual shape: {0}".format(profiles.shape))
+            raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
 
         df = pd.DataFrame(profiles, columns=column_names)
     elif len(arguments.kdb) == 1 and (arguments.kdb[0] == "/dev/stdin" or arguments.kdb[0] == "STDIN"):
@@ -123,7 +136,7 @@ def distances(arguments):
                     elif arguments.metric == "euclidean":
                         data[i][j] = distance.euclidean(arguments.kdb[i], arguments.kdb[j])
                     elif arguments.metric == "spearman":
-                        cor, pval = distance.spearman(profiles[:, i], profiles[:, j])
+                        cor, pval = distance.spearman(profiles[i], profiles[j])
                         # FIXME! also print pval matrices
                         data[i][j] = cor
                     else:
@@ -154,7 +167,7 @@ def get_matrix(arguments):
     from sklearn.decomposition import PCA
     from sklearn.manifold import TSNE
     
-    from kdb import fileutil, config
+    from kmerdb import fileutil, config
 
     
     if len(arguments.kdb) > 1:
@@ -338,7 +351,7 @@ def kmeans(arguments):
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    from kdb import config
+    from kmerdb import config
 
     
     if isinstance(arguments.input, argparse.FileType) or isinstance(arguments.input, TextIOWrapper):
@@ -483,17 +496,17 @@ def hierarchical(arguments):
 
     from Bio.Cluster import treecluster
     
-    from kdb import config
+    from kmerdb import config
 
 
     
     if isinstance(arguments.input, argparse.FileType) or isinstance(arguments.input, TextIOWrapper):
         df = pd.read_csv(arguments.input, sep=arguments.delimiter)
-        column_names = df.columns
+        column_names = list(df.columns)
         df = df.transpose()
     elif arguments.input is None or arguments.input == "STDIN" or arguments.input == "/dev/stdin":
         df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
-        column_names = df.columns
+        column_names = list(df.columns)
         df = df.transpose()
     else:
         logger.error("An unknown IO type was detected in bin/kdb.cluster()")
@@ -514,7 +527,27 @@ def hierarchical(arguments):
     #plt.show()
     plt.savefig(config.hierarchical_clustering_dendrogram_fig_filepath)
 
-    sys.stderr.write("Saving the dendrogram to '{0}'...".format(config.hierarchical_clustering_dendrogram_fig_filepath))
+    sys.stderr.write("Saving the matplotlib dendrogram to '{0}'...".format(config.hierarchical_clustering_dendrogram_fig_filepath))
+
+    data = np.array(df).tolist()
+
+    n = len(data)
+    m = len(data[0])
+    for i in range(n):
+        for j in range(m):
+            if i < j:
+                data[i].pop(-1)
+    #print(data)
+    
+    from Bio.Phylo.TreeConstruction import DistanceMatrix, DistanceTreeConstructor
+    from Bio import Phylo
+    dm = DistanceMatrix(column_names, data)
+    constructor = DistanceTreeConstructor()
+    upgmatree = constructor.upgma(dm)
+    print(upgmatree)
+    Phylo.draw(upgmatree, branch_labels=lambda c: c.branch_length)
+    Phylo.write(upgmatree, config.spearman_upgma_tree_phy, "phyloxml")
+    sys.stderr.write("Saving the phylip format tree to '{0}'".format(config.spearman_upgma_tree_phy))
     sys.stderr.write(config.DONE)
 
 # def rarefy(arguments):
@@ -565,12 +598,10 @@ def hierarchical(arguments):
         
 
 def header(arguments):
-    from kdb import fileutil, config
-    from kdb.config import VERSION
-    from kdb import util
+    from kmerdb import fileutil, config, util
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
-        if kdb.header["version"] != VERSION:
+        if kdb.header["version"] != config.VERSION:
             logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
         if arguments.json:
             print(dict(kdb.header))
@@ -580,9 +611,9 @@ def header(arguments):
     
             
 def view(arguments):
-    from kdb import fileutil
+    from kmerdb import fileutil
 
-    from kdb.config import VERSION
+    from kmerdb.config import VERSION
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         if kdb.header["version"] != VERSION:
@@ -594,9 +625,9 @@ def view(arguments):
 
 def profile(arguments):
     import math
-    from kdb import parse, fileutil
-
-    from kdb.config import VERSION
+    from kmerdb import parse, fileutil, kmer
+    import json
+    from kmerdb.config import VERSION
 
     metadata = []
     tempdbs = []
@@ -624,17 +655,21 @@ def profile(arguments):
         kdb_out = fileutil.open(arguments.kdb, 'wb', header)
         iterating = True
         while iterating:
-            # The 0th element is the count
             try:
-
+            
                 kmer_counts_per_file = list(map(next, tempdbs)) # T
                 if len(kmer_counts_per_file):
                     i = kmer_counts_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
                     count = sum([x[1] for x in kmer_counts_per_file]) # The 1th element is the k-mer count
-                    #sys.stderr.write("\r")
+
                     if arguments.verbose == 2:
                         sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_counts_per_file)), count))
-                    kdb_out.write("{0}\t{1}\n".format(i, count))
+                    if count == 0 and arguments.sparse is True:
+                        pass
+                    else:
+                        seq = kmer.id_to_kmer(i, arguments.k)
+                        neighbors = kmer.neighbors(seq, arguments.k)
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, json.dumps(neighbors)))
                 else:
                     iterating = False
             except StopIteration as e:
@@ -720,6 +755,7 @@ def cli():
     profile_parser.add_argument("--keep-sqlite", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--not-strand-specific", action="store_false", default=True, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     #profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
+    profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
