@@ -107,4 +107,37 @@ def kmer_to_id(s):
         return idx
 
 
+def id_to_kmer(id, k):
+    if type(id) is not int:
+        raise TypeError("kmerdb.id_to_kmer expects an int as its first positional argument")
+    elif type(k) is not int:
+        raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
+    else:
+        kmer = ""
+        for i in range(k):
+            kmer += binaryToLetter[id & 0x03]
+            id = id >> 2
+        kmer = list(kmer)
+        kmer.reverse()
+        return ''.join(kmer)
 
+
+def neighbors(s, k):
+    if not isinstance(s, str):
+        raise TypeError("kmerdb.kmer.neighbors expects a Biopython Seq object as its first positional argument")
+    elif type(k) is not int:
+        raise TypeError("kmerdb.kmer.neighbors expects an int as its second positional argument")
+    elif len(s) != k:
+        raise TypeError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
+    else:
+        import copy
+        letters1 = copy.deepcopy(binaryToLetter)
+        letters2 = copy.deepcopy(letters1)
+    
+        firstChar = s[0]
+        lastChar  = s[-1]
+        suffix    = s[1:]
+        prefix    = s[:-1]
+        rightNeighborIds = dict((c, kmer_to_id(suffix+c)) for c in letters1)
+        leftNeighborIds = dict((c, kmer_to_id(c+prefix)) for c in letters2)
+        return {"suffixes": rightNeighborIds, "prefixes": leftNeighborIds}

@@ -143,6 +143,7 @@ class KDBReader(bgzf.BgzfReader):
         self._buffers     = {}
         self._block_start_offset = None
         self._block_raw_length = None
+        self.profile      = None
         '''
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
@@ -259,7 +260,7 @@ class KDBReader(bgzf.BgzfReader):
     #         raise StopIteration
     #     return self._buffer
 
-    def slurp(self, dtype:int="int32"):
+    def slurp(self, dtype:str="int32"):
         """
         A function to read an entire .kdb file into memory
         """
@@ -278,13 +279,38 @@ class KDBReader(bgzf.BgzfReader):
         num_bytes = 4 * N
         vmem = psutil.virtual_memory()
         if vmem.available > num_bytes:
-            # Do the slurp
-            self.profile = np.zeros(4**self.k, dtype="int32")
-            for kmer_id in range(N):
-                #logger.debug("Reading {0}th line...".format(kmer_id))
-                line = next(self)
-                _, count = (int(_count) for _count in line.rstrip().split("\t"))
-                self.profile[kmer_id] = count
+            if self.profile is None:
+                # Do the slurp
+                i = 0
+                try:
+                    self.profile = np.zeros(4**self.k, dtype=dtype)
+
+                    for j in range(N):
+                        #logger.debug("Reading {0}th line...".format(j))
+                        line = next(self)
+                        if line is None:
+                            logger.warning("Next was None... profile was sparse, breaking")
+                            sys.exit(1)
+                            break
+                        # Don't forget to not parse the metadata column [:-1]
+                        kmer_id, count = (int(_count) for _count in line.rstrip().split("\t")[:-1])
+                        #logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
+                        i += 1
+                        self.profile[kmer_id] = count
+                    logger.info("Read {0} lines from the file...".format(i))
+                    return self.profile
+                except StopIteration as e:
+                    if i == N:
+                        logger.debug("Read {0} lines from the file...".format(i))
+                        logger.warning("StopIteration was raised!!!")
+                        return self.profile
+                    else:
+                        logger.debug("Read only {0} lines from the file...".format(i))
+                        logger.debug("Profile must have been sparse...")
+                        return self.profile
+            else:
+                logger.warning("Profile is already loaded in memory! Did you remember to deallocate it when you were done?")
+                return self.profile
         else:
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
         return self.profile

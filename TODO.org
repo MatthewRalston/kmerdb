@@ -8,12 +8,14 @@ The final prototype would be .bgzf format from biopython
 
 
 
-* TODO Sparse .kdb
+* VERIFY Sparse .kdb
 ** modify slurp
 ** modify profile
-
+* VERIFY Nearest neighbor profile
 * TODO index class
-* Rmd
+
+* Rmd report1
+** Distribution analysis
 ** Accurately describe kdb counting algorithm
 *** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
 *** First, a selection of sequences is shredded into k-mers in memory
@@ -32,6 +34,19 @@ The final prototype would be .bgzf format from biopython
 *** suggests another issue with the distribution of that sample.
 *** State why we refuse to standardize the data at this point.
 
+* Rmd report2
+** algorithm profiling
+** kdb profile k x time x cpu (z)
+**
+* profile reads sam/bam
+** use pysam to iterate over reads, creating a profile in the process.
+* kmerize
+** to use bed/gff features to select reads from bam/bai using pysam
+** and then creating sparse profiles for each feature
+** to split a bam according to gff/bed features, and putting that in an output directory
+* AWS Nepture / rdflib / Berkley DB / MongoDB support
+** Learn the RDF spec
+** Think of a specification for each node.
 * Manifold learning
 ** Isomap (derived from multidimensional scaling (MDS) or Kernel PCA)
 *** Lower dimensional projectsion of the data preserving geodesic distances between all points
