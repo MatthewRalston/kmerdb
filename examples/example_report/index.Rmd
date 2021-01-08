@@ -122,13 +122,18 @@ In this report, we will look at the shape of the data as it is normalized by sam
 
 # Methodology
 
-## kdb and on-disk k-mer counting
+## kmerdb and on-disk k-mer counting
+
+kmerdb is a Python module, distributed with the Python Package Index (PyPI) through the command line interface 'pip'. Installation is very simple and the experience should be painless for most users. The primary feature of kmerdb is a series of command-line actions called "sub-commands." These sub-commands perform specific functions on kdb database files or matrices of their origin. The first step of any analysis done with kdb is the k-mer counting done when generating a k-mer "profile." During this step, fastq or fasta files are assessed 
+
 
 ## Distribution fitting on normalized and unnormalized k-mer counts
 
 The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@love2014moderated, @anders2010differential, @daley2013predicting). My null-model is based on the use of this model in these specific ways to model count data without standardizing the raw data. I am concerned with immediately looking at a standardized dimension of this data, and I would prefer for hypothesis testing to be done in the negative-binomial space, whatever methods must be used or devised for such analysis. Since these do represent ecological counts, albeit at a sub-cellular level, they may benefit long-term from analyses that consider both methods on standardized data and on unstandardized counts, which we presume for now could follow a Poissonian model. 
 
-So my first null hypothesis must be formalized as follows: "The k-mer count data do not follow a negative-binomial distribution and perhaps fit a more standard count distribution such as the Poissonian." If we make the hypothesis this aggressive, we could completely address both sides of the hypothesis by covering Poissonian hypothesis testing and distribution fitting through Cullen-Frey analysis. The method for hypothesis testing in a Poissonian framework in R is the ppois function `ppois(x, lambda=l)`, and the y-values associated with the pdf, fully-specified by lambda, can be graphed with `dpois(x, lambda=l)`). We also try transforming the poissonian by setting lambda to the median, the mode, and the geometric average and the arithmetic average.
+So my first null hypothesis must be formalized as follows: "The k-mer count data do not follow a negative-binomial distribution and perhaps fit a more standard count distribution such as the Poissonian." If we make the hypothesis this aggressive, we could completely address both sides of the hypothesis by covering Poissonian hypothesis testing and distribution fitting through Cullen-Frey analysis. The method for hypothesis testing in a Poissonian framework in R is the ppois function `ppois(x, lambda=l)`, and the y-values associated with the pdf, fully-specified by lambda, can be graphed with `dpois(x, lambda=l)`). We also try transforming the poissonian by setting lambda to the median, the mode, and the geometric average and the arithmetic average. Although the Cullen-Frey may be a fairly accepted method, we can still try to imitate the ideal NB behavior through imitating the Poissonian by transforming the values in this way.
+
+My second hypothesis was that the effect of normalization in the next section would have no effect on the distribution selected for modeling. I will address this hypothesis by looking at the efficacy of normalization on the quartiles of each sample's k-mer counts, and then see if the Cullen-Frey analysis produces the same suggestion and thus we would think that normalization does not affect the choice of model we should use.
 
 Once the Cullen-Frey analysis led us to originally prefer the NB model for its purity, we then adopted the DESeq2 method for count normalization.
 
