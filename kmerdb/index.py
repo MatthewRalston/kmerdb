@@ -117,9 +117,9 @@ class IndexBuilder:
         elif type(k) is not int:
             raise TypeError("kmerdb.index.IndexBuilder expects an int as its second positional argument")
         N = 4**k
-        #line_index = np.zeros(N, dtype="int64")
+        line_index = np.zeros(N, dtype="int64")
         #line_index = np.array([], dtype="int64")
-        line_index = set() # They should all be different...
+        #line_index = set() # Can only use set transiently as it might sort
         indexfile = kdbfile + "i"
         
         with fileutil.open(kdbfile, mode='r') as kdbrdr:
@@ -129,27 +129,26 @@ class IndexBuilder:
             logger.info("Top position in the file after header parsing is said to be 'with this as kdbrdr:' {0}".format(pos))
             logger.info("KDBReader logs the position in mode 'r' as 'header_offset', after appending blocks: {0}".format(kdbrdr.header["header_offset"])) # This could be a compressed offset
             logger.info("Asked for the position one more time in mode 'r' in 'with this' and received: {0}".format(kdbrdr.tell()))
-            line_index.append(kdbrdr.tell())
+            line_index[0] = kdbrdr.tell()
             
             # SOmething should be checked here
-            kdbrdr.seek(kdbrdr.header["header_offset"])
-            kdbrdr._load_block()
+            #kdbrdr.seek(kdbrdr.header["header_offset"])
+            #kdbrdr._load_block()
             i = 1
+            old_idx = line_index[0]
             logger.debug("0th index, points to the first row? : {0}".format(line_index[0]))
             for line in kdbrdr:
-                # ptr = kdbrdr.tell()
-                # if i < 10:
-                #     print(i, ptr, "| \t", line.rstrip())
-                # elif i > 4194300:
-                #     print(i, ptr, "| \t", line.rstrip())
-                
                 try:
-
+                    pos = kdbrdr.tell()
                     kmer_id, count = [int(i) for i in line.rstrip().split("\t")[:-1]]
-                    logger.debug("i: {0}, K-mer id: {1}, count: {2}, index line: {3}, offset: {4}".format(kmer_id, count, i, line_index[kmer_id]))
-                    line_index.append(kdbrdr.tell())
-
-
+                    line_index[kmer_id] = old_idx
+                    logger.debug("i: {0}, K-mer id: {1}, count: {2}, index line: {3}, offset: {4}".format(i, kmer_id, count, i, old_idx))
+                    old_idx = pos
+                    if kdbrdr.tell() == 0:
+                        raise IOError("kmerdb.index.IndexBuilder expects the kdbrdr to increment with each line")
+                    # elif i > 10:
+                    #     logger.error("Position in file: {0}".format(pos))
+                    #     sys.exit(1)
                 except IndexError as e: # The final 
                     logger.warning("{0}:\t{1}".format(i, line.rstrip()))
                     raise e # STILL DONT KNOW WHATS HAPPENING HERE
