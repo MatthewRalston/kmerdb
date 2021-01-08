@@ -94,13 +94,16 @@ def kmer_to_id(s):
 
     """
 
-    if not isinstance(s, str): # Typecheck the input k-mer
-        raise TypeError("kmerdb.kmer.kmer_to_id expects a Biopython Seq object as its argument")
+    if not isinstance(s, str) and type(s) is not str and not isinstance(s, Bio.Seq.Seq) and not isinstance(s, Bio.SeqRecord.SeqRecord): # Typecheck the input k-mer
+        logger.error("Seq: {0}, type: {1}".format(s, type(s)))
+        raise TypeError("kmerdb.kmer.kmer_to_id expects a str as its argument")
     elif s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None
     else: 
         idx = 0
+        if isinstance(s, Bio.Seq.Seq) or isinstance(s, Bio.SeqRecord.SeqRecord):
+            s = str(s)
         for c in bytes(s, "UTF-8"): # Use byteshifting for fast conversion to binary encoding
             idx = idx << 2
             idx = idx | letterToBinary[c]

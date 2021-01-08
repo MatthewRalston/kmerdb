@@ -149,7 +149,7 @@ class KDBReader(bgzf.BgzfReader):
         '''
         # 0th block
         logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
-        self._load_block(handle.tell())
+        self._load_block(self._handle.tell())
         header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
         if type(header_data) is str:
@@ -162,12 +162,11 @@ class KDBReader(bgzf.BgzfReader):
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             else:
                 logger.debug(header_data)
-                logger.debug(handle.tell())
                 if header_data["metadata_blocks"] == 1:
                     logger.info("1 metadata block: Not loading any additional blocks")
                 else:
                     for i in range(header_data["metadata_blocks"] - 1):
-                        self._load_block(handle.tell())
+                        self._load_block(self._handle.tell())
                         addtl_header_data = yaml.safe_load(self._buffer)
                         if type(addtl_header_data) is str:
                             logger.error(addtl_header_data)
@@ -192,7 +191,9 @@ class KDBReader(bgzf.BgzfReader):
             logger.debug(e)
             logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML from {0} header blocks".format(num_header_blocks))
             raise e
-
+        self.header["header_offset"] = self._handle.tell()
+        logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.header["header_offset"]))
+        self._reader = gzip.open(self._filepath, 'r')
         self._offsets = deque()
         for values in bgzf.BgzfBlocks(self._handle):
             #logger.debug("Raw start %i, raw length %i, data start %i, data length %i" % values)
@@ -250,7 +251,13 @@ class KDBReader(bgzf.BgzfReader):
             return line
         else:
             raise StopIteration
-    
+
+    def __exit__(self, type, value, tb):
+        self._handle.close()
+        self._reader.close()
+        return
+        
+        
     # def __next__(self):
     #     try:
     #         self._load_block()

@@ -8,12 +8,14 @@ The final prototype would be .bgzf format from biopython
 
 
 
-* VERIFY Sparse .kdb
+* DONE Sparse .kdb
+  CLOSED: [2021-01-07 Thu 21:37]
 ** modify slurp
 ** modify profile
-* VERIFY Nearest neighbor profile
-* TODO index class
-
+* DONE Nearest neighbor profile
+  CLOSED: [2021-01-07 Thu 21:37]
+* VERIFY index class
+* TODO Probability function
 * Rmd report1
 ** Distribution analysis
 ** Accurately describe kdb counting algorithm
@@ -38,7 +40,7 @@ The final prototype would be .bgzf format from biopython
 ** algorithm profiling
 ** kdb profile k x time x cpu (z)
 **
-* profile reads sam/bam
+* TODO profile reads sam/bam
 ** use pysam to iterate over reads, creating a profile in the process.
 * kmerize
 ** to use bed/gff features to select reads from bam/bai using pysam
