@@ -37,11 +37,49 @@ logger = None
 
 def index_file(arguments):
     from kmerdb import fileutil, index
+    from kmerdb.config import DONE
     with fileutil.open(arguments.kdb, mode='r') as kdb:
-        header = kdb.header
-    line_index = index.build_line_index_from_kdb(arguments.kdb, header['k'])
-    index._write_line_index(arguments.kdbi, line_index)
+        k = kdb.header['k']
+    line_index = index.open(arguments.kdb, mode="xt", k=k)
+    sys.stderr.write(DONE)
 
+def markov_probability(arguments):
+    import pandas as pd
+    import numpy as np
+    from kmerdb import fileutil, index, probability, seqparser
+    from kmerdb.config import DONE
+
+    if index.has_index(arguments.kdb):
+        arguments.kdbi = arguments.kdb + "i"
+        df = pd.DataFrame([])
+        with fileutil.open(arguments.kdb, 'r') as kdb:
+            k = kdb.header['k']
+            with index.open(arguments.kdbi, 'r') as kdbi:
+                with seqparser.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
+                    recs = [r for r in seqprsr]
+                    if seqprsr.fastq:
+                        logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
+                        assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
+                    else:
+                        logger.debug("Read {0} sequences from the {1} seqparser object".format(len(recs), seqprsr))
+                        logger.debug("Skipping the block size assertion for fasta files")
+
+                    while len(recs): # While the seqprsr continues to produce blocks of reads
+                        # Do something here
+                    
+                        markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
+                        df.append(pd.DataFrame(markov_probs, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"]))
+
+                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the seqparser.SeqParser class
+
+        df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+
+    else:
+        raise IndexError(".kdb file '{0}' has no corresponding index file. Please run 'kdb index -h' for details on index generation".format(arguments.kdb))
+
+    
+    sys.stderr.write(DONE)
+                    
 def distances(arguments):
     import pandas as pd
     import numpy as np
@@ -855,9 +893,22 @@ def cli():
     index_parser = subparsers.add_parser("index", help="Create a index file that can be held in memory")
     index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
-    index_parser.add_argument("kdbi", type=str, help="Output index file (.kdbi)")
     index_parser.set_defaults(func=index_file)
 
+    markov_probability_parser = subparsers.add_parser("probability", help=u"""
+Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)), given the entire k-mer profile of a species.
+
+See https://matthewralston.github.io/quickstart#kmerdb-probability for more details.
+
+1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G., 1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
+""")
+
+    markov_probability_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    markov_probability_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
+    markov_probability_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
+    markov_probability_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    markov_probability_parser.set_defaults(func=markov_probability)
     
     args=parser.parse_args()
     global logger
