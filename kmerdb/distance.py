@@ -105,9 +105,9 @@ def euclidean(fname1, fname2):
 
 
 def spearman(x, y):
-    if not isinstance(x, np.array):
+    if type(x) is not np.ndarray:
         raise TypeError("kmerdb.distance.spearman expects a Numpy array as its first positional argument")
-    elif not isinstance(y, np.array):
+    elif type(y) is not np.ndarray:
         raise TypeError("kmerdb.distance.spearman expects a Numpy array as its second positional argument")
     from scipy.stats import spearmanr
     cor, pval = spearmanr(x, b=y)
