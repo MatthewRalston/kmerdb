@@ -6,21 +6,16 @@ The final prototype would be .bgzf format from biopython
 
 
 
-* TODO arguments.method == "Biopython (has a FIXME in bin/kdb)
-** Check this [[https://www.analyticsvidhya.com/blog/2019/05/beginners-guide-hierarchical-clustering/][link]]
-** Needs a euclidean distance matrix
-
-* Need an Rmd and a report directory that autopopulates a report
-** 
 
 
-* Priorities
-** Connect this to meme suite
-** Hypotheses:
-*** Suppose that k-mer spectra have a positive and negative saturation direction.
-*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
-*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
-* Rmd
+* VERIFY Sparse .kdb
+** modify slurp
+** modify profile
+* VERIFY Nearest neighbor profile
+* TODO index class
+
+* Rmd report1
+** Distribution analysis
 ** Accurately describe kdb counting algorithm
 *** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
 *** First, a selection of sequences is shredded into k-mers in memory
@@ -39,9 +34,19 @@ The final prototype would be .bgzf format from biopython
 *** suggests another issue with the distribution of that sample.
 *** State why we refuse to standardize the data at this point.
 
-* [[https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA][PCA]] (scikit-learn)
-** Uses the LAPACK implementation
-** 
+* Rmd report2
+** algorithm profiling
+** kdb profile k x time x cpu (z)
+**
+* profile reads sam/bam
+** use pysam to iterate over reads, creating a profile in the process.
+* kmerize
+** to use bed/gff features to select reads from bam/bai using pysam
+** and then creating sparse profiles for each feature
+** to split a bam according to gff/bed features, and putting that in an output directory
+* AWS Nepture / rdflib / Berkley DB / MongoDB support
+** Learn the RDF spec
+** Think of a specification for each node.
 * Manifold learning
 ** Isomap (derived from multidimensional scaling (MDS) or Kernel PCA)
 *** Lower dimensional projectsion of the data preserving geodesic distances between all points
@@ -53,20 +58,7 @@ The final prototype would be .bgzf format from biopython
 *** t-SNE will focus on the local structure of the data and will tend to extract clustered local groups of samples.
 *** This ability to group samples based on the local structure might be beneficial to visually disentangle a dataset that comprises several manifolds at once.
 
-* Comment code
-** TODO fileutil
-** profile
-** DONE index
-   CLOSED: [2020-02-11 Tue 17:14]
-
-
-
-* Bugs
-** 0-length blocks
-*** 307 0-length blocks out of 607 in Bsubtilis.kdb
-*** 0-length block creation is too frequent, KDBWriter
-*** Remember to change logger.warning in kdb.index to raise Exception
-** Handle reads /fasta with 'N' (ambiguous base)
+* TODO Comment code
 * index class
 ** need b-tree library
 *** https://pythonhosted.org/BTrees/
@@ -76,10 +68,8 @@ The final prototype would be .bgzf format from biopython
 *** The following searches for all values greater-than(min) or less-than(max), flattening
 *** list(itertools.chain.from_iterable(btree.values(min=int/float)))
 * kdb annotator class (reworked into index class and better metadata specification)
-*** DONE First, further specify kdb record shape
-    CLOSED: [2019-11-24 Sun 23:00]
-*** DONE Second specify kdb metadata shape/parsing routines
-    CLOSED: [2019-11-24 Sun 23:00]
+*** TODO First, further specify kdb record shape
+*** TODO Second specify kdb metadata shape/types/parsing routines
 *** Annotate bools, floats (probability), tags, ints (connectivity/degree)
 **** Eulerian as a tag or a bool?
 *** Index should be designed to rapidly filter tags, rapidly search/filter/narrow on ints
@@ -89,14 +79,12 @@ The final prototype would be .bgzf format from biopython
 *** sort k-mers by counts (in memory, not on file), then create b-tree, leafs are k-mer file indices (above)
 ** tag : hash index
 ** float, int indices : similar to count index above6
-* Documentation
-** README
-** Blog post + review of kmer tools
-** Make note of R1/R2 reverse complement needs in strand-specific sequencing
-*** maybe a nargs=* optional list for R2? FR strand specificity
-*** This wouldn't accomodate RF library preps
-*** Either way, add a note that trimming and reverse complementing the reads should be done prior
-
+* Priorities
+** Connect this to meme suite
+** Hypotheses:
+*** Suppose that k-mer spectra have a positive and negative saturation direction.
+*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
+*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
 * Operations
 ** DONE Get all neighbors
    CLOSED: [2019-11-12 Tue 14:41]
