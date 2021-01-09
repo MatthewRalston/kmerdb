@@ -19,9 +19,9 @@
 import sys
 import os
 import copy
-import array
 import gzip
-
+import yaml
+import numpy as np
 #import jsonschema
 sys.path.append('..')
 
@@ -33,77 +33,215 @@ logger = logging.getLogger(__file__)
 
 
 
+def open(filepath, mode="r", k=None, idx=None):
+    if type(filepath) is not str:
+        raise TypeError("kmerdb.index.open expects a str as its first positional argument")
+    elif type(mode) is not str:
+        raise TypeError("kmerdb.index.open expects a str as its second positional argument")
+    elif "w" in mode and type(idx) is not np.ndarray:
+        if "x" in mode and type(k) is not int: # Specifically, if its not a
+            raise TypeError("kmerdb.index.open in create mode expects an int as its first *args argument")
+            
+    elif "w" in mode and type(k) is not int:
+        raise TypeError("kmerdb.index.open in write mode expects an int as its second *args argument")
+    modes = set(list(mode.lower()))
+    if modes - set("xrwbt") or len(mode) > len(modes):
+        raise ValueError("invalid mode: {}".format(mode))
+
+    creating = "x" in modes
+    reading  = "r" in modes
+    writing  = "w" in modes
+    binary   = "b" in modes
+    text     = "t" in modes
+
+    if text and binary:
+        raise ValueError("can't have text and binary mode simultaneously")
+    elif not (creating or reading or writing):
+        raise ValueError("must have exactly one or read/write")
+
+    if "r" in mode.lower():
+        return IndexReader(filepath) # Will attempt to read this as an index file
+    elif "x" in mode.lower() or set(list("xw")).intersection(modes):
+        logger.info("Building index from file and constructing (mode='x') new .kdbi file")
+        return IndexBuilder(filepath, k) # Creates a new .kdbi exactly named for the kdb file
+    elif "w" in mode.lower():
+        logger.info("Writing index to file instead of building index")
+        write_index(idx, indexfile, k) # index, indexfile, k
 
 
+class IndexReader:
+    def __init__(self, indexfile:str):
+        if type(indexfile) is not str:
+            raise TypeError("kmerdb.index.IndexReader expects a str as its first positional argument")
+        elif not os.path.exists(indexfile):
+            raise TypeError("kmerdb.index.IndexReader expects an existing .kdbi index file as its first positional argument")
+        elif not is_gz_file(indexfile):
+            raise IOError("kmerdb.index.IndexReader expects a gzip compressed index file as its first positional argument")
+        
 
+        idx = np.array([], dtype="int64")
+        #i = 0
+        with gzip.open(indexfile, 'rt') as ifile:
+            first_line = ifile.readline().rstrip()
+            try:
+                logger.debug("First line of index:\n{0}".format(first_line))
+                k = int(first_line)
+                idx = np.zeros(4**k, dtype="int64")
+            except ValueError as e:
+                logger.debug(e)
+                raise IOError("Could not determine k by casting the first line of the index as an integer. Improperly formatted index")
+            i = 0
+            for line in ifile:
+                # if i == 0:
+                #     logger.warning("i: {0}, line:\n{1}".format(i, line))
 
-# class Index:
-#     def __init__(self, k, kdbfile:str=None, indexfile:str=None):
-#         # if kdbrdr.__class__.__name__ != fileutil.KDBReader.__name__:
-#         #     raise TypeError("kdb.index.IndexBuilder expects a KDBReader object as its first positional argument")
-#         if type(k) is not int:
-#             raise TypeError("kdb.index.Index expects an int as its first positional argument")
-#         self.k = k
+                #     sys.exit(1)
+                #     pass
+                # else:
+                kmer_id, line_offset = [int(i) for i in line.rstrip().split("\t")]
+                idx[kmer_id] = line_offset
+                i += 1
+        self.index = idx
 
-#         # 
-#         if kdbfile is None and indexfile is None:
-#             raise ValueError("kdb.index.Index initialized with no .kdb or index file specified...")            
-#         elif kdbfile is not None and type(kdbfile) is not str:
-#             raise TypeError("kdb.index.Index expects the keyword argument 'kdbfile', if specified, to be a str")
-#         elif indexfile is not None and type(indexfile) is not str:
-#             raise TypeError("kdb.index.Index expects the keyword argument 'indexfile', if specified to be a str")
-#         else:
-#             self.__indexfile = indexfile
-#             self.__kdbfile = kdbfile
-#             self.index = array.array('Q') # Can be set from the outside
+    def __enter__(self):
+        return self
 
+    def __exit__(self, type, value, tb):
+        del self.index
+        return
 
-def _write_line_index(indexfile, index):
-    if type(indexfile) is not str:
-        raise TypeError("kmerdb.index._write_index expects a str as its first positional argument")
-    elif not isinstance(index, array.array):
-        raise TypeError("kmerdb.index._write_index expects an array.array as its second positional argument")
-    with gzip.open(indexfile, 'wt') as ofile:
-        for kmer in index:
-            ofile.write(str(kmer) + "\n")
+class IndexBuilder:
+    def __init__(self, kdbfile:str, k:int):
+        if type(kdbfile) is not str:
+            raise TypeError("kmerdb.index.IndexBuilder expects a str as its first positional argument")
+        elif not os.path.exists(kdbfile):
+            logger.error("Could not find {0}".format(kdbfile))
+            raise IOError("kmderdb.index.IndexBuilder expects an existing .kdb file as its first positional argument")
+        elif os.path.splitext(kdbfile)[-1] != ".kdb":
+            raise IOError("kmerdb.index.IndexBuilder was passed a non-kdb filetype as its first positional argument, should be .kdb")
+        elif type(k) is not int:
+            raise TypeError("kmerdb.index.IndexBuilder expects an int as its second positional argument")
+        N = 4**k
+        line_index = np.zeros(N, dtype="int64")
+        #line_index = np.array([], dtype="int64")
+        #line_index = set() # Can only use set transiently as it might sort
+        indexfile = kdbfile + "i"
+        
+        with fileutil.open(kdbfile, mode='r') as kdbrdr:
+            pos = kdbrdr.tell() # This could be the byte encoding, since we're reading it as plain text
 
-                
-def _read_line_index(indexfile):
-    if type(indexfile) is not str:
-        raise TypeError("kmerdb.index._read_index expects a str as its first positional argument")
-    line_index = array.array('Q') #, range(4**self.k))
-    #i = 0
-    with gzip.open(indexfile, 'rt') as ifile:
-        for line in ifile:
-            #idx[i] = int(line.rstrip()) # FIXME
-            idx.append(int(line.rstrip()))
-    return idx
+            logger.info("Reading the .kdb file '{0}' in mode 'r' to generate the index...".format(kdbrdr._filepath))
+            logger.info("Top position in the file after header parsing is said to be 'with this as kdbrdr:' {0}".format(pos))
+            logger.info("KDBReader logs the position in mode 'r' as 'header_offset', after appending blocks: {0}".format(kdbrdr.header["header_offset"])) # This could be a compressed offset
+            logger.info("Asked for the position one more time in mode 'r' in 'with this' and received: {0}".format(kdbrdr.tell()))
+            line_index[0] = kdbrdr.tell()
+
+            # SOmething should be checked here
+            #kdbrdr.seek(kdbrdr.header["header_offset"])
+            #kdbrdr._load_block()
+            i = 1
+            this_line = line_index[0]
+            logger.debug("0th index, points to the first row? : {0}".format(line_index[0]))
+            for line in kdbrdr:
+                try:
+                    next_line = kdbrdr.tell()
+                    kmer_id, count = [int(i) for i in line.rstrip().split("\t")[:-1]]
+                    line_index[kmer_id] = this_line
+                    kdbrdr.seek(this_line)
+                    new_line = kdbrdr.readline()
+                    if new_line == line:
+                        logger.debug("i: {0}, K-mer id: {1}, count: {2}, index line: {3}, offset: {4}".format(i, kmer_id, count, i, this_line))
+                    elif next_line == 0 or this_line == 0:
+                        logger.warning("i: 0, k-mer id: {1}, this_line: {2}, next_line{3}".format(i, kmer_id, this_line, next_line))
+                        raise ValueError("Encountered a line where kdbrdr.tell() is producing 0")
+                    else:
+                        logger.warning("This line was not reproducibly generated...")
+                        logger.warning("i: {0}, K-mer id: {1}, offset: {2}".format(i, kmer_id, this_line))
+                        sys.exit(1)
+                        
+                    this_line = next_line
+                    if kdbrdr.tell() == 0:
+                        raise IOError("kmerdb.index.IndexBuilder expects the kdbrdr to increment with each line")
+                    # elif i > 10:
+                    #     logger.error("Position in file: {0}".format(pos))
+                    #     sys.exit(1)
+                except IndexError as e: # The final 
+                    logger.warning("{0}:\t{1}".format(i, line.rstrip()))
+                    raise e # STILL DONT KNOW WHATS HAPPENING HERE
+                i += 1
+        write_index(line_index, indexfile, k)
 
         
-def build_line_index_from_kdb(kdbfile, k):
+def has_index(kdbfile):
     if type(kdbfile) is not str:
-        raise TypeError("kmerdb.index.build_line_index_from_kdb expects a str as its first positional argument")
+        raise TypeError("kmerdb.index.has_index expects a str as its first positional argument")
+    elif not os.path.exists(kdbfile):
+        raise IOError("kmerdb.index.has_index received a filename that does not exist")
+    elif os.path.splitext(kdbfile)[-1] == ".kdb" and not os.path.exists(kdbfile + "i"):
+        return False
+    elif os.path.splitext(kdbfile)[-1] == ".kdb" and os.path.exists(kdbfile + "i"):
+        return True
+    elif os.path.splitext(kdbfile)[-1] != ".kdb":
+        raise ValueError("unexpected file extension, not a .kdb file.")
+    else:
+        raise RuntimeError("kmerdb.index.has_index encountered unexpected user inputs:\nkdbfile: '{0}', exists: {1}".format(kdbfile, os.path.exists(kdbfile)))
+
+
+def read_line(kdbrdr:fileutil.KDBReader, kdbidx:IndexReader, kmer_id):
+    if not isinstance(kdbrdr, fileutil.KDBReader):
+        raise TypeError("kmerdb.index.read_line expects a kmerdb.fileutil.KDBReader as its first positional argument")
+    elif not isinstance(kdbidx, IndexReader):
+        raise TypeError("kmerdb.index.read_line expects a kmerdb.index.IndexReader as its second positional argument")
+    elif type(kmer_id) is not int:
+        raise TypeError("kmerdb.index.read_line expects an int as its third positional argument")
+    if kdbidx.index[kmer_id] == 0:
+        logger.warning("Found an index value without an offset, in fact, it's in the header")
+        return None, None, None
+        #raise ValueError("Invalid index value 0")
+    else:
+        kdbrdr.seek(kdbidx.index[kmer_id])
+        line = kdbrdr.readline().rstrip()
+        linesplit = line.split("\t")
+        # MAGIC NUMBER ALERT
+        # 3 is chosen to match the current .kdb record style
+        if len(linesplit) != 3:
+            logger.error("Full line:\n{0}".format(line))
+            logger.error("Expected k-mer id: {0}".format(kmer_id))
+            raise ValueError("kmerdb.index.read_line encountered a .kdb line without 3 columns, a violation of the format")
+        kmer_id, count, neighbors = line.rstrip().split("\t")
+        return int(kmer_id), int(count), yaml.safe_load(neighbors)
+
+        
+def is_gz_file(filepath):
+    try:
+        gzip
+        
+        with gzip.open(filepath, 'rb') as f:
+            f.readline()
+        return True
+    except OSError as e:
+        return False
+
+def write_index(index:np.array, indexfile:str, k:int):
+    if not isinstance(index, np.ndarray):
+        raise TypeError("kmerdb.index.write_index expects a str as its first positional argument")
+    elif type(indexfile) is not str:
+        raise TypeError("kmerdb.index.write_index expects a str as its second positional argument")
+    elif os.path.exists(indexfile):
+        logger.warning("kmerdb.index.write_index is overwriting an existing index '{0}'...".format(indexfile))
+        mode = "wt"
     elif type(k) is not int:
-        raise TypeError("kmerdb.index.build_line_index_from_kdb expects an int as its second positional argument")
-    line_index = array.array('Q', range(4**k))
-    with fileutil.open(kdbfile, mode='r') as kdbrdr:
+        raise TypeError("kmerdb.index.write_index expects an int as its third positional argument")
+    else:
+        mode = "xt"
+    with gzip.open(indexfile, mode) as ofile:
+        ofile.write("{0}\n".format(k))
+        for i, line_offset in enumerate(index):
+            if int(line_offset) == 0:
+                logger.debug("K-mer {0} was not observed, not writing to file".format(i))
+                pass
+            else:
+                ofile.write("{0}\t{1}\n".format(i, line_offset))
 
-        line_index[0] = kdbrdr.tell()
-        i = 1
-        for line in kdbrdr:
-            # ptr = kdbrdr.tell()
-            # if i < 10:
-            #     print(i, ptr, "| \t", line.rstrip())
-            # elif i > 4194300:
-            #     print(i, ptr, "| \t", line.rstrip())
+    
                 
-            try:
-                line_index[i] = kdbrdr.tell()
-                i+=1
-            except IndexError as e: # The final 
-                logger.debug("Index generation complete...")
-                #logger.warning("{0}:\t{1}".format(i, line.rstrip()))
-                #logger.error(e)
-    return line_index
-
-
