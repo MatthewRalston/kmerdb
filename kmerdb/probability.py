@@ -79,6 +79,7 @@ def markov_probability(seq:Bio.SeqRecord.SeqRecord, kdbrdr:fileutil.KDBReader, k
     total = 0
     total2 = 0
     product = 1
+    product2 = 1
     total_nucleotides = sum(mononucleotides.values())
     logger.debug(seq.seq)
     logger.debug(len(seq.seq))
@@ -93,9 +94,9 @@ def markov_probability(seq:Bio.SeqRecord.SeqRecord, kdbrdr:fileutil.KDBReader, k
                 kmer_id = idx
                 count = 0
                 #raise ValueError("k-mer id '{0}' had an offset of zero in the index, it was not observed in the genome. Effective probability of sequence is 0 and Log-odds ratio of the sequence being generated from the k-mer profile is effectively 0 as well.".format(s))
-            aij = mononucleotides / total_nucleotides
-            sum_aij += log10(mononucleotides[char] / total_nucleotides)
-            sum_qses += log10(count/float(total_kmers))
+            aij = mononucleotides[char] / total_nucleotides
+            sum_aij += mononucleotides[char] / total_nucleotides
+            sum_qses += count/float(total_kmers)
         # Prefix is the next prefix sequence to find a suffix for
         if i >= len(seq.seq):
             break
