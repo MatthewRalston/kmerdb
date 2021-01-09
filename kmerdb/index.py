@@ -20,6 +20,7 @@ import sys
 import os
 import copy
 import gzip
+import yaml
 import numpy as np
 #import jsonschema
 sys.path.append('..')
@@ -91,11 +92,15 @@ class IndexReader:
                 raise IOError("Could not determine k by casting the first line of the index as an integer. Improperly formatted index")
             i = 0
             for line in ifile:
-                if i == 0:
-                    pass
-                else:
-                    kmer_id, line_offset = line.rstrip().split(",")
-                    idx[kmer_id] = line_offset
+                # if i == 0:
+                #     logger.warning("i: {0}, line:\n{1}".format(i, line))
+
+                #     sys.exit(1)
+                #     pass
+                # else:
+                kmer_id, line_offset = [int(i) for i in line.rstrip().split("\t")]
+                idx[kmer_id] = line_offset
+                i += 1
         self.index = idx
 
     def __enter__(self):
@@ -130,20 +135,31 @@ class IndexBuilder:
             logger.info("KDBReader logs the position in mode 'r' as 'header_offset', after appending blocks: {0}".format(kdbrdr.header["header_offset"])) # This could be a compressed offset
             logger.info("Asked for the position one more time in mode 'r' in 'with this' and received: {0}".format(kdbrdr.tell()))
             line_index[0] = kdbrdr.tell()
-            
+
             # SOmething should be checked here
             #kdbrdr.seek(kdbrdr.header["header_offset"])
             #kdbrdr._load_block()
             i = 1
-            old_idx = line_index[0]
+            this_line = line_index[0]
             logger.debug("0th index, points to the first row? : {0}".format(line_index[0]))
             for line in kdbrdr:
                 try:
-                    pos = kdbrdr.tell()
+                    next_line = kdbrdr.tell()
                     kmer_id, count = [int(i) for i in line.rstrip().split("\t")[:-1]]
-                    line_index[kmer_id] = old_idx
-                    logger.debug("i: {0}, K-mer id: {1}, count: {2}, index line: {3}, offset: {4}".format(i, kmer_id, count, i, old_idx))
-                    old_idx = pos
+                    line_index[kmer_id] = this_line
+                    kdbrdr.seek(this_line)
+                    new_line = kdbrdr.readline()
+                    if new_line == line:
+                        logger.debug("i: {0}, K-mer id: {1}, count: {2}, index line: {3}, offset: {4}".format(i, kmer_id, count, i, this_line))
+                    elif next_line == 0 or this_line == 0:
+                        logger.warning("i: 0, k-mer id: {1}, this_line: {2}, next_line{3}".format(i, kmer_id, this_line, next_line))
+                        raise ValueError("Encountered a line where kdbrdr.tell() is producing 0")
+                    else:
+                        logger.warning("This line was not reproducibly generated...")
+                        logger.warning("i: {0}, K-mer id: {1}, offset: {2}".format(i, kmer_id, this_line))
+                        sys.exit(1)
+                        
+                    this_line = next_line
                     if kdbrdr.tell() == 0:
                         raise IOError("kmerdb.index.IndexBuilder expects the kdbrdr to increment with each line")
                     # elif i > 10:
@@ -213,12 +229,18 @@ def write_index(index:np.array, indexfile:str, k:int):
         raise TypeError("kmerdb.index.write_index expects a str as its second positional argument")
     elif os.path.exists(indexfile):
         logger.warning("kmerdb.index.write_index is overwriting an existing index '{0}'...".format(indexfile))
+        mode = "wt"
     elif type(k) is not int:
         raise TypeError("kmerdb.index.write_index expects an int as its third positional argument")
     else:
-        with gzip.open(indexfile, 'xt') as ofile:
-            ofile.write("{0}\n".format(k))
-            for i, line_offset in enumerate(index):
+        mode = "xt"
+    with gzip.open(indexfile, mode) as ofile:
+        ofile.write("{0}\n".format(k))
+        for i, line_offset in enumerate(index):
+            if int(line_offset) == 0:
+                logger.debug("K-mer {0} was not observed, not writing to file".format(i))
+                pass
+            else:
                 ofile.write("{0}\t{1}\n".format(i, line_offset))
 
     

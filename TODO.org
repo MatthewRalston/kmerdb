@@ -15,7 +15,7 @@ The final prototype would be .bgzf format from biopython
 * DONE Nearest neighbor profile
   CLOSED: [2021-01-07 Thu 21:37]
 * VERIFY index class
-* TODO Probability function
+* VERIFY Probability function
 * Rmd report1
 ** Distribution analysis
 ** Accurately describe kdb counting algorithm

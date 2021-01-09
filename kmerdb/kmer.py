@@ -106,7 +106,12 @@ def kmer_to_id(s):
             s = str(s)
         for c in bytes(s, "UTF-8"): # Use byteshifting for fast conversion to binary encoding
             idx = idx << 2
-            idx = idx | letterToBinary[c]
+            try:
+                idx = idx | letterToBinary[c]
+            except KeyError as e:
+                logger.error("Entire sequence: {0}".format(s))
+                logger.error("Problematic character: {0}".format(c))
+                raise e
         return idx
 
 
