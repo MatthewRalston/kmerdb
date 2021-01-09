@@ -51,7 +51,8 @@ def markov_probability(arguments):
 
     if index.has_index(arguments.kdb):
         arguments.kdbi = arguments.kdb + "i"
-        df = pd.DataFrame([])
+        #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
+        profiles = np.array([], dtype="int64")
         with fileutil.open(arguments.kdb, 'r') as kdb:
             k = kdb.header['k']
             with index.open(arguments.kdbi, 'r') as kdbi:
@@ -68,10 +69,15 @@ def markov_probability(arguments):
                         # Do something here
                     
                         markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
-                        df.append(pd.DataFrame(markov_probs, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"]))
+
+                        print(markov_probs)
+                        if profiles.shape == (0,):
+                            profiles = np.array(markov_probs)
+                        else:
+                            np.append(profiles, markov_probs, axis=0)
 
                         recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the seqparser.SeqParser class
-
+        df = pd.DataFrame(profiles, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
         df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
 
     else:
