@@ -49,6 +49,10 @@ def markov_probability(arguments):
     from kmerdb import fileutil, index, probability, seqparser
     from kmerdb.config import DONE
 
+    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+        raise IOError("Model .kdb filepath does not end in '.kdb'")
+
+
     if index.has_index(arguments.kdb):
         arguments.kdbi = arguments.kdb + "i"
         #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
@@ -101,6 +105,8 @@ def distances(arguments):
         logger.debug("Files: {0}".format(files))
         if arguments.k is None:
             arguments.k = files[0].k
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.kdb):
+            raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
         if not all(kdbrdr.k == arguments.k for kdbrdr in files):
             logger.error("Files: {0}".format(files))
             logger.error("Choices of k: {0}".format([kdbrdr.k for kdbrdr in files]))
@@ -218,6 +224,8 @@ def get_matrix(arguments):
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.kdb))
         if arguments.k is None:
             arguments.k = files[0].k
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.kdb):
+            raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
         if not all(kdbrdr.k == arguments.k for kdbrdr in files):
             logger.error("Files: {0}".format(files))
             logger.error("Choices of k: {0}".format([kdbrdr.k for kdbrdr in files]))
@@ -656,6 +664,9 @@ def hierarchical(arguments):
 def header(arguments):
     from kmerdb import fileutil, config, util
 
+    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
+
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         if kdb.header["version"] != config.VERSION:
             logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
@@ -670,6 +681,8 @@ def view(arguments):
     from kmerdb import fileutil
 
     from kmerdb.config import VERSION
+    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
         if kdb.header["version"] != VERSION:
@@ -685,6 +698,9 @@ def profile(arguments):
     import json
     from kmerdb.config import VERSION
 
+    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+        raise IOError("Destination .kdb filepath does not end in '.kdb'")
+    
     metadata = []
     tempdbs = []
     for f in arguments.seqfile:
@@ -735,16 +751,21 @@ def profile(arguments):
         logger.info("Completed the transfer of data from the {0} temporary SQLite3 databases to the kdb file '{1}'".format(len(tempdbs), arguments.kdb))
         logger.info("Done")
     finally:
+        import shutil
+        kdb_out._write_block(kdb_out._buffer)
+        kdb_out._handle.flush()
+        kdb_out._handle.close()
         for db in tempdbs:
             db.conn.close()
             db._engine.dispose()
             if not arguments.keep_sqlite:
                 os.unlink(db.filepath)
             else:
-                logger.debug("    Database file retained:    {0}".format(db.filepath))
-        kdb_out._write_block(kdb_out._buffer)
-        kdb_out._handle.flush()
-        kdb_out._handle.close()
+                kdbfile = arguments.kdb
+                kdbbasename = arguments.kdb.rstrip(".kdb")
+                kdbsqlite = kdbbasename + ".sqlite3"
+                shutil.move(db.filepath, kdbsqlite)
+                sys.stderr.write("    Database file retained as    '{0}'".format(kdbsqlite))
 
 
     
