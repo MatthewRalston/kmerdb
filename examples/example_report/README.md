@@ -25,32 +25,32 @@ cp example_report/index.Rmd example_report2/
 cd example_report2/
 # Create a new set of profiles for k=$K in the same directory as the input files.
 # Please see the manual for GNU parallel if you're not familiar with this usage.
-parallel 'kdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls ../../test/data/*.fasta.gz)
+parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls ../../test/data/*.fasta.gz)
 # Generate unnormalized and DESeq2 normalized count matrices
-kdb matrix Unnormalized test/data/*.$K.kdb > unnormalized_count_matrix.tsv
-kdb matrix Normalized --normalize-with DESeq2 test/data/*.$K.kdb > normalized_count_matrix.tsv
+kmerdb matrix Unnormalized test/data/*.$K.kdb > unnormalized_count_matrix.tsv
+kmerdb matrix Normalized test/data/*.$K.kdb > normalized_count_matrix.tsv
 
 
 # Run the PCA and tSNE with k-means clustering
-kdb matrix PCA # Generate the elbow graph and choose the appropriate version of '-n'
-kdb matrix PCA -n $N | kdb kmeans -k 3 Biopython
+kmerdb matrix PCA # Generate the elbow graph and choose the appropriate version of '-n'
+kmerdb matrix PCA -n $N | kdb kmeans -k 3 Biopython
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_pca3.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_pca3.png
-kdb matrix tSNE -n 2 | kdm kmeans -k 3 Biopython
+kmerdb matrix tSNE -n 2 | kdm kmeans -k 3 Biopython
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_tsne2.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_tsne2.png
 # Generate correlation distance matrices for clustering
-kdb matrix Normalized test/data/*.$K.kdb | kdb distance spearman > 8-mer_spearman_dist.tsv
-kdb kmeans -k 3 Biopython < 8-mer_spearman_dist.tsv
+kmerdb matrix Normalized test/data/*.$K.kdb | kmerdb distance spearman > 8-mer_spearman_dist.tsv
+kmerdb kmeans -k 3 Biopython < 8-mer_spearman_dist.tsv
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_spearman_dist.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
-kdb matrix Normalized test/data/*.$K.kdb | kdb distance correlation > 8-mer_pearson_dist.tsv
+kdb matrix Normalized test/data/*.$K.kdb | kmerdb distance correlation > 8-mer_pearson_dist.tsv
 kdb kmeans -k 3 Biopython < 8-mer_pearson_dist.tsv
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_pearson_dist.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
 
-# Generate the html report with R.
-kdb report --unnormalized unnormalized_count_matrix.tsv --normalized normalized_count_matrix.tsv --pca-elbow-graph PCA_variance_accumulation.png --kmeans-pca-clustering kmeans_k3_clustering_on_pca3.png --kmeans-tsne-clustering kmeans_k3_clustering_on_tsne2.png --kmeans-spearman-clustering kmeans_k3_clustering_on_spearman_dist.png --kmeans-on-pca-elbow-graph kmeans_elbow_graph_on_pca3.png --kmeans-on-tsne-elbow-graph kmeans_elbow_graph_on_tsne2.png --kmeans-on-spearman-dist-elbow-graph kmeans_elbow_graph_on_spearman_dist.png --kmeans-on-pearson-dist-elbow-graph kmeans_elbow_graph_on_pearson_dist.png
+# Generate the html report with R. NOTE: not implemented yet.
+kmerdb report --unnormalized unnormalized_count_matrix.tsv --normalized normalized_count_matrix.tsv --pca-elbow-graph PCA_variance_accumulation.png --kmeans-pca-clustering kmeans_k3_clustering_on_pca3.png --kmeans-tsne-clustering kmeans_k3_clustering_on_tsne2.png --kmeans-spearman-clustering kmeans_k3_clustering_on_spearman_dist.png --kmeans-on-pca-elbow-graph kmeans_elbow_graph_on_pca3.png --kmeans-on-tsne-elbow-graph kmeans_elbow_graph_on_tsne2.png --kmeans-on-spearman-dist-elbow-graph kmeans_elbow_graph_on_spearman_dist.png --kmeans-on-pearson-dist-elbow-graph kmeans_elbow_graph_on_pearson_dist.png
 ```
 
 
