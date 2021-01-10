@@ -454,7 +454,14 @@ def kmeans(arguments):
         fig, ax = plt.subplots()
         scatter = ax.scatter(df.iloc[:, 1], df.iloc[:, 2], c=df.iloc[:, 0])
         legend = ax.legend(*scatter.legend_elements(), loc="upper right", title="Cluster")
+
+        ax.set_xlabel("Dim1")
+        ax.set_ylabel("Dim2")
+        ax.set_title("K-means clustering")
         ax.add_artist(legend)
+        ax.grid(True)
+
+
         plt.savefig(config.kmeans_clustering_fig_filepath)
         
         #centroids = kmeans.cluster_centers_
@@ -509,7 +516,12 @@ def kmeans(arguments):
         fig, ax = plt.subplots()
         scatter = ax.scatter(df.iloc[:, 1], df.iloc[:, 2], c=df.iloc[:, 0])
         legend = ax.legend(*scatter.legend_elements(), loc="upper right", title="Cluster")
+
+        ax.set_xlabel("Dim1")
+        ax.set_ylabel("Dim2")
+        ax.set_title("K-means clustering")
         ax.add_artist(legend)
+        ax.grid(True)
         plt.savefig(config.kmeans_clustering_fig_filepath)
         
         #centroids = kmeans.cluster_centers_
