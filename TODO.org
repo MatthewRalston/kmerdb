@@ -39,7 +39,18 @@ The final prototype would be .bgzf format from biopython
 * Rmd report2
 ** algorithm profiling
 ** kdb profile k x time x cpu (z)
-**
+*** we need to choose a range of k that is meaningful and explain why.
+*** the choice of k of 8 - 12 is convenient because it means
+*** we don't have to pay for extra memory. This will be managable on any number of cores
+*** with at least 32 Gb of memory for about 20 samples.
+*** According to the following graph, the uncompressed value of the sparse matrix in n x 4^k
+*** may take gigabytes per profile in the low double digits.
+*** but the value of these profiles grows exponentially with the increased cost as well.
+*** so when we look at these genomes with this degree of sensitivity, which has been substantial in the literature in the neighborhood of k=10-12,
+*** then suddenly we agree that more characterizations are possible and this places more value on the expected scaling behavior of this program.
+*** The goal is most likely not to reinvent the wheel. Since this is an academic package at this point, we feel that it is necessary and important to couple this with a graph database
+*** We have selected the RDF format going forward and expect that long term use of Amazon Neptune might be an important source of understanding that we can get from users uploading their graphs, sparse or otherwise, to a giant Neptune repository.
+*** It could be an entirely new sequence database format.
 * TODO profile reads sam/bam
 ** use pysam to iterate over reads, creating a profile in the process.
 * kmerize
