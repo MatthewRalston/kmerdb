@@ -25,7 +25,8 @@ cp example_report/index.Rmd example_report2/
 cd example_report2/
 # Create a new set of profiles for k=$K in the same directory as the input files.
 # Please see the manual for GNU parallel if you're not familiar with this usage.
-parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls ../../test/data/*.fasta.gz)
+# Also be sure to check out the 'kmerdb profile --help' page if you're not familiar with the command
+parallel 'kmerdb profile --keep-sqlite -k $K {} {.}.$K.kdb' ::: $(/bin/ls ../../test/data/*.fasta.gz)
 # Generate unnormalized and DESeq2 normalized count matrices
 kmerdb matrix Unnormalized test/data/*.$K.kdb > unnormalized_count_matrix.tsv
 kmerdb matrix Normalized test/data/*.$K.kdb > normalized_count_matrix.tsv

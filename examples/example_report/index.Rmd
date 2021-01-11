@@ -4,6 +4,9 @@ author: "Matthew Ralston <mrals89@gmail.com>"
 header-includes:
   \usepackage{fancyhdr}
   \usepackage{graphicx}
+  \usepackage{pdflscape}
+  \newcommand{\blandscape}{\begin{landscape}}
+  \newcommand{\elandscape}{\end{landscape}}
   \AtBeginDocument{\let\maketitle\relax}
   \newcommand{\beginsupplemental}{\setcounter{table}{0}\renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}}
 output: pdf_document
@@ -135,49 +138,198 @@ The more deliberate feature of the on-disk k-mer counting is that higher choices
 
 The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@love2014moderated, @anders2010differential, @daley2013predicting). My null-model is based on the use of this model in these specific ways to model count data without standardizing the raw data. I am concerned with immediately looking at a standardized dimension of this data, and I would prefer for hypothesis testing to be done in the negative-binomial space, whatever methods must be used or devised for such analysis. Since these do represent ecological counts, albeit at a sub-cellular level, they may benefit long-term from analyses that consider both methods on standardized data and on unstandardized counts, which we presume for now could follow a Poissonian model. 
 
-So my first null hypothesis must be formalized as follows: "The k-mer count data do not follow a negative-binomial distribution and perhaps fit a more standard count distribution such as the Poissonian." If we make the hypothesis this aggressive, we could completely address both sides of the hypothesis by covering Poissonian hypothesis testing and distribution fitting through Cullen-Frey analysis. The method for hypothesis testing in a Poissonian framework in R is the ppois function `ppois(x, lambda=l)`, and the y-values associated with the pdf, fully-specified by lambda, can be graphed with `dpois(x, lambda=l)`). We also try transforming the poissonian by setting lambda to the median, the mode, and the geometric average and the arithmetic average. Although the Cullen-Frey may be a fairly accepted method, we can still try to imitate the ideal NB behavior through imitating the Poissonian by transforming the values in this way.
+So my first null hypothesis must be formalized as follows: "The k-mer count data do not follow a negative-binomial distribution and perhaps fit a more standard count distribution such as the Poissonian." If we make the hypothesis this aggressive, we could completely address both sides of the hypothesis by covering Poissonian hypothesis testing and distribution fitting through Cullen-Frey analysis. The method for hypothesis testing in a Poissonian framework in R is the ppois function `ppois(x, lambda=l)`, and the y-values associated with the pdf, fully-specified by lambda, can be graphed with `dpois(x, lambda=l)`). 
+
+
+<!-- We also try transforming the poissonian by setting lambda to the median, the mode, and the geometric average and the arithmetic average. Although the Cullen-Frey may be a fairly accepted method, we can still try to imitate the ideal NB --> <!-- behavior through imitating the Poissonian by transforming the values in this way. -->
+
+
+## Count Normalization
 
 My second hypothesis was that the effect of normalization in the next section would have no effect on the distribution selected for modeling. I will address this hypothesis by looking at the efficacy of normalization on the quartiles of each sample's k-mer counts, and then see if the Cullen-Frey analysis produces the same suggestion and thus we would think that normalization does not affect the choice of model we should use.
 
-Once the Cullen-Frey analysis led us to originally prefer the NB model for its purity, we then adopted the DESeq2 method for count normalization.
+My first assumption is that since the count models are similar between RNA-Seq DGE and k-mer counts, that it is reasonable to use the median of ratios method for count normalization, and round these to the nearest integer before performing dimensionality reduction and k-means clustering. My method
+
+Once the Cullen-Frey analysis led us to originally prefer the NB model for its purity, we then adopted the DESeq2 method for count normalization. To test our acceptance of the normalization, I will use boxplots to look at the distribution uniformity or homoscedasticity and the effect of median of ratios on the quartiles.
 
 
-## count normalization
 
 
-This report looks at the effect of normalization vs raw data through box plots.
+# Results
 
-After 8-mer profiles were generated, we normalized the counts with DESeq2 and we want to view the effect of normalization. DESeq2 uses a normalization 
+## Primary distribution selection
+
+```{r fig.cap="Primary histogram showing the discrete distribution of count data"}
+# library(DBI)
+# data <- NULL
+columns = c("Bsubtilis_168", "Cacetobutylicum_ATCC824", "Cacetobutylicum_DSM1731", "Cacetobutylicum_EA2018", "Cbeijerinckii_NCIMB14988", "Cdifficile_R3", "Cpasteurianum_ATCC6013", "Cpasteurianum_BC1", "Cperfringens_ATCC13124", "Ctetani_E88", "Ecoli_K12MG1655")
+# i = 1
+# for (f in columns){
+#   con <- dbConnect(RSQLite::SQLite(), paste("../../test/data/", f, ".fasta.8.sqlite3", sep = ""))
+#   #dbListTables(con)
+#   kmers <- dbReadTable(con, "kmers")
+#   if (is.null(data)){
+#     data <- kmers
+#     data <- data.frame(data[,2])
+#     colnames(data) <- c(f)
+#   } else {
+#     data$counts <- kmers$count
+#     colnames(data) <- columns[1:i]
+#   }
+#   
+#   dbDisconnect(con)
+#   i = i + 1
+# }
+data <- read.csv2("unnormalized_count_matrix.tsv", sep="\t", header=TRUE)
+
+data2 <- gather(data, key="Species", value="Count")
+
+d <- data2[data2$Species == "Bsubtilis_168",]
+
+#summary(kmers$count) # Repetitive
+ggplot(data2) + geom_histogram(aes(x=Count)) + ylab("K-mers") + xlab("Counts") + ggtitle("8-mer  counts across 11 species")
+
+```
+
+
+The k-mer profile is visualized here (Fig 1, 2.) as a histogram to illustrate the distribution of counts that any k-mer may have. Interestingly, `r length(d[d$Count > 500,1])` 8-mers occur more than 500 times in the *B. subtilis* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
+
+
+```{r fig.cap="Similarity between individual, unnormalized distributions and the total distribution", fig.width=8.41, fig.height=6.5, out.extra='angle=90'}
+ggplot(data2) + geom_histogram(aes(x=Count), stat="count") + ylab("K-mers") + xlab("Counts") + facet_wrap(~Species)# + scale_x_discrete(breaks=seq(0, 400, 200))
+
+```
+
+We begin with the k-mer count distribution. In this graphical analysis we are looking to understand if the $4^{k}$ k-mers' count distribution is in agreement with existing k-mer distributions in the literature, such as the classical discrete Poissonian distribution or the negative binomial, which has use in RNA-Seq differential gene expression literature (@love2014moderated, @anders2010differential). This ELN does not claim to address the question of "which distribution is most suitable to model k-mer counts" but instead offers the distribution to illustrate what background model might be appropriate for modeling efforts based on individual k-mer counts taken from k-mer spectra, like those generated by this software and accessible via the index. The k-mers table consists of all $4^{k}$ k-mer counts for each of the 11 species listed above and is the basis for the histogram (Fig 1.).
+
+
+By generating the histogram and associated skewness-kurtosis analysis (@cullen1999probabilistic, Fig 3.), we can ask ourselves whether a Poisson model is appropriate, or if alternatives are more appropriate for modeling probabilities of counts of specific k-mer features associated with a genome. As we will see, although the negative-binomial(NB) seems more appropriate as suggested by the R package `fitdistrplus`, the kurtosis is still more extreme than would be required for an ideal fit in the NB model (@delignette2015fitdistrplus).
+
+
+```{r fig.cap="Skewness-kurtosis analysis for distribution fitting of the count model across all 11 species."}
+library(fitdistrplus)
+
+descdist(data2$Count, discrete=TRUE, boot=50)
+
+```
+
+
+To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
+
+
+```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90'}
+d5 <- NULL
+for (s in columns){
+  
+  d <- data2[data2$Species == s,]
+
+  poisson_fit <- fitdist(d$Count, 'pois')
+  poisson_fitD <- dpois(0:max(d$Count), lambda=poisson_fit$estimate)
+  nbinom_fit <- fitdist(d$Count, 'nbinom')
+  nbinom_fitD <- dnbinom(0:max(d$Count), size=nbinom_fit$estimate[1], mu=nbinom_fit$estimate[2])
+  d2 <- gather(data.frame("negativeBinomial"=nbinom_fitD, "x"=1:length(nbinom_fitD)), "Distr", "Fit", -x)
+  d3 <- gather(data.frame("poisson"=poisson_fitD, "x"=1:length(poisson_fitD)), "Distr", "Fit", -x)
+  d4 <- rbind(d2, d3)
+  d4$Species <- s
+  if (is.null(d5)){
+    d5 <- d4
+  } else {
+    d5 <- rbind(d5, d4)
+  }
+}
+ggplot(data2) + geom_density(aes(x=Count)) + geom_line(data=d5, aes(y=Fit, x=x, colour=Distr)) + ggtitle("Comparing model fit for 8-mer count across the Clostridia") + facet_wrap(~Species)
+```
+
+
+
+
+
+
+In summary, the k-mer count distribution is best approximated by a negative-binomial model. The k-mer counts/frequencies and their distribution should hold after normalization, and the normalized distributions could be used to model sequence likelihoods via Markov probabilities. Other applications of k-mer probabilities will be explored below.
+
+
+
+
+
+
+
+## Effect of discrete normalization for total k-mer amount by median of ratios
+
+
+This report looks at the effect of normalization vs raw data through box plots. It is easy to generate a normalized matrix with the subcommand `kdb matrix Normalize`, which uses DESeq2's method of normalization on counts to produce a matrix either the floating point normalized values or rounding to the nearest integer, as we have chosen. The normalized count matrix, 'K,' is a Nxn matrix, where $N = 4^k$, and n is the number of samples. Each element of N is a k-mer with an unambiguous count, contextualized by whether the input dataset was a fasta file or a fastq file. Each element $k_{ij}$ in K give by a $4^k$ dimensional indicator 'i' and a sample identifier, that may not express the same k-mers, or in the same proportions between species. This matrix must not be confused with the distance matrices we will generate, which will in fact be nxn square matrices. You can see that they are quite different, and the purpose of the normalization is just to normalize for size, and then we could transform the data into a different space to see if it is log-normal.
+
+```{r fig.cap="Is the count dimension of k-mer space log-normal"}
+
+ggplot(data2) + geom_density(aes(x=log10(Count)))
+
+```
+
+The choice of whether or not to log-normalize is rather simple but useful for normalizing the data in displays (like boxplots) that are best with significant symmetries. Now we will look directly at the boxplots to understand the distribution of counts in this space on both the unnormalized and normalized data. As we can see in the unnormalized datasets there are variantions in the median count by more than 20 in these specific genomes. This represents a considerable size effect to correct between the sequenced genomes.
+
+
+
+```{r fig.cap="Un-normalized counts per sample"}
+unnormalized <- data2
+normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
+normalized <- gather(normalized, key="Species", value="Count")
+
+ggplot(unnormalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
+```
+
+
+```{r fig.cap="Normalized counts per sample"}
+ggplot(normalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
+
+```
+Now that we have corrected this size effect through normalization, let's consider whether there remains a size effect in certain species. There is certainly a lot of signal, and even some highly comparable distributions between the Clostridia. However, it's worth reminding ourselves here that the rarest k-mers have the highest probability density throughout the negative binomial. There may be lots of very rare sequences with low abundances and this sequence space has high propensity for change since the abundances don't necessarily reflect the connectivity. That means there can be inflection points amongst neighbors in terms of abundance, and that could be better captured with transcriptomic sample dynamics. So far we have just been looking at the features of the DNA, and not the expressed gene at this point. It happens to be that more of the expressed RNA is downstream of certain promoters and TFBS and we need to understand which motifs are highly abundant or easliy clustered. And of course we could look at those in the RNA-Seq too, but again we're just in the DNA features at this point of the puzzle.
+
+With an acceptable normalization in place, we can use PCA to reduce the dimensionality of the dataset into a highly compressed, information rich dimension of which it is easy to transform the whole dataset in to, but not to create dimensionality from within. So we layer our intuition about gram positives, gram negatives, and Clostridia into a reduced, small dimension like 2-3 from what was once $4^k$ and you have a significant change. But we can determine in the most abstract sense, are the data separable in a way that makes some sense.
+
+
 
 
 ## PCA
 
+![The PCA elbow graph on Normalized Counts](PCA_variance_accumulation.png)
+
+![The K-means elbow graph for Normalized PCA3](kmeans_k3_elbow_graph_on_pca3.png)
+
+![The K-means clustering for Normalized PCA3](kmeans_k3_clustering_on_pca3.png)
+
+![The K-means elbow graph for Normalized PCA6](kmeans_k4_elbow_graph_on_normalized_pca6.png)}
+
+![The K-means clustering for Normalized PCA6](kmeans_k4_clustering_on_normalized_pca6.png)
+
+
 ## t-SNE
 
+
+![The K-means elbow graph for a t-SNE in $R^{2}$](kmeans_k4_elbow_graph_on_tsne2.png)
+
+
+
+![The K-means clustering for t-SNE in $R^{2}$](kmeans_k4_clustering_on_tsne2.png)
+
+
+## K-means clustering of correlation distance metrics
+
+![The K-means elbow graph for a spearman distance matrix](kmeans_k3_elbow_graph_on_spearman_dist.png)
+
+![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+
 ## distance matrices and correlation coefficients
+
+![Hierarchical clustering on spearman distance matrix derived from normalized count data](dendrogram.png)
 
 ## k-means clustering
 
 # Results
 
 
-```
 
 
 
 Perhaps as interesting as the prospect of a proper graph database informed by k-mer counts is the idea of k-mer count frequencies 
-
-
-```{r fig.cap="K-mer count distributions"}
-unnormalized <- read.csv2("unnormalized_count_matrix.tsv", sep="\t")
-counts <- as.data.frame(table(unnormalized$Bsubtilis_168))
-colnames(counts) <- c("Count", "Freq")
-
-ggplot(counts) + geom_point(aes(x=Count, y=Freq)) + scale_x_discrete(breaks=seq(0, 1000, 50))
-
-```
-
-
 
 
 
@@ -195,115 +347,8 @@ Many issues remain in the formulation of the probability calculation, addressed 
 
 ## K-mer count distribution
 
-We begin with the k-mer count distribution, a graphical analysis to help us understand if the $4^{k}$ k-mers' count distribution is in agreement with existing k-mer distributions in the literature. This ELN does not claim to address the question of "which distribution is most suitable to model k-mer counts" but instead offers the distribution to illustrate what background model might be appropriate for modeling efforts based on individual k-mer counts taken from k-mer spectra, like those generated by this software. Below is a simple histogram generated from retention of the intermediate SQLite3 database. The intermediate database is an exact replica of the k-mer database bgzf file (.kdb), and is used here because no bgzf parser exists for R. The k-mers table consists of all $4^{k}$ k-mer counts and is the basis for the histogram (Fig 1.).
 
 
-
-```{r fig.cap="Primary histogram showing the discrete distribution of count data"}
-library(DBI)
-
-con <- dbConnect(RSQLite::SQLite(), "../test/data/Cacetobutylicum_ATCC824.8.sqlite3")
-dbListTables(con)
-kmers <- dbReadTable(con, "kmers")
-dbDisconnect(con)
-
-#summary(kmers$count) # Repetitive
-ggplot(kmers) + geom_histogram(aes(x=count)) + ylab("K-mers") + xlab("Counts") + ggtitle("8-mer  counts of C. acetobutylicum ATCC824")
-
-```
-
-
-The k-mer profile is visualized here as a histogram to illustrate the distribution of counts that any k-mer may have. In addition to the summary statistics presented below, the mode is `r getmode(kmers$count)`. Interestingly, `r length(kmers[kmers$count > 500,1])` 8-mers occur more than 500 times in the *C. acetobutylicum* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
-
-
-
-By generating the histogram and associated skewness-kurtosis analysis (@cullen1999probabilistic graph, Fig 2.), we can ask ourselves whether a Poisson model is appropriate, or if alternatives are more appropriate for modeling probabilities of counts of specific k-mer features associated with a genome. Though the negative-binomial seems more appropriate as suggested by the R package `fitdistrplus`, the kurtosis is still more extreme than would be required for an ideal fit in the NB model (@delignette2015fitdistrplus).
-
-
-```{r fig.cap="Cullen and Frey analysis of skewness and kurtosis suggesting best fit"}
-descdist(kmers$count, discrete=T, boot=20)
-```
-
-```{r fig.cap="Alternate histogram showing Poisson model (blue) and Negative binomial fit (red)"}
-hist(kmers$count, prob=T, breaks=200, main="Histogram of k-mer counts", xlab="Kmer counts")
-poisson_fit <- fitdist(kmers$count, 'pois')
-poisson_fitD <- dpois(0:max(kmers$count), lambda=poisson_fit$estimate)
-lines(poisson_fitD, lwd="3", col="blue")
-nbinom_fit <- fitdist(kmers$count, 'nbinom')
-nbinom_fitD <- dnbinom(0:max(kmers$count), size=nbinom_fit$estimate[1], mu=nbinom_fit$estimate[2])
-lines(nbinom_fitD, lwd="3", col="red")
-nbinom_fit$estimate
-```
-
-To illustrate this further, Fig 3. shows us the two competing discrete distributions suggested by `fitdistrplus`. In blue, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1. In contrast, a negative-binomial fit(red) with size = `r nbinom_fit$estimate[1]` and $\mu$ = `r nbinom_fit$estimate[2]` provides a reasonable fit for the dataset. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting).
-
-In summary, the k-mer count distribution is best approximated by a negative-binomial model. The k-mer counts/frequencies and their distribution could be used to model sequence likelihoods via Markov probabilities. Other applications of k-mer probabilities will be explored below.
-
-
-## Building k-mer profiles from fastq data sacrifices accuracy
-
-A streaming inter-profile distance metric was implemented to assess similarities between profiles. The correlation coefficient was chosen as a self-normalizing metric to assess the differences between a profile generated from second-generation sequencing compared to its reference genome.
-
-A dataset was generated from the *C. acetobutylicum* ATCC824 genome with `art_illumina` and sampled at various depths with `fastq-tools` to understand how well sequencing datasets could reflect the true k-mer profile that can be derived from its reference genome(@huang2012art, @jones2015fastqtools). As shown in Fig 4., increasing k tends to decrease similarity between the sequenced dataset and the reference genome, reflected by the correlation coefficient of the profiles. 
-
-
-It can be stated that whereever possible, k-mer profiles from reference genomes should be utilized for inferences. This could be an artifact introduced during the subsampling routine used when generating the simulated WGS dataset. However, the reference genome represents a condensed and unbiased estimate of the consensus assembly and should be used for the reference k-mer profile, when a reference is available. Additionally, in some cases sufficient sequencing depths are not available to accurately reflect the reference genome. In WGS and assembly applications, between 10-30x is advised to ensure even and minimum coverage across chromosomes. When such depths are not available, lower choices of k can be used to make basic, simple inferences about sequences with k-mer profiles.
-
-
-An Amazon Linux instance was started in the US-East-1 availability zone. 
-
-
-### Prepare Amazon Linux AMI for parameter sweep
-
-```bash
-sudo yum update
-sudo yum install tmux git
-sudo yum install python3
-sudo yum groupinstall "Development Tools"
-mkdir pckges && cd pckges
-wget ftp://ftp.pcre.org/pub/pcre/pcre-8.44.zip
-wget https://ftpmirror.gnu.org/parallel/parallel-20200222.tar.bz2
-bzip2 -dc parallel-20200222.tar.bz2 | tar xvf -
-git clone https://github.com/dcjones/fastq-tools
-# unzip, ./configure, make, make install the above
-cd
-git clone https://github.com/MatthewRalston/kdb.git
-cd kdb && sudo pip3 install -r requirements.txt
-```
-
-### Parameter sweep
-
-```bash
-# Generate a representative and oversequenced sample with basic indel error profile
-# Simulating HiSeq 2500x series reads, readlength of 150, 100x coverage
-art_illumina -ss HS25 -i $FASTA -l 150 -f 10000 -o single_out
-
-subsample(){
-  s=$1
-  k=$2
-  #echo "Running in $(pwd)" >&2
-  sample=$(mktemp tmp.XXXX)
-  echo "Subsampling ${s} reads into ${k}-mer profile: ${sample}" >&2
-  fastq-sample -n $s -s $RANDOM single_out.fq -o $sample
-  /home/matt/Projects/kdb/bin/kdb profile -k $k $sample.fastq $sample.kdb
-  corr=$(/home/matt/Projects/kdb/bin/kdb distance correlation $sample.kdb $FASTA.kdb)
-  echo -e "${k}\t${s}\t${corr}" >> Cac_subsample_correlations.txt
-  rm $sample $sample.fastq $sample.kdb
-}
-export -f subsample
-parallel -j $CPU 'subsample {1} {2}' ::: $(seq 10000 40000 800000) ::: $(seq 8 12) ::: $(seq $CPU)
-```
-
-
-```{r fig.cap="Correlation distance between subsampled profiles and reference genome"}
-
-# R code to generate histogram from parameter sweep
-corr_to_ref<-read.table("../data/Cac_subsample_correlations.txt", header=F)
-colnames(corr_to_ref) <- c("k", "Reads", "Correlation")
-
-ggplot(corr_to_ref) + geom_point(aes(x=Reads, y=Correlation, colour=k))
-
-```
 
 
 
