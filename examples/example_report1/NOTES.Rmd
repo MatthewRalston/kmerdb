@@ -173,6 +173,9 @@ cd kdb && sudo pip3 install -r requirements.txt
 
 ### Parameter sweep
 
+Now that we have examined the performance of generating profiles and matrices within 8 < k < 12, we must look at the sensitivity possible when looking at idealized fastq error behavior through the lens of `art_illumina`, a Illumina read simulator made in the National Institute of Environmental Health Sciences' Biostatistics Branch.
+
+
 ```bash
 # Generate a representative and oversequenced sample with basic indel error profile
 # Simulating HiSeq 2500x series reads, readlength of 150, 100x coverage
@@ -211,24 +214,28 @@ ggplot(corr_to_ref) + geom_point(aes(x=Reads, y=Correlation, colour=k))
 ```bash
 # Generate representative but oversequenced samples from each of the 11 genomes with basic indel error profile
 # Simulating HiSeq 2500x series reads, readlength of 150, 100x coverage
-parallel -j 3 'gunzip {} && art_illumina -ss HS25 -i {.} -l 150 -f 10000 -o {.}_subsample.fq' ::: $(/bin/ls test/data/*.fasta.gz)
-
+parallel -j 3 'gunzip {} && art_illumina -ss HS25 -i {.} -l 150 -f 1000 -o {.}.master' ::: $(/bin/ls test/data/*.fasta.gz)
+rm test/data/*.master.aln # Remove the unnecessary .aln files
+parallel -j 3 'gzip {}' ::: $(/bin/ls test/data/*.master.fq) #Compress the data before moving to SSD storage
+# If you have ample storage, you can remove the compression step and decompression/recompression steps from the following routine
 subsample(){
   s=$1
   k=$2
   f=$3
-  f=$(basename $f .fasta.gz)
+  f=$(basename $f .fasta)
+  gunzip $f.master.fq.gz
   #echo "Running in $(pwd)" >&2
   sample=$(mktemp tmp.XXXX)
   echo "Subsampling ${s} reads into ${k}-mer profile: ${sample}" >&2
   fastq-sample -n $s -s $RANDOM single_out.fq -o $sample
   /home/matt/Projects/kdb/bin/kdb profile -k $k $sample.fastq $sample.kdb
   corr=$(/home/matt/Projects/kdb/bin/kdb distance correlation $sample.kdb $FASTA.kdb)
-  echo -e "${k}\t${s}\t${corr}" >> Cac_subsample_correlations.txt
+  echo -e "${k}\t${s}\t${corr}" >> subsample_correlations.txt
+  gzip $f.master.fq
   rm $sample $sample.fastq $sample.kdb
 }
 export -f subsample
-parallel -j $CPU 'subsample {1} {2} {3}' ::: $(seq 1000000 4000000 500000) ::: $(seq 8 12) ::: $(seq $CPU) ::: $(/bin/ls test/data/*.fasta.gz)
+parallel -j $CPU 'subsample {1} {2} {3}' ::: $(seq 1000000 4000000 500000) ::: $(seq 8 12) ::: $(/bin/ls test/data/*.fasta)
 ```
 
 
