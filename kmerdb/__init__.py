@@ -35,6 +35,11 @@ global logger
 logger = None
 
 
+def print_argv():
+    argv = sys.argv
+    sys.stderr.write(" ".join(argv[0:4]) + " ...\n")
+
+
 def index_file(arguments):
     from kmerdb import fileutil, index
     from kmerdb.config import DONE
