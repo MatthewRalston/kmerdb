@@ -203,9 +203,11 @@ def distances(arguments):
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
-
-    df = pd.DataFrame(dist, columns=column_names)
-    df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
+    if dist.shape == (2,2):
+        print(dist[0][1])
+    else:
+        df = pd.DataFrame(dist, columns=column_names)
+        df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
 
 def get_matrix(arguments):
     logging.getLogger('matplotlib.font_manager').disabled = True
@@ -458,11 +460,14 @@ def kmeans(arguments):
         #     1: "One"
         # }})
         df.to_csv(arguments.output, sep=arguments.output_delimiter)
-
+        colnames = list(df.columns)
         fig, ax = plt.subplots()
         scatter = ax.scatter(df.iloc[:, 1], df.iloc[:, 2], c=df.iloc[:, 0])
         legend = ax.legend(*scatter.legend_elements(), loc="upper right", title="Cluster")
 
+        for x,y,z in zip(np.array(df.iloc[:, 1]), np.array(df.iloc[:, 2]), column_names):
+            sys.stderr.write("{0}\t{1}\t{2}".format(x,y,z))
+            ax.annotate(z, xy=(x, y), xycoords='data', xytext=(0, -45), textcoords='offset points', arrowprops=dict(facecolor='black', shrink=0.05), horizontalalignment='left', verticalalignment='bottom')
         ax.set_xlabel("Dim1")
         ax.set_ylabel("Dim2")
         ax.set_title("K-means clustering")
@@ -524,7 +529,11 @@ def kmeans(arguments):
         fig, ax = plt.subplots()
         scatter = ax.scatter(df.iloc[:, 1], df.iloc[:, 2], c=df.iloc[:, 0])
         legend = ax.legend(*scatter.legend_elements(), loc="upper right", title="Cluster")
+        for x,y,z in zip(np.array(df.iloc[:, 1]), np.array(df.iloc[:, 2]), column_names):
+            sys.stderr.write("{0}\t{1}\t{2}".format(x,y,z))
+            ax.annotate(z, xy=(x, y), xycoords='data', xytext=(0, -45), textcoords='offset points', arrowprops=dict(facecolor='black', shrink=0.05), horizontalalignment='left', verticalalignment='bottom')
 
+        
         ax.set_xlabel("Dim1")
         ax.set_ylabel("Dim2")
         ax.set_title("K-means clustering")
