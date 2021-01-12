@@ -1,30 +1,49 @@
 ---
-title: KDB ELN
-author: "Matthew Ralston <mrals89@gmail.com>"
+title: "K-mer databases and k-mer profile matrices"
+author:
+- no: 1
+  name: Matthew Ralston
+  affil: 
+  email: mralston.development@gmail.com
+bibliography:
+- bibliography.bib
+abstract: |
+  
+  
+  **Background:** With the second decade since Altschul's BLAST, a new era of exploration and inter-sequence relationships may be understood, both graphically and empirically. The desirable outcome is a proper reflection on the utility of the seed region as a metaconcept in inter-sequence relationships. Specifically, the k-mer is now used for a variety of openly amazing advances in the pace of data generation, namely the fasta assemblies and as an intrinsic part of the abstraction from the perfect sequence, would it be possible to have different types of alignment files with contextual graphical centers? For example, a k-mer profile with sufficient sequencing depth is very likely to produce an assembly and should do so with a predictable shape and intensity of noise from the sequencing process. I have implemented another database format on top of existing open standards that I am betting will become more useful in the immediate future, This program has additional characteristics such as an index function, normalization, PCA and t-Stochastic Neighbor Embedding (t-SNE) dimensionality reduction techniques, distance matrices from scipy, and a final probability function that produces a log-odds ratio test for each input sequence.
+  **Methodology:** First, I changed dimension for rapid clustering and exploration relating to the dimension of N we are seeking to simplify from out of and into the more compressed informational dimension. We need several dimensions to possibly model the majority (>95%) of phenomena that we have observed in this dataset, and we have several dimensions of clustering to properly delineate or specify the boundaries of something that is specified to the extent of the samples, how many replicates are possible. In this paper, we look at exactly 11 species that are selected as such into certain categories that we impose onto them by our literature biases. Specifically, we look at the same species by using different choices of k and different dimensional reduction approaches and visualization strategies to tease out a more complicated shape or boundary and by distinguishing it from its neighbors in reduced k-space, either projected into it from the real k-space of the datasets and limitations of their sampling or perspectives, but also by simulation of the extent of behavior explainable by certain sample specific covariates. Then we briefly investigate the topic of normalization prior to exploring our dimensionality reduction strategies to see if one approach alone can sufficiently describe or delineate the spaces between control and sample, or if both prove useful in explaining the space as it is possible to see, by virtue of the PCA focusing first on the dimension with the most variance.
+  
+<!--  Specifically, we look at the same species by changing phase of the angle of approach, using altering 2 dimensional perfect projections into phase space and viewing the mirrored angle. -->
+  **Results:** Spearman correlations above 0.9995815 and Pearson correlations above 0.999893 between *C. acetobutylicum* strains, and similarity falls off as expected in a correlation distance space amongst distantly related microbes. Certain *Clostridia* are considered very close, like *C. difficile*, from certain angles to our model sporulator (hence the choice of investigating 3 *C. acetobutylicum* strains). We explore these angles throughout by considering different dimensionality reduction techniques, and considering options for visualizing, exploring, and explaining certain interactions between artifacts in k-mer space. 
+documentclass: wlpeerj
+classoption: fleqn,10pt #,lineno
+geometry: left=5cm,right=2cm,top=2.25cm,bottom=2.25cm,headheight=12pt,letterpaper
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 6.5
+    keep_tex: yes
+    template: peerj.latex
+  html_document:
+    df_print: paged
 header-includes:
-  \usepackage{fancyhdr}
-  \usepackage{graphicx}
-  \usepackage{pdflscape}
-  \newcommand{\blandscape}{\begin{landscape}}
-  \newcommand{\elandscape}{\end{landscape}}
-  \AtBeginDocument{\let\maketitle\relax}
-  \newcommand{\beginsupplemental}{\setcounter{table}{0}\renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}}
-output: pdf_document
-
-bibliography: bibliography.bib
+- \usepackage{setspace,relsize}
+- \usepackage[autosize,dot]{dot2texi}
+- \usepackage{tikz}
+- \usepackage{fancyhdr}
+- \usepackage{graphicx}
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+- \AtBeginDocument{\let\maketitle\relax}
+- \newcommand{\beginsupplemental}{\setcounter{table}{0}\renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}}
+keywords:
+- k-mer
+- k-mer hashing
+- k-mer biology
 ---
 
-
-\makeatletter
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyfoot[C]{\thepage}
-  \fancyhead[L]{\Large \textbf{\@title} \\ \large \@author}
-  \fancyhead[R]{\href{https://matthewralston.github.io}{Analyst}}
-}
-
-\pagestyle{plain}
-\vspace*{1\baselineskip}
 
 
 
@@ -106,7 +125,7 @@ Understanding species differences with k-mer techniques is a poorly studied area
 In a certain way, the sample I used here is doped, it is a bacterial axis that I have some abstract and some specific knowledge of, and I would like to extend this knowledge further by pursuing the differences in these key strains (Table 1) by way of a quantitative analysis of k-mers and a reflection on the possibilities of k-mer spectra in the abstract sense.
 
 
-We must first begin with the available datasets and the available tooling for this k-mer space. In this vignette, I will be presenting the k-mer tool `kdb`, which stands for k-mer database, a command line utility for accessing k-mer frequencies/counts/profiles from a bgzf file format I have developed. The tool was used to generate 8-mer profiles from the following species:
+We must first begin with the available datasets and the available tooling for this k-mer space. In this vignette, I will be presenting the k-mer tool `kmerdb`, which stands for k-mer database, a command line utility for accessing k-mer frequencies/counts/profiles from a bgzf file format I have developed, similarly named `.kdb`. The tool was used to generate 8-mer profiles from the following species:
 
 1. *B. subtilis* 168
 2. *C. acetobutylicum* ATCC824
