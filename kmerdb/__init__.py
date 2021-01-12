@@ -208,6 +208,8 @@ def distances(arguments):
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
+        if arguments.metric == "correlation":
+            dist = np.subtract(np.ones(dist.shape, dtype="int64"), dist)
     if dist.shape == (2,2):
         print(dist[0][1])
     else:
@@ -310,8 +312,8 @@ def get_matrix(arguments):
             dds = r['estimateSizeFactors'](dds)
                 
             normalized = r['counts'](dds, normalized = True)
-            if not arguments.normalized_ints:
-                normalized = np.array(np.rint(normalized), dtype="int32")
+            if not arguments.no_normalized_ints:
+                normalized = np.array(np.rint(normalized), dtype="int64")
             normalized = pd.DataFrame(normalized, columns=column_names)
             logger.debug(normalized)
             logger.info("Normalized matrix shape: {0}".format(normalized.shape))
