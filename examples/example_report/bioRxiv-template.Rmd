@@ -3,7 +3,7 @@ title: "K-mer databases and k-mer profile matrices"
 author:
 - no: 1
   name: Matthew Ralston
-  affil: N/A
+  affil: 
   email: mralston.development@gmail.com
 bibliography:
 - bibliography.bib

@@ -50,8 +50,22 @@ kdb kmeans -k 3 Biopython < 8-mer_pearson_dist.tsv
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_pearson_dist.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
 
-# Generate the html report with R. NOTE: not implemented yet.
-kmerdb report --unnormalized unnormalized_count_matrix.tsv --normalized normalized_count_matrix.tsv --pca-elbow-graph PCA_variance_accumulation.png --kmeans-pca-clustering kmeans_k3_clustering_on_pca3.png --kmeans-tsne-clustering kmeans_k3_clustering_on_tsne2.png --kmeans-spearman-clustering kmeans_k3_clustering_on_spearman_dist.png --kmeans-on-pca-elbow-graph kmeans_elbow_graph_on_pca3.png --kmeans-on-tsne-elbow-graph kmeans_elbow_graph_on_tsne2.png --kmeans-on-spearman-dist-elbow-graph kmeans_elbow_graph_on_spearman_dist.png --kmeans-on-pearson-dist-elbow-graph kmeans_elbow_graph_on_pearson_dist.png
+
 ```
+
+# RStudio
+
+Then customize the report to the needs of your samples and clustering results, and be sure to notify me in an issue if you happen across a case where DESeq2 normalization doesn't make sense with the dataset.
+
+
+
+
+
+
+
+# References
+
+I grabbed the Rmd template and other things from [dcnorris/preprint-template](https://github.com/dcnorris/preprint-template). Thanks to David Norris for this.
+
 
 
