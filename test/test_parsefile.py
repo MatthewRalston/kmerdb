@@ -113,10 +113,10 @@ class Test_parsefile(unittest.TestCase):
         """
         testdb, headerDict = parse.parsefile(self.fasta, self.k)
         self.assertDictEqual({'filename': 'test/data/Ctetani_E88.fasta.gz',
-                              'md5': '3a8682befcdba8ca6405a4bc238e6f06',
+                              'md5': '2d6e56382e6b296cd7aa00d33d6a3a25',
                               'mononucleotides': {'A': 1016563, 'C': 418556, 'G': 404380, 'T': 1033834},
                               'nullomers': 0,
-                              'sha256': '438446b1081c6aa65c88cc81fbe5e65c85077f1c46951e52793f8f4bc5fe7b67',
+                              'sha256': '61b5cf99700219774f05beb9203f0388d95273b227ae7ae37164f1c9a53665ca',
                               'total_kmers': 5746658,
                               'total_reads': 2,
                               'unique_kmers': 64}
