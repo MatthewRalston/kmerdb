@@ -125,7 +125,7 @@ setup(
     ],
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     package_dir={'kmerdb': 'kmerdb'},
-    package_data={'kmerdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd'], 'CITATION': 'CITATION'},
+    package_data={'kmerdb': ['examples/example_report/*.Rmd', 'examples/example_report1/*.Rmd'], 'CITATION': ['CITATION']},
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['kmerdb'],
     #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],

@@ -39,6 +39,14 @@ def print_argv():
     argv = sys.argv
     sys.stderr.write(" ".join(argv[0:4]) + " ...\n")
 
+def citation(arguments):
+    import pkg_resources
+    citation = None
+    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
+        citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION')
+        with open(citation_fname, 'w') as citation_file:
+            citation_file.write("")
+    
 
 def index_file(arguments):
     from kmerdb import fileutil, index
@@ -823,11 +831,16 @@ def get_root_logger(level):
 
 def citation_info():
     import pkg_resources
-    
-    from kmerdb import config
-    
-    with open(pkg_resources.resource_string(__name__, 'CITATION'), 'r') as citation_file:
-        sys.stderr.write(citation_file.read())
+    citation = None
+    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
+        citation = pkg_resources.resource_string('kmerdb', 'CITATION').decode('utf-8').rstrip()
+        if citation == "":
+            return
+        else:
+            sys.stderr.write("Printing citation notice to stderr. This will not interfere with the execution of the program in any way. Please see CITATION_FAQ.md for any questions.\n")
+            sys.stderr.write(citation + "\n\n\n")
+    else:
+        raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
 
 def cli():
@@ -975,7 +988,8 @@ See https://matthewralston.github.io/quickstart#kmerdb-probability for more deta
     markov_probability_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     markov_probability_parser.set_defaults(func=markov_probability)
 
-    citation_parser = subparser.add_parser("citation", help="Silence the citation notice on further runs")
+    citation_parser = subparsers.add_parser("citation", help="Silence the citation notice on further runs")
+    citation_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     citation_parser.set_defaults(func=citation)
     
     args=parser.parse_args()
