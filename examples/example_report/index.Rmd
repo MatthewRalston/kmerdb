@@ -9,18 +9,15 @@ bibliography:
 - bibliography.bib
 abstract: |
   **Background:** With the second decade since Altschul's BLAST, a new era of exploration and inter-sequence relationships may be understood, both graphically and empirically. This work is a proper reflection on the utility of the seed region as a metaconcept in inter-sequence relationships. Specifically, the k-mer is now used to generate alignments, generate sequences worth aligning to, and generate more rapid estimates in sequencing depth and transcriptional signal. Is it possible that each k-mer index is the lightweight graph structure that must be exposed more readily to demonstrate from what contigs, reads, etc. did a certain mutational variant come from, and to show layers of related sequences, while addressing what subspace a sequence comes from and how that subspace is related to assemblies, prior knowledge, etc. I have implemented a database format on top of existing open standards but superseding the TABIX standard by adding YAML formatted metadata to multiple header blocks. This program has additional characteristics such as an index function, normalization, PCA and t-Stochastic Neighbor Embedding (t-SNE) dimensionality reduction techniques, distance matrices from scipy, and a final Markov probability function that produces a log-odds ratio test for each input sequence.
-  **Methodology:** I began by selecting 3 strains of *Clostridium acetobutylicum*, 2 strains of *pasteurianum*, *difficile*, and *perfringens* were some of the other *Clostridia* added, supplemented by *B. subtilis* and *E. coli* for reference in a k-mer subspace. A total of 11 species were assessed for their 8-mer profiles. The dimensionality of the input matrix is exponential in k and analyses could benefit from both normalization and dimensionality reduction. I used PCA and/or t-SNE coupled with k-means clustering to explore the perspectives on the species that can be mathematically specified by the data. By inspecting the high dimensional space through its first principal components, we see a large amount of the variation in the dataset properly reflected in the Pearson and Spearman distance matrices when used for k-means clustering and for considering the preseration of the 3 Clostridium strains
-  
-  First, I changed dimension for rapid clustering and exploration relating to the dimension of N we are seeking to simplify from out of and into the more compressed informational dimension. We need several dimensions to possibly model the majority (>95%) of phenomena that we have observed in this dataset, and we have several dimensions of clustering to properly delineate or specify the boundaries of something that is specified to the extent of the samples, how many replicates are possible. In this paper, we look at exactly 11 species that are selected as such into certain categories that we impose onto them by our literature biases. Specifically, we look at the same species by using different choices of k and different dimensional reduction approaches and visualization strategies to tease out a more complicated shape or boundary and by distinguishing it from its neighbors in reduced k-space, either projected into it from the real k-space of the datasets and limitations of their sampling or perspectives, but also by simulation of the extent of behavior explainable by certain sample specific covariates. Then we briefly investigate the topic of normalization prior to exploring our dimensionality reduction strategies to see if one approach alone can sufficiently describe or delineate the spaces between control and sample, or if both prove useful in explaining the space as it is possible to see, by virtue of the PCA focusing first on the dimension with the most variance.
-  
-  **Results:** Spearman correlations above 0.9995815 and Pearson correlations above 0.999893 between *C. acetobutylicum* strains, and similarity falls off as expected in a correlation distance space amongst distantly related microbes. Certain *Clostridia* are considered very close, like *C. difficile*, from certain angles to our model sporulator (hence the choice of investigating 3 *C. acetobutylicum* strains). We explore these angles throughout by considering different dimensionality reduction techniques, and considering options for visualizing, exploring, and explaining certain interactions between artifacts in k-mer space. 
+  **Methodology:** I began by selecting 3 strains of *Clostridium acetobutylicum*, 2 strains of *pasteurianum*, *difficile*, and *perfringens* were some of the other *Clostridia* added, supplemented by *B. subtilis* and *E. coli* for reference in a k-mer subspace. A total of 11 species were assessed for their 8-mer profiles. The dimensionality of the input matrix is exponential in k and analyses could benefit from both normalization and dimensionality reduction. I used PCA and/or t-SNE coupled with k-means clustering to explore the perspectives on the species that can be mathematically specified by the data. By inspecting the high dimensional space through its first principal components, we see a large amount of the variation in the dataset properly reflected in the Pearson and Spearman distance matrices when used for k-means clustering and for considering the preservation of the 3 Clostridium strains at nearly every level of clustering on different subspaces of the original dataset. We use dimensionality reduction and k-means clustering to explore this microbial genomic axes in a pure k-mer space. Then we used hierarchical clustering to confirm our understanding of the results in the pure space and attempt a meaningful comparison of trees. Now that we have assessed the utility of k-mer profiles in an abstract space, we describe a specific application of our profile, namely it's use in the graph assembly of a sequence and test it's likelihood against a null model. We conclude with a brief discussion of other methods, approaches, and historical uses of k-mers in bioinformatics applications and advocate the adoption of the new file format described here.
+  **Results:** Spearman correlations above 0.9995815 and Pearson correlations above 0.999893 between *C. acetobutylicum* strains reflect the strong association of the k-mer profiles between strains, providing tolerance estimates along the axes between these specific *C. acetobutylicum* strains. What follows is a tight association, optimized in a clustering shown in the first two principal components at a specific bump in the WCSS elbow graph of the PCA model of variance accumulation, when using k-means clustering with k equal to 3 or 4 the cluster is perfectly identified as distinct from the rest of the *Clostridia* cluster. Consistently, k-means chooses to reject associations between *Clostridia* species and *B. subtilis* or *E. coli* and the appropriate picture of the relationship between these species emerges, even for low choices of k. We investigate the strong correlation to look at dissimilarities between strains and to look at the axis between the *Clostridia* and the "others" (*B. subtilis* and *E. coli*). This analyis suggests that some features between species are possible to be specified, even if they are very strange in their nature (specific disjointed k-mers). And finally, we use the database and index features to calculate the probability of an unknown sequence given a kdb as a model. We look at the effect of sequence length on these probabilities as well.
+
 documentclass: wlpeerj
 classoption: fleqn,10pt #,lineno
 geometry: left=5cm,right=2cm,top=2.25cm,bottom=2.25cm,headheight=12pt,letterpaper
 output: 
   pdf_document:
-    toc: true
-    toc_depth: 2
+
     fig_caption: yes
     fig_height: 4
     fig_width: 6.5
@@ -37,6 +34,10 @@ keywords:
 - k-mer
 - k-mer hashing
 - k-mer biology
+toc: true
+toc-depth: 2
+lot: true
+lof: true
 ---
 
 ```{r include=F, message=F, echo=F, warning=F}
@@ -172,7 +173,7 @@ ggplot(data2) + geom_histogram(aes(x=Count)) + ylab("K-mers") + xlab("Counts") +
 The k-mer profile is visualized here (Fig 1, 2.) as a histogram to illustrate the distribution of counts that any k-mer may have. Interestingly, `r length(d[d$Count > 500,1])` 8-mers occur more than 500 times in the *B. subtilis* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
 
 
-```{r fig.cap="Similarity between individual, unnormalized distributions and the total distribution", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE}
+```{r fig.cap="Similarity between individual, unnormalized distributions and the total distribution", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
 ggplot(data2) + geom_histogram(aes(x=Count), stat="count") + ylab("K-mers") + xlab("Counts") + facet_wrap(~Species)# + scale_x_discrete(breaks=seq(0, 400, 200))
 ```
 
@@ -193,7 +194,7 @@ descdist(data2$Count, discrete=TRUE, boot=50)
 To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
 
 
-```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE}
+```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
 d5 <- NULL
 for (s in columns){
   
@@ -234,7 +235,7 @@ The choice of whether or not to log-normalize is rather simple but useful for no
 
 
 
-```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE}
+```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=FALSE}
 unnormalized <- data2
 normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
 normalized <- gather(normalized, key="Species", value="Count")
@@ -245,7 +246,7 @@ ggplot(unnormalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_v
 
 
 
-```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE}
+```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE, eval=FALSE}
 ggplot(normalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
 
 ```
