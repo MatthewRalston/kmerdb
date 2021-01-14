@@ -41,11 +41,11 @@ kmerdb matrix tSNE -n 2 | kdm kmeans -k 3 Biopython
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_tsne2.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_tsne2.png
 # Generate correlation distance matrices for clustering
-kmerdb matrix Normalized test/data/*.$K.kdb | kmerdb distance spearman > 8-mer_spearman_dist.tsv
+kmerdb matrix Normalized test/data/*.$K.kdb | kmerdb distance spearman > normalized_spearman_dist.tsv
 kmerdb kmeans -k 3 Biopython < 8-mer_spearman_dist.tsv
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_spearman_dist.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
-kdb matrix Normalized test/data/*.$K.kdb | kmerdb distance correlation > 8-mer_pearson_dist.tsv
+kdb matrix Normalized test/data/*.$K.kdb | kmerdb distance correlation > normalized_pearson_dist.tsv
 kdb kmeans -k 3 Biopython < 8-mer_pearson_dist.tsv
 mv kmeans_clustering_of_kmer_profiles.png kmeans_k3_clustering_on_pearson_dist.png
 mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
@@ -57,7 +57,7 @@ mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
 
 Then customize the report to the needs of your samples and clustering results, and be sure to notify me in an issue if you happen across a case where DESeq2 normalization doesn't make sense with the dataset.
 
-
+The report should largely speak for itself at this point, as far as what analyses are possible with this framework for assessing fasta or fastq datasets, since clustering was done and a silhouette value is calculated with each clustering.
 
 
 
