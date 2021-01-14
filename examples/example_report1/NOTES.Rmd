@@ -173,7 +173,7 @@ cd kdb && sudo pip3 install -r requirements.txt
 
 ### Parameter sweep
 
-Now that we have examined the performance of generating profiles and matrices within 8 < k < 12, we must look at the sensitivity possible when looking at idealized fastq error behavior through the lens of `art_illumina`, a Illumina read simulator made in the National Institute of Environmental Health Sciences' Biostatistics Branch.
+Now that we have examined the performance of generating profiles and matrices within 8 < k < 12, we must look at the sensitivity possible when looking at idealized fastq error behavior through the lens of `art_illumina`, a Illumina read simulator made in the National Institute of Environmental Health Sciences' Biostatistics Branch. The first parameter sweep was done back in March of 2020 during the beginning of the pandemic, when the goal was get some perspective on which choices of k could be useful for discrimination between species. The file was generated just on *C. acetobutylicum ATCC824* data, and for a range of k limited to 8-12. The file was also generated for a range of subsampling that was 10-800k. It was clear early that this would not be a sufficient amount of data to properly mimic the profile, or was it?
 
 
 ```bash
