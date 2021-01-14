@@ -39,6 +39,14 @@ def print_argv():
     argv = sys.argv
     sys.stderr.write(" ".join(argv[0:4]) + " ...\n")
 
+def citation(arguments):
+    import pkg_resources
+    citation = None
+    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
+        citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION')
+        with open(citation_fname, 'w') as citation_file:
+            citation_file.write("")
+    
 
 def index_file(arguments):
     from kmerdb import fileutil, index
@@ -209,7 +217,7 @@ def distances(arguments):
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
         if arguments.metric == "correlation":
-            dist = np.subtract(np.ones(dist.shape, dtype="int64"), dist)
+            dist = np.subtract[(np.ones(dist.shape, dtype="int64"), dist)]
     if dist.shape == (2,2):
         print(dist[0][1])
     else:
@@ -820,6 +828,21 @@ def get_root_logger(level):
 
     return root_logger
 
+
+def citation_info():
+    import pkg_resources
+    citation = None
+    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
+        citation = pkg_resources.resource_string('kmerdb', 'CITATION').decode('utf-8').rstrip()
+        if citation == "":
+            return
+        else:
+            sys.stderr.write("Printing citation notice to stderr. This will not interfere with the execution of the program in any way. Please see CITATION_FAQ.md for any questions.\n")
+            sys.stderr.write(citation + "\n\n\n")
+    else:
+        raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
+
+
 def cli():
     sys.stderr.write("Running kdb script from '{0}'\n".format(__file__))
     sys.stderr.write("Checking installed environment...\n")
@@ -832,7 +855,7 @@ def cli():
     
     #sys.stderr.write("PYTHONPATH={0}".format(sys.path))
     #sys.path.remove(os.path.dirname(os.path.abspath(__file__)))
-
+    citation_info()
 
     
     parser = argparse.ArgumentParser()
@@ -964,6 +987,10 @@ See https://matthewralston.github.io/quickstart#kmerdb-probability for more deta
     markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
     markov_probability_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     markov_probability_parser.set_defaults(func=markov_probability)
+
+    citation_parser = subparsers.add_parser("citation", help="Silence the citation notice on further runs")
+    citation_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    citation_parser.set_defaults(func=citation)
     
     args=parser.parse_args()
     global logger
