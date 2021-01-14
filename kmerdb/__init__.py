@@ -209,7 +209,7 @@ def distances(arguments):
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
         if arguments.metric == "correlation":
-            dist = np.subtract(np.ones(dist.shape, dtype="int64"), dist)
+            dist = np.subtract[(np.ones(dist.shape, dtype="int64"), dist)]
     if dist.shape == (2,2):
         print(dist[0][1])
     else:
@@ -820,6 +820,16 @@ def get_root_logger(level):
 
     return root_logger
 
+
+def citation_info():
+    import pkg_resources
+    
+    from kmerdb import config
+    
+    with open(pkg_resources.resource_string(__name__, 'CITATION'), 'r') as citation_file:
+        sys.stderr.write(citation_file.read())
+
+
 def cli():
     sys.stderr.write("Running kdb script from '{0}'\n".format(__file__))
     sys.stderr.write("Checking installed environment...\n")
@@ -832,7 +842,7 @@ def cli():
     
     #sys.stderr.write("PYTHONPATH={0}".format(sys.path))
     #sys.path.remove(os.path.dirname(os.path.abspath(__file__)))
-
+    citation_info()
 
     
     parser = argparse.ArgumentParser()
@@ -964,6 +974,9 @@ See https://matthewralston.github.io/quickstart#kmerdb-probability for more deta
     markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
     markov_probability_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     markov_probability_parser.set_defaults(func=markov_probability)
+
+    citation_parser = subparser.add_parser("citation", help="Silence the citation notice on further runs")
+    citation_parser.set_defaults(func=citation)
     
     args=parser.parse_args()
     global logger

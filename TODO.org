@@ -17,6 +17,13 @@ The final prototype would be .bgzf format from biopython
 * VERIFY index class
 * VERIFY Probability function
 * Rmd report1
+** Introduction
+** Methodology
+** Results
+*** Distribution fitting / model selection
+*** PCA
+*** 
+
 ** Distribution analysis
 ** Accurately describe kdb counting algorithm
 *** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
@@ -51,8 +58,17 @@ The final prototype would be .bgzf format from biopython
 *** The goal is most likely not to reinvent the wheel. Since this is an academic package at this point, we feel that it is necessary and important to couple this with a graph database
 *** We have selected the RDF format going forward and expect that long term use of Amazon Neptune might be an important source of understanding that we can get from users uploading their graphs, sparse or otherwise, to a giant Neptune repository.
 *** It could be an entirely new sequence database format.
+** kdb distance correlation <fasta|fastq>
 * TODO profile reads sam/bam
 ** use pysam to iterate over reads, creating a profile in the process.
+* Genome size estimation 
+* Likelihood of dataset given prior k-mer profiles
+* Calculate graph properties indicative of de Bruijn graph collapse
+
+
+* 'kmerdb random' sequence simulator
+** given a certain length of sequence N, suggest a sequence that best solves the k-mer abundance graph
+
 * kmerize
 ** to use bed/gff features to select reads from bam/bai using pysam
 ** and then creating sparse profiles for each feature

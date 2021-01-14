@@ -5,6 +5,7 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 ## Development Status
 
+[![GitHub Downloads](https://img.shields.io/github/downloads/MatthewRalston/kdb/total.svg?style=social&logo=github&label=Download)](https://github.com/MatthewRalston/kmerdb/releases)
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
 [![Travis Build Status](https://travis-ci.org/MatthewRalston/kmerdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kmerdb)
