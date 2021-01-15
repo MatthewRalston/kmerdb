@@ -1,19 +1,50 @@
-\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$babel-lang$,$endif$$if(papersize)$$papersize$paper,$endif$$for(classoption)$$classoption$$sep$,$endfor$]{$documentclass$}
+%\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$babel-lang$,$endif$$if(papersize)$$papersize$paper,$endif$$for(classoption)$$classoption$$sep$,$endfor$]{$documentclass$}
+\documentclass{article}
+
 $if(fontfamily)$
 \usepackage[$for(fontfamilyoptions)$$fontfamilyoptions$$sep$,$endfor$]{$fontfamily$}
 $else$
 \usepackage{lmodern}
 $endif$
+
+% Originally coded by Matt Ralston, Jan 14 2021
+% Alex Ball's tutorial LaTeX code for making a bibLaTeX oxyear style (biblatex-oxref)
+% Bibliography.
+% I used the following document, hosted on the CTAN servers of math.utah.edu
+% to create the bibliography using Alex's style guide.
+% Thank you, sincerely, Alex for the awesome library.
+% http://ctan.math.utah.edu/ctan/tex-archive/macros/latex/contrib/biblatex-contrib/biblatex-oxref/oxref.pdf
+% $if(biblatex)$
+% $if(biblio-title)$
+% 
+% \RequireBibliographyStyle{oxref}
+% \ExecuteBibliographOptions{giveninits,labeldateparts,sorting=nyt,pagetracker,mergedate,maxcitenames=2}
+% 
+% \RequireCitationStyle{authoryear-comp}
+% \ExecuteBibliographOptions{uniquename=init}
+% $endif$
+% $endif$
+\usepackage{biorxiv} % github.com/alexsbaldwin/biorxiv-inspired-latex-style
+\usepackage{lineno}
+\usepackage{authblk}
+\usepackage{lastpage}
+
+
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newenvironment{CSLReferences}{
+$if(csl-hanging-indent)$
+\setlength{\parindent}{0pt}%
+\everypar{\setlength{\hangindent}{\cslhangindent}}\ignorespaces
+$endif$
+}{\par}
+
+
+
 $if(linestretch)$
 \usepackage{setspace}
 \setstretch{$linestretch$}
 $endif$
-\newlength{\cslhangindent}
-\setlength{\cslhangindent}{1.5em}
-\newenvironment{CSLReferences}%
-{\setlength{\parindent}{0pt}%
-\everypar{\setlength{\hangindent}{\cslhangindent}}\ignorespaces}%
-{\par}
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{fixltx2e} % provides \textsubscript
@@ -54,12 +85,12 @@ $if(CJKmainfont)$
 $endif$
 \fi
 % use upquote if available, for straight quotes in verbatim environments
-%\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 % use microtype if available
-%\IfFileExists{microtype.sty}{%
-%\usepackage{microtype}
-%\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
-%}{}
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
 $if(geometry)$
 \usepackage[$for(geometry)$$geometry$$sep$,$endfor$]{geometry}
 $endif$
@@ -102,6 +133,8 @@ $endfor$
 \fi
 $endif$
 
+
+% Import biblatex
 $if(biblatex)$
 \usepackage[$if(biblio-style)$style=$biblio-style$,$endif$$for(biblatexoptions)$$biblatexoptions$$sep$,$endfor$]{biblatex}
 $for(bibliography)$
@@ -201,6 +234,12 @@ $endif$
 $for(header-includes)$
 $header-includes$
 $endfor$
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%                     B E G I N     D O C U M E N T
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
 
 $if(title)$
 \title{$title$}
@@ -208,17 +247,19 @@ $else$
 \typeout{A TITLE MUST BE PROVIDED}\QUIT
 $endif$
 
+
+
+
 $if(author)$
   $for(author)$%
-    \author[$author.no$]{$author.name$}
-    \affil[$author.no$]{$author.affil$}
-    $if(author.email)$%
-      \corrauthor[$author.no$]{$author.name$}{$author.email$}
-    $endif$
+    \author[$author.no$]{$author.name$ $if(author.thanks)$ \thanks{$author.thanks$} $endif$ \\
+    $author.affil$ \\
+    $if(author.email)$ Email: $author.email$ $endif$ \\}
   $endfor$
 $else$
 \typeout{AT LEAST ONE AUTHOR MUST BE LISTED}\QUIT
 $endif$
+
 
 $if(abstract)$
 \begin{abstract}
@@ -226,17 +267,9 @@ $abstract$
 \end{abstract}
 $endif$
 
-$if(bibliography)$
-\newcommand{\pjbibliography}{\small\bibliographystyle{unsrtnat}%
-\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}%
-\label{endmain}%
-}
-$endif$
 
-\begin{document}
-\flushbottom
-\thispagestyle{empty}
-\maketitle
+
+
 
 $if(keywords)$
 \subsection*{Keywords}\label{keywords}
@@ -247,6 +280,10 @@ $for(include-before)$
 $include-before$
 
 $endfor$
+
+
+
+
 $if(toc)$
 {
 $if(colorlinks)$
@@ -262,22 +299,22 @@ $endif$
 $if(lof)$
 \listoffigures
 $endif$
-\rfoot{\small\sffamily\bfseries\thepage/\pageref{endmain}}
+
+
+%\maketitle
+% $if(bibliography)$
+% \newcommand{\pjbibliography}{\small\bibliographystyle{unsrtnat}%
+% \bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}%
+% \label{endmain}%
+% }
+% $endif$
+
+%\linenumbers
+
 $body$
 
-$if(biblatex)$
-$if(bibliography)$
-$if(biblio-title)$
-$if(book-class)$
-\renewcommand\bibname{$biblio-title$}
-$else$
-\renewcommand\refname{$biblio-title$}
-$endif$
-$endif$
-\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
 
-$endif$
-$endif$
+
 $if(biblatex)$
 \printbibliography$if(biblio-title)$[title=$biblio-title$]$endif$
 
@@ -286,4 +323,10 @@ $for(include-after)$
 $include-after$
 
 $endfor$
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%                                E N D     D O C U M E N T
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \end{document}
