@@ -3,41 +3,45 @@ title: "K-mer databases and k-mer profile matrices"
 author:
 - no: 1
   name: Matthew Ralston
-  affil: N/A
+  affil: "University of Delaware"
   email: mralston.development@gmail.com
+  thanks: "Unaffiliated independent researcher and corresponding author"
+biblatex: true
+biblio-title: Bibliography
+biblio-style: oxyear
 bibliography:
 - bibliography.bib
 abstract: |
   **Background:** With the second decade since Altschul's BLAST, a new era of exploration and inter-sequence relationships may be understood, both graphically and empirically. This work is a proper reflection on the utility of the seed region as a metaconcept in inter-sequence relationships. Specifically, the k-mer is now used to generate alignments, generate sequences worth aligning to, and generate more rapid estimates in sequencing depth and transcriptional signal. Is it possible that each k-mer index is the lightweight graph structure that must be exposed more readily to demonstrate from what contigs, reads, etc. did a certain mutational variant come from, and to show layers of related sequences, while addressing what subspace a sequence comes from and how that subspace is related to assemblies, prior knowledge, etc. I have implemented a database format on top of existing open standards but superseding the TABIX standard by adding YAML formatted metadata to multiple header blocks. This program has additional characteristics such as an index function, normalization, PCA and t-Stochastic Neighbor Embedding (t-SNE) dimensionality reduction techniques, distance matrices from scipy, and a final Markov probability function that produces a log-odds ratio test for each input sequence.
   **Methodology:** I began by selecting 3 strains of *Clostridium acetobutylicum*, 2 strains of *pasteurianum*, *difficile*, and *perfringens* were some of the other *Clostridia* added, supplemented by *B. subtilis* and *E. coli* for reference in a k-mer subspace. A total of 11 species were assessed for their 8-mer profiles. The dimensionality of the input matrix is exponential in k and analyses could benefit from both normalization and dimensionality reduction. I used PCA and/or t-SNE coupled with k-means clustering to explore the perspectives on the species that can be mathematically specified by the data. By inspecting the high dimensional space through its first principal components, we see a large amount of the variation in the dataset properly reflected in the Pearson and Spearman distance matrices when used for k-means clustering and for considering the preservation of the 3 Clostridium strains at nearly every level of clustering on different subspaces of the original dataset. We use dimensionality reduction and k-means clustering to explore this microbial genomic axes in a pure k-mer space. Then we used hierarchical clustering to confirm our understanding of the results in the pure space and attempt a meaningful comparison of trees. Now that we have assessed the utility of k-mer profiles in an abstract space, we describe a specific application of our profile, namely it's use in the graph assembly of a sequence and test it's likelihood against a null model. We conclude with a brief discussion of other methods, approaches, and historical uses of k-mers in bioinformatics applications and advocate the adoption of the new file format described here.
   **Results:** Spearman correlations above 0.9995815 and Pearson correlations above 0.999893 between *C. acetobutylicum* strains reflect the strong association of the k-mer profiles between strains, providing tolerance estimates along the axes between these specific *C. acetobutylicum* strains. What follows is a tight association, optimized in a clustering shown in the first two principal components at a specific bump in the WCSS elbow graph of the PCA model of variance accumulation, when using k-means clustering with k equal to 3 or 4 the cluster is perfectly identified as distinct from the rest of the *Clostridia* cluster. Consistently, k-means chooses to reject associations between *Clostridia* species and *B. subtilis* or *E. coli* and the appropriate picture of the relationship between these species emerges, even for low choices of k. We investigate the strong correlation to look at dissimilarities between strains and to look at the axis between the *Clostridia* and the "others" (*B. subtilis* and *E. coli*). This analyis suggests that some features between species are possible to be specified, even if they are very strange in their nature (specific disjointed k-mers). And finally, we use the database and index features to calculate the probability of an unknown sequence given a kdb as a model. We look at the effect of sequence length on these probabilities as well.
-
-documentclass: wlpeerj
 classoption: fleqn,10pt #,lineno
+documentclass: wlpeerj
 geometry: left=5cm,right=2cm,top=2.25cm,bottom=2.25cm,headheight=12pt,letterpaper
-output: 
-  pdf_document:
-
-    fig_caption: yes
-    fig_height: 4
-    fig_width: 6.5
-    keep_tex: yes
-    template: peerj.latex
-  html_document:
-    df_print: paged
-header-includes:
-- \usepackage{setspace,relsize}
-- \usepackage[autosize,dot]{dot2texi}
-- \usepackage{tikz}
-- \usepackage[style=oxyear]{biblatex}
 keywords:
 - k-mer
 - k-mer hashing
 - k-mer biology
-toc: true
-toc-depth: 2
 lot: true
 lof: true
+linenumbers: true
+output: 
+  html_document:
+    df_print: paged
+  pdf_document: 
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 6.5
+    keep_tex: yes
+    template: peerj.tex
+    latex_engine: xelatex
+    highlight: espresso
+header-includes:
+- \usepackage{setspace,relsize}
+- \usepackage[autosize,dot]{dot2texi}
+- \usepackage{tikz}
+toc: true
+toc-depth: 2
 ---
 
 ```{r include=F, message=F, echo=F, warning=F}
@@ -83,7 +87,16 @@ getmode <- function(v) {
 ```
 
 
+
 # Introduction
+
+Alignment based approaches are dominant in the genomics space for the most obvious reason: it is the most exact way to match new data to older existing linear DNA sequence formats namely genomic or transcriptomic FASTA files. However doing so requires the quadratic time complexity of the conventional seed-extension alignment strategies . 
+
+
+
+
+
+## Developing an understanding of the biological applications of k-mer profiles
 
 Understanding species differences with k-mer techniques is a poorly studied area and understanding requires multiple perspectives. My perspective is that the underlying data behind k-mer counts is no more than a profile that can be used to develop quantitative methods for k-mers, in the abstract sense of the phrase. But first we must understand under which conditions is this really possible or foreseeable by certain sample sizes or compositions. 
 
@@ -306,7 +319,11 @@ We do not restrict our attention to the 1st or 2nd dimension only of PCA, but in
 ## Markov probabilities
 
 
-# Supplemental
+# Discussion
+
+# Supporting Information
+
+The list of supporting files can be seen here.
 
 ![The K-means elbow graph for Normalized PCA6](kmeans_k4_elbow_graph_on_normalized_pca6.png)}
 
@@ -315,5 +332,4 @@ We do not restrict our attention to the 1st or 2nd dimension only of PCA, but in
 ![The K-means elbow graph for a spearman distance matrix](kmeans_k3_elbow_graph_on_spearman_dist.png)
 
 
-
-# References
+# Acknowledgements

@@ -42,7 +42,6 @@
                 justification=raggedright]{caption}
                 
 
-
 %
 % writeLaTeX logo
 %
