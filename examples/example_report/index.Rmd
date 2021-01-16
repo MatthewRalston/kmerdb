@@ -26,8 +26,6 @@ lot: true
 lof: true
 linenumbers: true
 output: 
-  html_document:
-    df_print: paged
   pdf_document: 
     fig_caption: yes
     fig_height: 4
@@ -36,6 +34,8 @@ output:
     template: peerj.tex
     latex_engine: xelatex
     highlight: espresso
+  html_document:
+    df_print: paged
 header-includes:
 - \usepackage{setspace,relsize}
 - \usepackage[autosize,dot]{dot2texi}
@@ -90,7 +90,33 @@ getmode <- function(v) {
 
 # Introduction
 
-Alignment based approaches are dominant in the genomics space for the most obvious reason: it is the most exact way to match new data to older existing linear DNA sequence formats namely genomic or transcriptomic FASTA files. However doing so requires the quadratic time complexity of the conventional seed-extension alignment strategies . 
+Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space in that it rapidly matches new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) have all been topics of great research interest for programmatic access to the substrings available for exact matching of sequences. 
+
+We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parenceite{marccais2011fast, zhang2014these, anvar2014determining}).
+
+For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA).
+
+Researchers are interested in k-mers and alignment-free methods because sequence identity, in-del behavior, rearrangements, and recombination are less likely to have large effects on scores in a context-less subspace of the sequences. I look to previous k-mer database formats(\{marccais2011fast, anvar2014determining, zhang2014these}) for guidance regarding the best approaches to exploring this k-mer space with our methodologies.
+
+First, there was Jellyfish (\parencite{marccais2011fast}), designed to keep k-mer count histograms in a specialized file with remarkable language bindings and profiling of the algorithm. At the center of its innovation to the number of data structures used to store k-mer counts was a lock-free hash table used for concurrent access to the k-mer profile. To my knowledge, this is the origin of the convention of encoding each k-mer as an integer, which saves on memory and file size. The only downside to the paper was the extreme focus on performance, for the rather narrow group of bioinformaticians who want to explore the subject through the lens of real-world datasets and biological insights. That said, I enjoyed the implementation, it's attention to language bindings, and the excellent focus.
+
+Next we have the k-mer Profile Analysis Library (\{anvar2014determining}), where Anvar points out that software is an analytical tool that we use can use on real world and simulated data. The authors note the primary questions involved in exploration of these subsequence spaces are the modalities of certain spectra, and the characteristic curve i.e. the over-representation and underrepresentation along the spectrum for any particular input. But comparison of multiple spectra also plays a role and the authors chose a single-distance interface using their multi-set and Euclidean distances.
+
+## What are "alignment-free" methods?
+
+Alignment-free sequence comparisons abstracts sequences directly into the k-mer abundances, which are both spectral and digital, and uses the uniform counts or k-mer coverage to describe the specificity behind the frequency or activity behind a certain abundant sequence within a sample (zhang2014these, anvar2014determining, marccais2011fast). Alignment-free methods have also made an impact with pseudo-alignment methods for RNA-Seq quantification (\parencite{patro2014sailfish, srivastava2016rapmap, bray2016near, patro2017salmon}).
+
+
+Similarly, alignment-free comparison involves the tolerance of any comparison or distance metric, Euclidean or otherwise to experimental noise or sampling noise is the beginning of what could be a very well-adapted null-model and accompanying model that addresses the many features behind the measurments that are visible in k-mer count abundances, like imbalances in k-mer counts because of sampling bias or pure abundance relationships, the necessary coverage for graph collapse, the properties of query sequences, the relationship with sequence identity, the spatial relationships compare to MSA trees.
+
+## What is a good choice of k?
+
+A good choice of k that biologists would suggest would be in the range of 20 - 40. We are first given this supposition with the concept of PCR primers, a choice of 20-25bp, 18-30bp, 22-25bp, whatever you feel is specific seems to gravitate around the range of 20-40 in my opinion. And this is deemed sufficiently specific. And again we are given the concept of allele specific oligos which have a near identical range, and you can see for yourself what range of k would be biologically ideal. 
+
+But then you have computer scientists and mathematicians who 
+
+## 
+
 
 
 

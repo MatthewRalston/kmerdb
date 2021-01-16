@@ -87,7 +87,7 @@ def markov_probability(arguments):
                     
                         markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
 
-                        print(markov_probs)
+                        sys.stderr.write(markov_probs)
                         if profiles.shape == (0,):
                             profiles = np.array(markov_probs)
                         else:
@@ -184,7 +184,7 @@ def distances(arguments):
 
     logger.info("Calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
     
-    if arguments.metric in ["spearman"]:
+    if arguments.metric in ["spearman", "EMD", "d2s"]:
         data = [['' for x in range(n)] for y in range(n)]
         for i in range(n):
             for j in range(n):
@@ -202,6 +202,10 @@ def distances(arguments):
                         cor, pval = distance.spearman(profiles[i], profiles[j])
                         # FIXME! also print pval matrices
                         data[i][j] = cor
+                    elif arguments.metric == "EMD":
+                        data[i][j] = distance.EMD(profiles[i], profiles[j])
+                    elif arguments.metric == "d2s":
+                        data[i][j] = distance.d2s(profiles[i], profiles[j])
                     else:
                         logger.error("Other distances are not implemented yet")
                         sys.exit(1)
