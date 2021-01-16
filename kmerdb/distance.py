@@ -113,6 +113,14 @@ def spearman(x, y):
     cor, pval = spearmanr(x, b=y)
     return cor, pval
 
+def EMD(x, y):
+    if type(x) is not np.ndarray:
+        raise TypeError("kmerdb.distance.EMD expects a Numpy array as its first positional argument")
+    elif type(y) is not np.ndarray:
+        raise TypeError("kmerdb.distance.EMD expects a Numpy array as its second positional argument")
+    from scipy.stats import wasserstein_distance
+    return wasserstein_distance(x, y)
+
         
 def hamming(k, x, y):
     sum = 0
@@ -123,12 +131,25 @@ def hamming(k, x, y):
 
 
 
-def d2s(mono_x, mono_y, total_kmers_x, total_kmers_y, k, x, y):
+def d2s(x, y):
+    if type(x) is not np.ndarray:
+        raise TypeError("kmerdb.distance.d2s expects a Numpy array as its first positional argument")
+    elif type(y) is not np.ndarray:
+        raise TypeError("kmerdb.distance.d2s expects a Numpy array as its second positional argument")
 
-    mono_x = {c: np.round(mono_x[c]/total_kmers_x, 2) for c in mono_x}
-    mono_y = {c: np.round(mono_y[c]/total_kmers_y, 2) for c in mono_y}
+    
+    from kmerdb import kmer
+    import math
     
     N = len(x)
+    k = int(math.log(N, 4))
+    total_kmers_x = np.sum(x)
+    total_kmers_y = np.sum(y)
+    #mono_x = dict([c, np.round(mono_x[c]/total_kmers_x, 2) for c in mono_x])
+    #mono_y = dict([c, np.round(mono_y[c]/total_kmers_y, 2) for c in mono_y])
+    mono_x = dict([c, mono_x[c]/float(total_kmers_x) for c in mono_x])
+    mono_y = dict([c, mono_y[c]/float(total_kmers_y) for c in mono_y])
+
 
     def _d2s(ex, ey, xi, yi):
         xi_ = xi - (N-k+1)*ex
@@ -138,8 +159,9 @@ def d2s(mono_x, mono_y, total_kmers_x, total_kmers_y, k, x, y):
     
     s = 0
     for i in range(N):
-        seq = kmer.kmer_to_id
+        seq = kmer.kmer_to_id(i)
         Ex = functools.reduce(lambda a,b: a*mono_x[b], list(seq), 1)
         Ey = functools.reduce(lambda a,b: a*mono_y[b], list(seq), 1)
         s += _d2s(Ex, Ey, x[i], y[i])
 
+    return s

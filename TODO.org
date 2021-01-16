@@ -7,15 +7,69 @@ The final prototype would be .bgzf format from biopython
 
 
 
-
+* Assessment of probability function
+** sequence length, starting position, strand
+** The length of the parameter space theta is 3
+** I gave the probability function the a MLE estimate of a sequence,
+** a subsequence for the genome the profile was made of
+** and then if we vary these parameters while calculating LoRs from same and other species
+** we can generate a pdf/distribution of the LoRs for other species
+** 
+* Calculate more log-odds ratios
+** For known sequences against different lengths
+** For sequences simulated by ideal fasta (through what? we have frequencies, not distributions for the frequencies
+** We need an error model
+** The error to minimize
+** Well we have the probability of any k-mer
+** so we can walk from here to there
+** and we can compare the likelihood to a better null model.
+** An exact error model is to formal at this point. We need a better null model.
+** But if I don't and we do the probability of the k-mer than it would be a random walk through k-mer space..
+** and it would eventually produce the correct sequence through brute force.
+** The brute force method is to try random walks with the same initialized k-mer.
+** Then we do 
 * DONE Sparse .kdb
   CLOSED: [2021-01-07 Thu 21:37]
 ** modify slurp
 ** modify profile
 * DONE Nearest neighbor profile
   CLOSED: [2021-01-07 Thu 21:37]
-* VERIFY index class
-* VERIFY Probability function
+* DONE index class
+  CLOSED: [2021-01-13 Wed 19:13]
+* DONE Probability function
+  CLOSED: [2021-01-13 Wed 19:13]
+* TODO kmerdb transitions
+** transition probabilities of the primary sequence
+** [kmerdb.probability.transition(kdb, i, j) for i in range(N) for j in range(N)]
+*** def transition(kdbrdr, kdbidx, i, j):
+***   # type check
+***   total = kdb.header["total_kmer_counts"]
+***   kmer_id_i, count_i, neighbors_i = index.read_line(kdbrdr, kdbidx, i)
+***   kmer_id_j, count_j, neighbors_j = index.read_line(kdbrdr, kdbidx, j)
+***   # now check that i and j are neighbors (i.e. that their transition makes sense)
+***   if kmer_id_j not in neighbors_i["suffixes"].values():
+***     return 0.0
+***   else:
+***     qj = count_j/total
+***     sum_qix = 0
+***     for char, idx in neighbors_i["suffixes"].items():
+***       kmer_id, count, _ = index.read_line(kdbrdr, kdbidx, idx)
+***       if kmer_id is None or count is None:
+***         kmer_id = idx
+***         count   = 0
+***       sum_qix += count/float(total)
+***     if sum_qix == 0.0:
+***       return 0.0
+***     else:
+***       return qj / sum_qix
+* TODO kmerdb simulate
+** generate x fasta sequences of length L
+** write them to temporary file
+** read them into kdb file
+** prefix, suffix = os.path.splitext(filename)
+** assert suffix == ".kdb", "provided filename did not end in .kdb"
+** shutil.move(fasta, prefix + ".fa")
+** write kdb file (prefix + ".kdb")
 * Rmd report1
 ** Introduction
 ** Methodology
