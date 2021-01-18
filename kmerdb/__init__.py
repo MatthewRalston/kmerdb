@@ -703,7 +703,7 @@ def header(arguments):
         else:
             yaml.add_representer(OrderedDict, util.represent_ordereddict)
             print(yaml.dump(kdb.header))
-    
+            print(config.header_delimiter)
             
 def view(arguments):
     from kmerdb import fileutil, config
