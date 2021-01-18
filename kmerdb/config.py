@@ -21,7 +21,7 @@ VERSION="0.0.7"
 end_header_line = "    kdb: can someone get me some sentries"
 header_delimiter = end_header_line + "\n" + ("="*24) + "\n"
 
-header_schema = {
+metadata_schema = {
     "type": "object",
     "properties": {
         "version": {"type": "string"},

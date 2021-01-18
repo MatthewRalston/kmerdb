@@ -83,15 +83,55 @@ def _s3_file_download(self, seqpath, temporary=True):
     filepath.close()
     return filepath.name
 
+def parse_line(line):
+    """
+    Parses a line according to the expected syntax, and returns the python data types expected as a tuple.
 
-def open(filepath, mode="r", header=None):
+    :param line:
+    :type line: str
+    :returns: kmer_id, count, metadata
+    :rtype: tuple
+    """
+    
+    if type(line) is not str:
+        raise TypeError("kmerdb.fileutil.parse_line expects to a str as its first positional argument")
+    else:
+        linesplit = line.rstrip().split("\t")
+        if len(linesplit) != 3:
+            logger.error("Full line:\n{0}".format(line))
+            raise ValueError("kmerdb.fileutil.parse_line() encountered a .kdb line without 3 columns, a violation of the format")
+        else:
+            kmer_id, count, kmer_metadata = linesplit
+            kmer_id, count = int(kmer_id), int(count)
+            kmer_metadata = yaml.safe_load(kmer_metadata)
+            if type(kmer_metadata) is dict:
+                return kmer_id, count, kmer_metadata
+            else:
+                logger.error("Improperly formatted k-mer metadata field")
+                logger.error(line)
+                raise ValueError("kmerdb.fileutil.parse_line(): Improperly formatted k-mer metadata field")
 
+
+
+def open(filepath, mode="r", metadata=None):
+    """
+    Opens a file for reading or writing. Valid modes are 'xrwbt'. 'metadata=' is needed when writing/creating.
+
+    :param filepath:
+    :type filepath: str
+    :param mode:
+    :type mode: str
+    :param metadata: The file header/metadata dictionary to write to the file.
+    :type metadata: dict
+    :returns: kmerdb.fileutil.KDBReader/kmerdb.fileutil.KDBWriter
+    :rtype: kmerdb.fileutil.KDBReader
+    """
     if type(filepath) is not str:
         raise TypeError("kmerdb.fileutil.open expects a str as its first positional argument")
     elif type(mode) is not str:
         raise TypeError("kmerdb.fileutil.open expects the keyword argument 'mode' to be a str")
-    elif ("w" in mode or "x" in mode) and (header is None or not isinstance(header, OrderedDict)):
-        raise TypeError("kmerdb.fileutil.open expects an additional header dictionary")
+    elif ("w" in mode or "x" in mode) and (metadata is None or not isinstance(metadata, OrderedDict)):
+        raise TypeError("kmerdb.fileutil.open expects an additional metadata dictionary")
     modes = set(mode)
     if modes - set("xrwbt") or len(mode) > len(modes):
         raise ValueError("invalid mode: {}".format(mode))
@@ -112,29 +152,12 @@ def open(filepath, mode="r", header=None):
     if "r" in mode.lower():
         return KDBReader(filename=filepath, mode=mode)
     elif "w" in mode.lower() or "x" in mode.lower():
-        return KDBWriter(header, filename=filepath, mode=mode)
+        return KDBWriter(metadata, filename=filepath, mode=mode)
     else:
         raise ValueError("Bad mode %r" % mode)
 
 
 
-def parse_line(line):
-    """
-    Returns in order, a parsed line from the .kdb file as follows:
-    kmer_id:int, count:int, metadata:dict
-    """
-    if type(line) is not str:
-        raise TypeError("kmerdb.fileutil.parse_line expects a str as its first positional argument")
-    else:
-        kmer_id, count, metadata = line.rstrip.split("\t")
-        kmer_id, count = int(kmer_id), int(count)
-        metadata = yaml.safe_load(metadata)
-        if type(metadata) is dict:
-            return kmer_id, count, metadata
-        else:
-            logger.error("Improperly formatted metadata field")
-            logger.error(line)
-            raise RuntimeError("Improperly formatted metadata line")
 
 
 class KDBReader(bgzf.BgzfReader):
@@ -206,15 +229,15 @@ class KDBReader(bgzf.BgzfReader):
         sys.stderr.write("\n")
         logger.info("Validating the header data against the schema...")
         try:
-            jsonschema.validate(instance=header_data, schema=config.header_schema)
-            self.header = header_data
-            self.k = self.header['k']
+            jsonschema.validate(instance=header_data, schema=config.metadata_schema)
+            self.metadata = header_data
+            self.k = self.metadata['k']
         except jsonschema.ValidationError as e:
             logger.debug(e)
-            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML from {0} header blocks".format(num_header_blocks))
+            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks))
             raise e
-        self.header["header_offset"] = self._handle.tell()
-        logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.header["header_offset"]))
+        self.metadata["header_offset"] = self._handle.tell()
+        logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
         self._reader = gzip.open(self._filepath, 'r')
         self._offsets = deque()
         for values in bgzf.BgzfBlocks(self._handle):
@@ -231,6 +254,16 @@ class KDBReader(bgzf.BgzfReader):
         # print(self.readline())
 
         #
+    def read_line(self):
+        """
+        Returns in order, a parsed line from the .kdb file as follows:
+
+        :returns: (kmer_id:int, count:int, metadata:dict)
+        :rtype: tuple
+        """
+
+        line = self.readline()
+        return parse_line(line)
 
     # def _load_block(self, start_offset=None):
     #     if start_offset is None:
@@ -346,15 +379,15 @@ class KDBReader(bgzf.BgzfReader):
 
     
 class KDBWriter(bgzf.BgzfWriter):
-    def __init__(self, header:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
+    def __init__(self, metadata:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
-        if not isinstance(header, OrderedDict):
-            raise TypeError("kmerdb.fileutil.KDBWriter expects a valid header object as its first positional argument")
+        if not isinstance(metadata, OrderedDict):
+            raise TypeError("kmerdb.fileutil.KDBWriter expects a valid metadata object as its first positional argument")
         try:
-            logger.debug("Validating header schema against the config.py header schema")
-            jsonschema.validate(instance=dict(header), schema=config.header_schema)
-            self.header = header
-            self.k = self.header['k']
+            logger.debug("Validating metadata schema against the config.py header schema")
+            jsonschema.validate(instance=dict(metadata), schema=config.metadata_schema)
+            self.metadata = metadata
+            self.k = self.metadata['k']
         except jsonschema.ValidationError as e:
             logger.debug(e)
             logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
@@ -386,20 +419,20 @@ class KDBWriter(bgzf.BgzfWriter):
         logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
         yaml.add_representer(OrderedDict, util.represent_ordereddict)
 
-        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
-        header_plus_delimiter_in_bytes = header_bytes + bgzf._as_bytes(config.header_delimiter)
-        self.header["metadata_blocks"] = math.ceil( sys.getsizeof(header_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
-        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
-        header_bytes = header_bytes + bgzf._as_bytes(config.header_delimiter)
-        self.header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # Second estimate
-        logger.info("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
-        logger.debug(self.header)
-        logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.header, sort_keys=False)))
+        metadata_bytes = bgzf._as_bytes(yaml.dump(self.metadata, sort_keys=False))
+        metadata_plus_delimiter_in_bytes = metadata_bytes + bgzf._as_bytes(config.header_delimiter)
+        self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
+        metadata_bytes = bgzf._as_bytes(yaml.dump(self.metadata, sort_keys=False))
+        metadata_bytes = metadata_bytes + bgzf._as_bytes(config.header_delimiter)
+        self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
+        logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
+        logger.debug(self.metadata)
+        logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
 
-        for i in range(self.header["metadata_blocks"]):
-            header_slice = header_bytes[:65536]
-            header_bytes = header_bytes[65536:]
-            self._write_block(header_slice)
+        for i in range(self.metadata["metadata_blocks"]):
+            metadata_slice = metadata_bytes[:65536]
+            metadata_bytes = metadata_bytes[65536:]
+            self._write_block(metadata_slice)
 
         #self._write_block
         self._buffer = b""
