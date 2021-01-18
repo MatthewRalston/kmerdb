@@ -26,6 +26,7 @@ import yaml, json
 from collections import deque, OrderedDict
 import psutil
 import numpy as np
+import math
 
 #import pdb
 
@@ -83,12 +84,13 @@ def _s3_file_download(self, seqpath, temporary=True):
     return filepath.name
 
 
-def open(filepath, mode="r", *args):
+def open(filepath, mode="r", header=None):
+
     if type(filepath) is not str:
         raise TypeError("kmerdb.fileutil.open expects a str as its first positional argument")
     elif type(mode) is not str:
         raise TypeError("kmerdb.fileutil.open expects the keyword argument 'mode' to be a str")
-    elif "w" in mode and (len(args) != 1 or not isinstance(args[0], OrderedDict)):
+    elif ("w" in mode or "x" in mode) and (header is None or not isinstance(header, OrderedDict)):
         raise TypeError("kmerdb.fileutil.open expects an additional header dictionary")
     modes = set(mode)
     if modes - set("xrwbt") or len(mode) > len(modes):
@@ -109,8 +111,8 @@ def open(filepath, mode="r", *args):
 
     if "r" in mode.lower():
         return KDBReader(filename=filepath, mode=mode)
-    elif "w" in mode.lower() or "a" in mode.lower():
-        return KDBWriter(args[0], filename=filepath, mode=mode)
+    elif "w" in mode.lower() or "x" in mode.lower():
+        return KDBWriter(header, filename=filepath, mode=mode)
     else:
         raise ValueError("Bad mode %r" % mode)
 
@@ -150,6 +152,8 @@ class KDBReader(bgzf.BgzfReader):
         # 0th block
         logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
         self._load_block(self._handle.tell())
+
+        self._buffer = self._buffer.rstrip(config.header_delimiter)
         header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
         if type(header_data) is str:
@@ -167,7 +171,7 @@ class KDBReader(bgzf.BgzfReader):
                 else:
                     for i in range(header_data["metadata_blocks"] - 1):
                         self._load_block(self._handle.tell())
-                        addtl_header_data = yaml.safe_load(self._buffer)
+                        addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
                         if type(addtl_header_data) is str:
                             logger.error(addtl_header_data)
                             raise TypeError("kmerdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
@@ -357,12 +361,23 @@ class KDBWriter(bgzf.BgzfWriter):
         """
         Write the header to the file
         """
+
+
+
+        
         logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
+        yaml.add_representer(OrderedDict, util.represent_ordereddict)
+
+        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
+        header_plus_delimiter_in_bytes = header_bytes + bgzf._as_bytes(config.header_delimiter)
+        self.header["metadata_blocks"] = math.ceil( sys.getsizeof(header_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
+        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
+        header_bytes = header_bytes + bgzf._as_bytes(config.header_delimiter)
+        self.header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # Second estimate
         logger.info("Writing the {0} header blocks to the new file".format(self.header["metadata_blocks"]))
         logger.debug(self.header)
         logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.header, sort_keys=False)))
-        yaml.add_representer(OrderedDict, util.represent_ordereddict)
-        header_bytes = bgzf._as_bytes(yaml.dump(self.header, sort_keys=False))
+
         for i in range(self.header["metadata_blocks"]):
             header_slice = header_bytes[:65536]
             header_bytes = header_bytes[65536:]
