@@ -49,10 +49,10 @@ def markov_probability(seq:Bio.SeqRecord.SeqRecord, kdbrdr:fileutil.KDBReader, k
         raise TypeError("kmerdb.probability.markov_probability expects a kmerdb.index.IndexReader as its third positional argument")
 
         
-    k = kdbrdr.header['k']
-    mononucleotides = kdbrdr.header['files'][0]['mononucleotides']
+    k = kdbrdr.metadata['k']
+    mononucleotides = kdbrdr.metadata['files'][0]['mononucleotides']
     N = 4**k
-    total_kmers = sum([f['total_kmers'] for f in kdbrdr.header['files']])
+    total_kmers = sum([f['total_kmers'] for f in kdbrdr.metadata['files']])
     um = 1/N # This is the uniform frequency for the space
     if len(seq) < k:
         raise ValueError("kmerdb.probability.markov_probability expects the sequence to be at least k={0} in length".format(k))
@@ -125,7 +125,7 @@ def markov_probability(seq:Bio.SeqRecord.SeqRecord, kdbrdr:fileutil.KDBReader, k
             # We take the prefixes count and new neighbors
             kmer_id, count, neighbors = index.read_line(kdbrdr, kdbidx, kmerid)
 
-            # Now we calculate qt similar to px, the frequency (count / total number of k-mers, read from the header)
+            # Now we calculate qt similar to px, the frequency (count / total number of k-mers, read from the metadata)
         
             qt = count/float(total_kmers)
             # Now we calculate the transition probability of sequence s to sequence t
