@@ -46,14 +46,14 @@ def correlation(fname1, fname2):
     with fileutil.open(fname1, mode='r') as kdb1:
         with fileutil.open(fname2, mode='r') as kdb2:
             if k is None:
-                k = kdb1.header['k']
-            if k != kdb1.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.header['k'], k))
-            elif k != kdb2.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.header['k'], k))
+                k = kdb1.metadata['k']
+            if k != kdb1.metadata['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.metadata['k'], k))
+            elif k != kdb2.metadata['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.metadata['k'], k))
             N = 4 ** k
-            x_bar = functools.reduce(lambda a,b: a+b, map(lambda x: x['total_kmers'], kdb1.header['files']), 0) / N
-            y_bar = functools.reduce(lambda a,b: a+b, map(lambda y: y['total_kmers'], kdb2.header['files']), 0) / N
+            x_bar = functools.reduce(lambda a,b: a+b, map(lambda x: x['total_kmers'], kdb1.metadata['files']), 0) / N
+            y_bar = functools.reduce(lambda a,b: a+b, map(lambda y: y['total_kmers'], kdb2.metadata['files']), 0) / N
             ## CALCULATE CORRELATION
             ssxx = 0
             ssyy = 0
@@ -88,11 +88,11 @@ def euclidean(fname1, fname2):
     with fileutil.open(fname1, mode='r') as kdb1:
         with fileutil.open(fname2, mode='r') as kdb2:
             if k is None:
-                k = kdb1.header['k']
-            if k != kdb1.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.header['k'], k))
-            elif k != kdb2.header['k']:
-                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.header['k'], k))
+                k = kdb1.meatadata['k']
+            if k != kdb1.metadata['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb1.metadata['k'], k))
+            elif k != kdb2.metdata['k']:
+                raise Exception("File '{0}' reported k = {1} instead of k = {2}".format(f, kdb2.metadata['k'], k))
             N = 4 ** k
 
             for kmer_id in range(N):
