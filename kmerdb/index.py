@@ -131,13 +131,13 @@ class IndexBuilder:
             pos = kdbrdr.tell() # This could be the byte encoding, since we're reading it as plain text
 
             logger.info("Reading the .kdb file '{0}' in mode 'r' to generate the index...".format(kdbrdr._filepath))
-            logger.info("Top position in the file after header parsing is said to be 'with this as kdbrdr:' {0}".format(pos))
-            logger.info("KDBReader logs the position in mode 'r' as 'header_offset', after appending blocks: {0}".format(kdbrdr.header["header_offset"])) # This could be a compressed offset
+            logger.info("Top position in the file after metadata parsing is said to be 'with this as kdbrdr:' {0}".format(pos))
+            logger.info("KDBReader logs the position in mode 'r' as 'header_offset', after appending blocks: {0}".format(kdbrdr.metadata["header_offset"])) # This could be a compressed offset
             logger.info("Asked for the position one more time in mode 'r' in 'with this' and received: {0}".format(kdbrdr.tell()))
             line_index[0] = kdbrdr.tell()
 
             # SOmething should be checked here
-            #kdbrdr.seek(kdbrdr.header["header_offset"])
+            #kdbrdr.seek(kdbrdr.metadata["header_offset"])
             #kdbrdr._load_block()
             i = 1
             this_line = line_index[0]
@@ -200,16 +200,8 @@ def read_line(kdbrdr:fileutil.KDBReader, kdbidx:IndexReader, kmer_id):
         #raise ValueError("Invalid index value 0")
     else:
         kdbrdr.seek(kdbidx.index[kmer_id])
-        line = kdbrdr.readline().rstrip()
-        linesplit = line.split("\t")
-        # MAGIC NUMBER ALERT
-        # 3 is chosen to match the current .kdb record style
-        if len(linesplit) != 3:
-            logger.error("Full line:\n{0}".format(line))
-            logger.error("Expected k-mer id: {0}".format(kmer_id))
-            raise ValueError("kmerdb.index.read_line encountered a .kdb line without 3 columns, a violation of the format")
-        kmer_id, count, neighbors = line.rstrip().split("\t")
-        return int(kmer_id), int(count), yaml.safe_load(neighbors)
+        kmer_id, count, metadata = kdbrdr.read_line()
+        return kmer_id, count, metadata
 
         
 def is_gz_file(filepath):
@@ -243,5 +235,3 @@ def write_index(index:np.array, indexfile:str, k:int):
             else:
                 ofile.write("{0}\t{1}\n".format(i, line_offset))
 
-    
-                

@@ -91,8 +91,8 @@ The final prototype would be .bgzf format from biopython
 ** Results
 *** Distribution fitting / model selection
 *** PCA
-*** 
-
+*** kmerdb shuf on 3 of 30 metagenomes for k=1:12 + kPAL figure 
+*** Median "distance" between profiles of pairwise comparison
 ** Distribution analysis
 ** Accurately describe kdb counting algorithm
 *** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,

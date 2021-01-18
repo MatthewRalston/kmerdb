@@ -51,11 +51,37 @@ def citation(arguments):
 def index_file(arguments):
     from kmerdb import fileutil, index
     from kmerdb.config import DONE
+    
     with fileutil.open(arguments.kdb, mode='r') as kdb:
-        k = kdb.header['k']
+        k = kdb.metadata['k']
     line_index = index.open(arguments.kdb, mode="xt", k=k)
     sys.stderr.write(DONE)
 
+
+def shuf(arguments):
+    import random
+    
+    from kmerdb import fileutil, index
+    from kmerdb.config import DONE
+
+    if os.path.splitext(arguments.kdb_in)[-1] != ".kdb":
+        raise ValueError("kdb shuf requires an indexed .kdb file. Received '{0}'".format(arguments.kdb))
+    else:
+        arguments.kdb_index = arguments.kdb_in + "i"
+    
+        with fileutil.open(arguments.kdb_in, mode='r') as kdb:
+            with index.open(arguments.kdb_index, mode='r') as kdbi:
+                shuffled = list(range(len(kdbi.index)))
+                random.shuffle(shuffled)
+                random.shuffle(shuffled)
+                with fileutil.open(arguments.kdb_out, mode='w', metadata=kdb.metadata) as kdb_out:
+                    x = 1
+                    for i in shuffled:
+                        kmer_id, count, kmer_metadata = index.read_line(kdb, kdbi, i)
+                        kdb_out.write("{0}\t{1}\t{2}".format(x, count, kmer_metadata))
+                        x += 1
+    sys.stderr.write(DONE)
+    
 def markov_probability(arguments):
     import pandas as pd
     import numpy as np
@@ -71,7 +97,7 @@ def markov_probability(arguments):
         #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
         profiles = np.array([], dtype="int64")
         with fileutil.open(arguments.kdb, 'r') as kdb:
-            k = kdb.header['k']
+            k = kdb.metadata['k']
             with index.open(arguments.kdbi, 'r') as kdbi:
                 with seqparser.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
                     recs = [r for r in seqprsr]
@@ -696,19 +722,19 @@ def header(arguments):
         raise IOError("Viewable .kdb filepath does not end in '.kdb'")
 
     with fileutil.open(arguments.kdb, mode='r') as kdb:
-        if kdb.header["version"] != config.VERSION:
+        if kdb.metadata["version"] != config.VERSION:
             logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
         if arguments.json:
-            print(dict(kdb.header))
+            print(dict(kdb.metadata))
         else:
             yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(kdb.header))
+            print(yaml.dump(kdb.metadata))
             print(config.header_delimiter)
             
 def view(arguments):
     from kmerdb import fileutil, config, util
     import json
-    header = None
+    metadata = None
 
     def get_header(line, header):
         """
@@ -730,23 +756,23 @@ def view(arguments):
     
     if type(arguments.kdb_in) is None or arguments.kdb_in == "STDIN" or arguments.kdb_in == "/dev/stdin": # Read from STDIN
         logger.warning("Interpreting data from STDIN as uncompressed .kdb input")
-        header = ''
+        metadata = ''
         kdb_in = None
         if arguments.decompress is True:
             ifile = gzip.open(sys.stdin.buffer, 'rt')
-            while type(header) is str:
+            while type(metadata) is str:
                 #logger.debug("looping in gzip for header")
                 line = ifile.readline()
-                header = get_header(line, header)
+                metadata = get_header(line, metadata)
             kdb_in = ifile
         else:
             i = 0
-            while type(header) is str:
+            while type(metadata) is str:
                 line = sys.stdin.readline()
                 #logger.debug("looping in stdin for header")
                 #print(line)
 
-                header = get_header(line, header)
+                metadata = get_header(line, metadata)
                 i += 1
 
                 if i == 50:
@@ -759,13 +785,13 @@ def view(arguments):
         elif not os.path.exists(arguments.kdb_in):
             raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
         kdb_in = fileutil.open(arguments.kdb_in, mode='r')
-        header = kdb_in.header
-    if header["version"] != config.VERSION:
+        metadata = kdb_in.metadata
+    if metadata["version"] != config.VERSION:
         logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
     if arguments.kdb_out is None or arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT": # Write to stdout, uncompressed
         if arguments.header:
             yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(header, sort_keys=False))
+            print(yaml.dump(metadata, sort_keys=False))
             print(config.header_delimiter)
         if kdb_in is None: # Read from STDIN, since there was no kdb_in file.
             logger.info("Reading from STDIN...")
@@ -794,20 +820,20 @@ def view(arguments):
     elif not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
     else:
-        with fileutil.open(arguments.kdb_out, header=header, mode='wb') as kdb_out:
+        with fileutil.open(arguments.kdb_out, metadata=metadata, mode='wb') as kdb_out:
             try:
                 line = None
                 if kdb_in is None:
                     while line is None:
                         line = sys.stdin.readline().rstrip()
-                        kmer_id, count, metadata = fileutil.parse_line(line)
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, metadata))
+                        kmer_id, count, kmer_metadata = fileutil.parse_line(line)
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, kmer_metadata))
                         line = None
                 else:
                     for line in kdb_in:
                         line = line.rstrip()
-                        kmer_id, count, metadata = fileutil.parse_line(line)
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, metadata))
+                        kmer_id, count, kmer_metadata = fileutil.parse_line(line)
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, kmer_metadata))
                     
             except StopIteration as e:
                 logger.error(e)
@@ -829,29 +855,29 @@ def profile(arguments):
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
     
-    metadata = []
+    file_metadata = []
     tempdbs = []
     for f in arguments.seqfile:
         db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, stranded=arguments.not_strand_specific)
-        metadata.append(m)
+        file_metadata.append(m)
         tempdbs.append(db)
-    header=OrderedDict({
+    metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
         "k": arguments.k,
         "metadata": False,
         "tags": [],
-        "files": metadata
+        "files": file_metadata
     })
     
-    header_bytes = bgzf._as_bytes(yaml.dump(header))
+    metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
     # The number of metadata blocks is the number of bytes of the header block(s) / the number of bytes per block in the BGZF specification
-    header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # First estimate
-    header_bytes = bgzf._as_bytes(yaml.dump(header))
-    header["metadata_blocks"] = math.ceil( sys.getsizeof(header_bytes) / ( 2**16 ) ) # Second estimate
-    #header["metadata_blocks"] = 2
+    metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # First estimate
+    metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
+    metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
+
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb))    
-    kdb_out = fileutil.open(arguments.kdb, 'wb', header)
+    kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
         iterating = True
         while iterating:
@@ -868,8 +894,8 @@ def profile(arguments):
                         pass
                     else:
                         seq = kmer.id_to_kmer(i, arguments.k)
-                        metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, metadata))
+                        kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
                 else:
                     iterating = False
             except StopIteration as e:
@@ -1080,6 +1106,13 @@ def cli():
     index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     index_parser.set_defaults(func=index_file)
 
+    shuf_parser = subparsers.add_parser("shuf", help="Create a shuffled .kdb file")
+    shuf_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    shuf_parser.add_argument("kdb_in", type=str, help="An indexed k-mer database file (.kdb)")
+    shuf_parser.add_argument("kdb_out", type=str, help="The output shuffled k-mer database file (.kdb)")
+    shuf_parser.set_defaults(func=shuf)
+
+    
     markov_probability_parser = subparsers.add_parser("probability", help=u"""
 Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)), given the entire k-mer profile of a species.
 
@@ -1092,7 +1125,7 @@ See https://matthewralston.github.io/quickstart#kmerdb-probability for more deta
     markov_probability_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
     markov_probability_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
-    markov_probability_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    markov_probability_parser.add_argument("kdb", type=str, help="An indexed k-mer database file (.kdb)")
     markov_probability_parser.set_defaults(func=markov_probability)
 
     citation_parser = subparsers.add_parser("citation", help="Silence the citation notice on further runs")
