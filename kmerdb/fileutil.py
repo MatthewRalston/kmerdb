@@ -118,6 +118,24 @@ def open(filepath, mode="r", header=None):
 
 
 
+def parse_line(line):
+    """
+    Returns in order, a parsed line from the .kdb file as follows:
+    kmer_id:int, count:int, metadata:dict
+    """
+    if type(line) is not str:
+        raise TypeError("kmerdb.fileutil.parse_line expects a str as its first positional argument")
+    else:
+        kmer_id, count, metadata = line.rstrip.split("\t")
+        kmer_id, count = int(kmer_id), int(count)
+        metadata = yaml.safe_load(metadata)
+        if type(metadata) is dict:
+            return kmer_id, count, metadata
+        else:
+            logger.error("Improperly formatted metadata field")
+            logger.error(line)
+            raise RuntimeError("Improperly formatted metadata line")
+
 
 class KDBReader(bgzf.BgzfReader):
     def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100):
