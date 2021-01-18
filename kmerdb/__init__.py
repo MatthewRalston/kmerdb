@@ -706,28 +706,52 @@ def header(arguments):
             print(config.header_delimiter)
             
 def view(arguments):
-    from kmerdb import fileutil, config
+    from kmerdb import fileutil, config, util
     import json
     header = None
-    if type(arguments.kdb_in) is not str: # Read from STDIN
+
+    def get_header(line, header):
+        """
+        A little helper recurrence function for grabbing the additions to the header.
+        """
+        
+
+        if line.rstrip() != config.end_header_line:
+            header += line
+            return header
+        else:
+            header_dict = yaml.safe_load(header)
+            if type(header_dict) is not dict:
+                logger.debug("Tried to parse:\n{0}\n".format(header))
+                raise ValueError("Could not parse YAML formatted header")
+            else:
+                return header_dict
+        
+    
+    if type(arguments.kdb_in) is None or arguments.kdb_in == "STDIN" or arguments.kdb_in == "/dev/stdin": # Read from STDIN
         logger.warning("Interpreting data from STDIN as uncompressed .kdb input")
         header = ''
         kdb_in = None
-        while type(header) is str:
-            line = sys.stdin.readline().rstrip()
-            if line != config.end_header_line:
-                header += line
-                continue
-            else:
-                header_dict = yaml.safe_parse(header)
-                if type(header_dict) is not dict:
-                    logger.debug("Tried to parse:\n{0}\n".format(header))
-                    raise ValueError("Could not parse YAML formatted header")
-                else:
-                    if header["version"] != config.VERSION:
-                        logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-                    kdb_in = sys.stdin
-                    header=header_dict
+        if arguments.decompress is True:
+            ifile = gzip.open(sys.stdin.buffer, 'rt')
+            while type(header) is str:
+                #logger.debug("looping in gzip for header")
+                line = ifile.readline()
+                header = get_header(line, header)
+            kdb_in = ifile
+        else:
+            i = 0
+            while type(header) is str:
+                line = sys.stdin.readline()
+                #logger.debug("looping in stdin for header")
+                #print(line)
+
+                header = get_header(line, header)
+                i += 1
+
+                if i == 50:
+                    raise RuntimeError()
+            kdb_in = None
     else:
         assert type(arguments.kdb_in) is str, "kdb_in must be a str"
         if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
@@ -740,9 +764,26 @@ def view(arguments):
         logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
     if arguments.kdb_out is None or arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT": # Write to stdout, uncompressed
         if arguments.header:
-            print(yaml.dump(kdb.header))
-        for line in kdb_in:
-            print(line.rstrip())
+            yaml.add_representer(OrderedDict, util.represent_ordereddict)
+            print(yaml.dump(header, sort_keys=False))
+            print(config.header_delimiter)
+        if kdb_in is None: # Read from STDIN, since there was no kdb_in file.
+            logger.info("Reading from STDIN...")
+            try:
+                for line in sys.stdin:
+                    print(line.rstrip())
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
+        else: # Read from the kdb_in file, and not STDIN
+            logger.info("Reading from file...")
+            print(kdb_in)
+            try:
+                for line in kdb_in:
+                    print(line.rstrip())
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
     elif arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
         logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
         sys.exit(1)
@@ -752,22 +793,30 @@ def view(arguments):
         logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
     elif not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
-    with fileutil.open(arguments.kdb_out, header=header, mode='wb') as kdb_out:
-        try:
-            line = None
-            for line in kdb_in:
-                line = line.rstrip()
-                kmer_id, count, metadata = line.split("\t")
-                kmer_id, count = int(kmer_id), int(count)
-                kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, json.dumps(metadata)))
-        except StopIteration as e:
-            logger.error(e)
-            raise e
-        finally:
-            #kdb_out._write_block(kdb_out._buffer)
-            #kdb_out._handle.flush()
-            #kdb_out._handle.close()
-            sys.stderr.write(config.DONE)
+    else:
+        with fileutil.open(arguments.kdb_out, header=header, mode='wb') as kdb_out:
+            try:
+                line = None
+                if kdb_in is None:
+                    while line is None:
+                        line = sys.stdin.readline().rstrip()
+                        kmer_id, count, metadata = fileutil.parse_line(line)
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, metadata))
+                        line = None
+                else:
+                    for line in kdb_in:
+                        line = line.rstrip()
+                        kmer_id, count, metadata = fileutil.parse_line(line)
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, metadata))
+                    
+            except StopIteration as e:
+                logger.error(e)
+                raise e
+            finally:
+                #kdb_out._write_block(kdb_out._buffer)
+                #kdb_out._handle.flush()
+                #kdb_out._handle.close()
+                sys.stderr.write(config.DONE)
 
 
             
@@ -820,7 +869,7 @@ def profile(arguments):
                     else:
                         seq = kmer.id_to_kmer(i, arguments.k)
                         metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, json.dumps(metadata)))
+                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, metadata))
                 else:
                     iterating = False
             except StopIteration as e:
@@ -941,6 +990,7 @@ def cli():
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
+    view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
     view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
     view_parser.add_argument("kdb_in", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be read (Optional)")
     view_parser.add_argument("kdb_out", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be written to (Optional)")

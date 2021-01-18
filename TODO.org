@@ -70,6 +70,21 @@ The final prototype would be .bgzf format from biopython
 ** assert suffix == ".kdb", "provided filename did not end in .kdb"
 ** shutil.move(fasta, prefix + ".fa")
 ** write kdb file (prefix + ".kdb")
+* TODO kmerdb shuf
+** shuffled profiles
+** Use kdb header
+** Use shuf on lines printed to temporary file
+** Hardcode the alternative method to readline:
+*** def KDBReader.readline():
+***     kmer_id, count, metadata = parse_line(self.readline())
+***     assert type(kmer_id) is int, "kmer_id wasn't an integer when passed in from parse_line"
+***     assert type(count) is int, "count wasn't an integer when passed in from parse_line"
+***     assert type(metadata) is dict, "metadata wasn't a dict when passed in from parse_line
+***     return kmer_id, count, metadata
+*** THEN DO THE ACTUAL HARDCODING OF THE ALTERNATIVE WHICH IS AS FOLLOWS
+*** use readline to parse the counts, the count is all you need, populate that into a list
+*** then convert that list into an nd.array and write it plus the index (enumerate) to disk
+*** like you would do in profile
 * Rmd report1
 ** Introduction
 ** Methodology
