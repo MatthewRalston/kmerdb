@@ -4,9 +4,34 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+* Outbox
+** DONE Sparse .kdb
+   CLOSED: [2021-01-07 Thu 21:37]
+*** modify slurp
+*** modify profile
+** DONE Nearest neighbor profile
+   CLOSED: [2021-01-07 Thu 21:37]
+** DONE index class
+   CLOSED: [2021-01-13 Wed 19:13]
+** DONE Probability function
+   CLOSED: [2021-01-13 Wed 19:13]
 
-
-
+** DONE kmerdb shuf
+   CLOSED: [2021-01-18 Mon 13:53]
+*** shuffled profiles
+*** Use kdb header
+*** Use shuf on lines printed to temporary file
+*** Hardcode the alternative method to readline:
+**** def KDBReader.readline():
+****     kmer_id, count, metadata = parse_line(self.readline())
+****     assert type(kmer_id) is int, "kmer_id wasn't an integer when passed in from parse_line"
+****     assert type(count) is int, "count wasn't an integer when passed in from parse_line"
+****     assert type(metadata) is dict, "metadata wasn't a dict when passed in from parse_line
+****     return kmer_id, count, metadata
+**** THEN DO THE ACTUAL HARDCODING OF THE ALTERNATIVE WHICH IS AS FOLLOWS
+**** use readline to parse the counts, the count is all you need, populate that into a list
+**** then convert that list into an nd.array and write it plus the index (enumerate) to disk
+**** like you would do in profile
 * Assessment of probability function
 ** sequence length, starting position, strand
 ** The length of the parameter space theta is 3
@@ -28,16 +53,38 @@ The final prototype would be .bgzf format from biopython
 ** and it would eventually produce the correct sequence through brute force.
 ** The brute force method is to try random walks with the same initialized k-mer.
 ** Then we do 
-* DONE Sparse .kdb
-  CLOSED: [2021-01-07 Thu 21:37]
-** modify slurp
-** modify profile
-* DONE Nearest neighbor profile
-  CLOSED: [2021-01-07 Thu 21:37]
-* DONE index class
-  CLOSED: [2021-01-13 Wed 19:13]
-* DONE Probability function
-  CLOSED: [2021-01-13 Wed 19:13]
+
+* VERIFY store fasta/fastq offsets in the database
+* Release 0.0.7
+* Do report 1:
+* Rmd report1
+** Introduction
+*** 
+** Methodology
+** Results
+*** Distribution fitting / model selection
+*** PCA
+*** kmerdb shuf on 3 of 30 metagenomes for k=1:12 + kPAL figure 
+*** Median "distance" between profiles of pairwise comparison
+** Distribution analysis
+** Accurately describe kdb counting algorithm
+*** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
+*** First, a selection of sequences is shredded into k-mers in memory
+*** Second, the counts are tallied on-disk using SQLite3.
+*** Third, the SQLite3 database iterator is used to pull row from row out and print line by line into the kdb datastructure.
+*** Fourth, at this point, an index may be created.
+** Distribution fitting
+*** Cullen-Frey
+*** Negative binomial fit
+*** Poissonian imitation (average, geom. mean, median, mode) [each] vs negative binomial fit to the data
+** Count normalization
+*** Next, we want to judge the effect of DESeq2 normalization on the counts values.
+*** We use a boxplot to address the null-hypothesis that DESeq2 normalization does not meaningfully harmonize each samples quartiles with one another.
+*** We must check this often when addressing our normalized data because failure to normalize properly
+*** due to an issue that is not library size or total counts, 
+*** suggests another issue with the distribution of that sample.
+*** State why we refuse to standardize the data at this point.
+
 * TODO kmerdb transitions
 ** transition probabilities of the primary sequence
 ** [kmerdb.probability.transition(kdb, i, j) for i in range(N) for j in range(N)]
@@ -70,48 +117,7 @@ The final prototype would be .bgzf format from biopython
 ** assert suffix == ".kdb", "provided filename did not end in .kdb"
 ** shutil.move(fasta, prefix + ".fa")
 ** write kdb file (prefix + ".kdb")
-* TODO kmerdb shuf
-** shuffled profiles
-** Use kdb header
-** Use shuf on lines printed to temporary file
-** Hardcode the alternative method to readline:
-*** def KDBReader.readline():
-***     kmer_id, count, metadata = parse_line(self.readline())
-***     assert type(kmer_id) is int, "kmer_id wasn't an integer when passed in from parse_line"
-***     assert type(count) is int, "count wasn't an integer when passed in from parse_line"
-***     assert type(metadata) is dict, "metadata wasn't a dict when passed in from parse_line
-***     return kmer_id, count, metadata
-*** THEN DO THE ACTUAL HARDCODING OF THE ALTERNATIVE WHICH IS AS FOLLOWS
-*** use readline to parse the counts, the count is all you need, populate that into a list
-*** then convert that list into an nd.array and write it plus the index (enumerate) to disk
-*** like you would do in profile
-* Rmd report1
-** Introduction
-** Methodology
-** Results
-*** Distribution fitting / model selection
-*** PCA
-*** kmerdb shuf on 3 of 30 metagenomes for k=1:12 + kPAL figure 
-*** Median "distance" between profiles of pairwise comparison
-** Distribution analysis
-** Accurately describe kdb counting algorithm
-*** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
-*** First, a selection of sequences is shredded into k-mers in memory
-*** Second, the counts are tallied on-disk using SQLite3.
-*** Third, the SQLite3 database iterator is used to pull row from row out and print line by line into the kdb datastructure.
-*** Fourth, at this point, an index may be created.
-** Distribution fitting
-*** Cullen-Frey
-*** Negative binomial fit
-*** Poissonian imitation (average, geom. mean, median, mode) [each] vs negative binomial fit to the data
-** Count normalization
-*** Next, we want to judge the effect of DESeq2 normalization on the counts values.
-*** We use a boxplot to address the null-hypothesis that DESeq2 normalization does not meaningfully harmonize each samples quartiles with one another.
-*** We must check this often when addressing our normalized data because failure to normalize properly
-*** due to an issue that is not library size or total counts, 
-*** suggests another issue with the distribution of that sample.
-*** State why we refuse to standardize the data at this point.
-
+* Do report 2
 * Rmd report2
 ** algorithm profiling
 ** kdb profile k x time x cpu (z)

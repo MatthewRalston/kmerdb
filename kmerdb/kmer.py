@@ -15,8 +15,8 @@
 
 '''
 
-
-
+import sys
+from itertools import repeat
 import logging
 logger = logging.getLogger(__file__)
 from Bio import SeqIO, Seq
@@ -68,13 +68,24 @@ class Kmers:
         if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
             raise TypeError("kmerdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
         kmers = []
+        starts = []
+        reverses = []
         # Each of the n-k+1 string slices become the k-mers
         for c in range(len(seqRecord.seq) - self.k + 1):
             s = seqRecord.seq[c:(c+self.k)]
             kmers.append(str(s))
-            if self.strand_specific: # Reverse complement by default
+            reverses.append(False)
+            starts.append(c)
+            if not self.strand_specific: # Reverse complement by default
                 kmers.append(str(s.reverse_complement()))
-        return {'id': seqRecord.id, 'kmers': list(filter(lambda x: x is not None, map(kmer_to_id, kmers)))}
+                reverses.append(True)
+                starts.append(c)
+        
+        sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
+        sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {1} unique k-mers\n\n".format(len(seqRecord.seq), len(seqRecord.seq)-self.k+1, len(kmers)))
+        output = {'id': seqRecord.id, 'kmers': list(filter(lambda x: x is not None, map(kmer_to_id, kmers))), "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
+        #logger.debug(output['seqids'])
+        return output
         #return list(filter(lambda x: x is not None, map(kmer_to_id, kmers)))
 
 
