@@ -267,7 +267,7 @@ ggplot(data2) + geom_density(aes(x=Count)) + geom_line(data=d5, aes(y=Fit, x=x, 
 ```
 
 
-```{r fig.cap="" fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
+```{r fig.cap="VGLM is not working", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
 
 data2$id <- rep(1:4^k, length(columns))
 d = data2[order(data2$Count),]
