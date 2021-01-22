@@ -849,6 +849,7 @@ def profile(arguments):
     import math
     from itertools import chain, repeat
     import json
+    import time
     from kmerdb import parse, fileutil, kmer
     from kmerdb.config import VERSION
 
@@ -858,9 +859,13 @@ def profile(arguments):
     file_metadata = []
     tempdbs = []
     for f in arguments.seqfile:
-        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
+        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, n=arguments.n, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
         file_metadata.append(m)
         tempdbs.append(db)
+
+        logger.debug("debugging the result of parsefile...")
+
+
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -887,6 +892,12 @@ def profile(arguments):
                 kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
                 logger.info("Done acquiring all k-mers across all files")
 
+                print(kmer_dbrecs_per_file)
+
+
+                raise RuntimeError("Still depressing nothing is even here yet")
+                
+                # raise RuntimeError("HOW DOES THIS HAVE NONE")
                 if len(kmer_dbrecs_per_file):
                     i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
                     count = sum([x[1] for x in kmer_dbrecs_per_file]) # The 1th element is the k-mer count, the 0th is the id
@@ -900,19 +911,22 @@ def profile(arguments):
                         # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
                         if arguments.all_metadata:
 
-                            print(kmer_dbrecs_per_file)
-                            logger.debug("Exiting...")
-                            logger.info("Exiting...")
-                            logger.info("Exiting...")
-
-                            raise RuntimeError("Exiting should appear twice...")
-                            
-                            kmer_metadata["seqids"] = list(chain.from_iterable(map(lambda x: yaml.safe_load(x[1]), kmer_dbrecs_per_file)))
-                            kmer_metadata["starts"] = list(chain.from_iterable(map(lambda x: yaml.safe_load(x[2]), kmer_dbrecs_per_file)))
-                            # Length, end are implicit, because k is always present.
-                            kmer_metadata["reverses"] = list(chain.from_iterable(map(lambda x: yaml.safe_load(x[3]), kmer_dbrecs_per_file)))
-                            logger.warning(kmer_metadata.keys())
-                            sys.stderr.write("?\n")
+                            logger.debug("LAST ASPECT")
+                            seqids = [x[1] for x in kmer_dbrecs_per_file if x[1] is not None]
+                            starts = [x[2] for x in kmer_dbrecs_per_file if x[2] is not None]
+                            reverses = [x[3] for x in kmer_dbrecs_per_file if x[3] is not None]
+                            if "seqids" in kmer_metadata.keys():
+                                kmer_metadata["seqids"] += seqids
+                            else:
+                                kmer_metadata["seqids"] = seqids
+                            if "starts" in kmer_metadata.keys():
+                                kmer_metadata["starts"] += starts
+                            else:
+                                kmer_metadata["starts"] = starts
+                            if "reverses" in kmer_metadata.keys():
+                                kmer_metadata["reverses"] += reverses
+                            else:
+                                kmer_metadata["reverses"] = reverses
                         else:
                             kmer_metadata["seqids"]   = []
                             kmer_metadata["starts"]   = []
@@ -921,13 +935,10 @@ def profile(arguments):
                             raise TypeError("kmerdb profile could not decode start sites from its preQLite3 database.")
                         elif type(kmer_metadata["starts"]) is list and all(type(x) is int for x in kmer_metadata["starts"]):
                             if arguments.verbose == 2:
-                                sys.stderr.write("Parsed {0} start sites for this k-mer.".format(len(kmer_metadata["starts"])))
-                                logger.debug("Parsed {0} start sites for the following {1} reads...".format(len(kmer_metadata["starts"]), len(kmer_metadata["seqids"])))
+                                sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
                         elif type(kmer_metadata["starts"]) is dict:
                             logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
                             raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-                        elif type(kmer_metadata["seqids"]) is str:
-                            raise TypeError("kmerdb profile could not decode sequence/read names from its sQLite3 database.")
                         elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
                             if arguments.verbose == 2:
                                 sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
@@ -1053,6 +1064,7 @@ def cli():
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help="Shred k-mers from reads in parallel")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
     profile_parser.add_argument("--keep-sqlite", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--strand-specific", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
