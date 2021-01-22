@@ -21,6 +21,8 @@ import sys
 import yaml
 import json
 from itertools import chain, repeat
+from concurrent.futures import ThreadPoolExecutor
+
 
 import tempfile
 
@@ -34,7 +36,7 @@ import logging
 logger = logging.getLogger(__file__)
 
 
-def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -61,6 +63,8 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'p' to be an int")
     elif type(b) is not int:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
+    elif type(n) is not int:
+        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'n' to be an int")
     elif type(stranded) is not bool:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
     # Create temporary SQLite3 database file for on-disk k-mer counting
@@ -70,8 +74,11 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all
     db = database.SqliteKdb(temp.name, k)
     from kmerdb import kmer
 
+
+    
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
+    rows = []
     try:
         # Build fasta/fastq parser object to stream reads into memory
         logger.debug("Constructing SeqParser object...")
@@ -93,61 +100,47 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all
             # Run each read through the shred method
             list_of_dicts = pool.map(Kmer.shred, recs)
 
-            logger.info("Shredding up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
+            logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
 
-
-
-
+            logger.info("Everything in list_of_dicts is perfect, everything past here is garbage")
             
             # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
             kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
             logger.debug("Flatmapped {0} kmer ids for these {1} sequence ids".format(len(kmer_ids), len(list_of_dicts)))
-            read_kmer_relations = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
-                                       
-            logger.debug("Flatmapped and matched {0} kmers with these {1} sequence ids".format(len(read_kmer_relations), len(list_of_dicts)))
+
+            reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
+
+            
+            logger.debug("Flatmapped and matched {0} kmers with these {1} sequence ids".format(len(reads), len(list_of_dicts)))
 
 
-            read_kmer_start_offsets = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
-            logger.debug("Flatmapped {0} kmers for their {1} offsets".format(len(kmer_ids), len(read_kmer_start_offsets)))
+            starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
+            logger.debug("Flatmapped {0} kmers for their {1} offsets".format(len(kmer_ids), len(starts)))
 
-            kmer_reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
-            logger.debug("Flatmapped {0} reverse? bools for these {1} k-mers that were shredded".format(len(kmer_reverses), len(kmer_ids)))
-            if all_metadata is True and len(kmer_ids) == len(read_kmer_relations) and len(read_kmer_relations) == len(read_kmer_start_offsets) and len(read_kmer_start_offsets) == len(kmer_reverses):
-                N = len(read_kmer_start_offsets)
-                for i in range(N):
-                    logger.info("Processing the {0} k-mer by appending read relations, start offsets, and reverse 3-tuples to the metadata column".format(i))                    
-                    if kmer_ids[i] in keys:
-                        
-                        data[kmer_ids[i]].append((kmer_ids[i], read_kmer_relations[i], read_kmer_start_offsets[i], kmer_reverses[i]))
-                    else:
-                        data[kmer_ids[i]] = [(kmer_ids[i], read_kmer_relations[i], read_kmer_start_offsets[i], kmer_reverses[i])]
+            reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
+            logger.debug("Flatmapped {0} reverse? bools for these {1} k-mers that were shredded".format(len(reverses), len(kmer_ids)))
+            if all_metadata is True and len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses):
+                N = len(starts)
 
-                    logger.debug("============================")
-                    logger.debug("id")
-                    logger.debug(kmer_ids[i])
-                    logger.debug("============================")
-                    logger.debug("all metadata for this k-mer")
-                    logger.debug(data[kmer_ids[i]])
-                    logger.debug("read_kmer_relations")
-                    logger.debug(read_kmer_relations[i])
-                    logger.debug("start offsets")
-                    logger.debug(read_kmer_start_offsets[i])
-                    logger.debug("reverses")
-                    logger.debug(kmer_reverses[i])
-                        
-                keys = keys.update(set(data.keys()))
-                recs = []
+                data = list(zip(kmer_ids, reads, starts, reverses))
+
+                logger.error("Appended {0} records to rows".format(N))
+
+                rows += data 
+
                 logger.warning("Dumping all metadata into the .kdb file eventually")
                 logger.warning("Deferring to dump metadata to SQLite3 later...")
-            elif len(kmer_ids) == len(read_kmer_relations) and len(read_kmer_relations) == len(read_kmer_start_offsets) and len(read_kmer_start_offsets) == len(kmer_reverses) and not all_metadata:
+            elif len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses) and not all_metadata:
                 pass
             else:
                 logger.error(len(kmer_ids))
-                logger.error(len(read_kmer_relations))
-                logger.error(len(read_kmer_start_offsets))
-                logger.error(len(kmer_reverses))
+                logger.error(len(reads))
+                logger.error(len(start))
+                logger.error(len(reverses))
                 
                 raise ValueError("Unexpectedly, the number of ids did not match up with the number of other metadata elements per k-mer OR other unknown error")
+
+
             # else:
             #     raise RuntimeError("Still have no clue what's going on...")
             # On disk k-mer counting
@@ -155,35 +148,41 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all
             # https://stackoverflow.com/a/9294062/12855110
             logger.debug("Parsed/mapped the remainder or the data from list_of_dicts")
             logger.info("Updating the k-mer counts in the SQLAlchemy connection to SQLite3 for {0} k-mer ids in one transation".format(len(kmer_ids)))
-            db.conn.execute("UPDATE kmers SET count = count + 1 WHERE id = ?",
-                            list(map(lambda x: (x+1,), kmer_ids)))
+            with db.conn.begin():
+                db.conn.execute("UPDATE kmers SET count = count + 1 WHERE id = ?",
+                                list(map(lambda x: (x+1,), kmer_ids)))
             
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
             # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
             #sys.stderr("\n")
             logger.debug("Read {0} more records from the {1} seqparser object".format(len(recs), s))
         if all_metadata:
-            sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the SQLite3 database...")
-            for kmer_id in data.keys():
-                kmer = data[kmer_id]
-                # Tuple positions assigned from the tuple in the previous for loop
+            sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the SQLite3 database...\n")
 
-                # Merge previous entry in database
-                reads = db.conn.execute("SELECT seqids FROM kmers WHERE ID = ?", kmer_id)
-                # with tuple positions from the previous loop in the global data hash for this k-mer id
-                reads = [r["seqids"] for r in reads if r["seqids"] is not None] + data[kmer_id]
+            unique_kmer_ids = list(set(list(map(lambda x: x[0], rows))))
 
-                print(reads)
-                logger.info("Exiting...")
-                logger.debug("Exiting...")
-                sys.exit(1)
-                
-                # Repeat the same strategy for the following
-                starts = db.conn.execute("SELECT starts FROM kmers WHERE ID = ?", kmer_id)
-                starts = [s["starts"] for s in starts if s["starts"] is not None] + data[kmer_id]
-                reverses = db.conn.execute("SELECT reverses FROM kmers WHERE ID = ?", kmer_id)
-                reverses = [r["reverses"] for r in reverses if r["reverses"] is not None] + data[kmer_id]
-                db.conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE ID = ?", json.dumps(reads), json.dumps(starts), json.dumps(reverses), kmer_id)
+            executor = ThreadPoolExecutor()
+            futures = []
+            def submit(db, kmers, kid):
+                #logger.info("        === M E S S A G E ===")
+                #logger.debug("=====================================")
+                #logger.info("beginning to process all records of the {0} k-mer".format(kid))
+                db.conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid)
+                #logger.info("Transaction completed for the {0} kmer.".format(kid))
+                return kid
+
+            # If we round up to the nearest page, we should have 'pages' number of pages
+            # and we'd read n on each page.
+            pages = int(float(len(unique_kmer_ids))/n) + 1 
+            sys.stderr.write("Submitting {0} k-mers to the SQLite3 database for on-disk metadata aggregation and k-mer counting\n\n".format(n))
+            for page in range(int(float(len(unique_kmer_ids))/pages)+1):
+                logger.info("PAGE {0}".format(page))
+                futures = []
+                with db.conn.begin():
+                    for i, kid in enumerate(unique_kmer_ids[page*n:(page*n)+n]):
+                        kmers = [x for x in rows if x[0] == kid]                        
+                        future = executor.submit(submit, db, kmers, kid)                
+                        futures.append(future)
         seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
         seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
     finally:
@@ -193,3 +192,64 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, stranded:bool=True, all
     return db, seqprsr.header_dict()
 
 
+# class MetadataAppender:
+#     def __init__(self, ids:list, reads:list, starts:list, reverses:list, data:dict={}):
+#         if type(ids) is not list or not all(type(i) is int for i in ids):
+#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of ints as its first positional argument")
+#         elif type(reads) is not list or not all(type(r) is str for r in reads):
+#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of strings as its second positional argument")
+#         elif type(starts) is not list or not all(type(s) is int for s in starts):
+#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of ints as its third positional argument")
+#         elif type(reverses) is not list or not all(type(r) is bool for r in reverses):
+#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of bools as its fourth positional argument")
+#         elif type(data) is not dict:
+#             raise TypeError("kmerdb.parse.MetadataAppender.__init__{} expects a data dictionary as its fifth positional argument")
+
+#         self.data = data
+#         self.ids = ids
+#         self.reads = reads
+#         self.starts = starts
+#         self.reverses = reverses
+
+#     def appendRow(self, i):
+#         """
+#         :param i: 
+#         :type i: int
+#         :returns: 
+#         :rtype: tuple
+
+#         """
+#         if type(i) is not int:
+#             raise TypeError("kmerdb.MetadataAppender.appendRow expects an int as its first positional argument")
+#         logger.info("Processing the {0} k-mer by appending read relations, start offsets, and reverse 3-tuples to the metadata column".format(i))
+#         row = (self.ids[i], self.reads[i], self.starts[i], self.reverses[i])
+#         def helper(row, data, j):
+#             data = yaml.safe_load(data)
+#             if type(data) is str:
+#                 logger.error(data)
+#                 raise ValueError("data: '{0}' with j={1} parsed as a string".format(data, j))
+#             elif type(data) is list:
+#                 data.append(row[j])
+#             else:
+#                 logger.debug(data)
+#                 raise RuntimeError("data cannot parse as something other than list...")
+#             return data
+        
+#         # with self.conn.begin():
+#         #     seqids_data = self.conn.execute("SELECT seqids FROM kmers WHERE id = ?", self.ids[i])
+#         #     seqids = helper(row, seqids_data, 1)
+#         #     self.conn.execute("UPDATE kmers SET seqids = ? WHERE id = ?", json.dumps(seqids), self.ids[i])
+
+
+#         # with self.conn.begin():
+#         #     starts_data = self.conn.execute("SELECT starts FROM kmers WHERE id = ?", self.ids[i])
+#         #     starts = helper(row, starts_data, 2)
+#         #     self.conn.execute("UPDATE kmers SET starts = ? WHERE id = ?", json.dumps(starts), self.ids[i])
+
+
+#         # with self.conn.begin():
+#         #     reverses_data = self.conn.execute("SELECT reverses FROM kmers WHERE id = ?", self.ids[i])
+#         #     reverses = helper(row, reverses_data, 3)
+#         #     self.conn.execute("UPDATE kmers SET reverses = ? WHERE id = ?", json.dumps(reverses), self.ids[i])
+
+#         return row
