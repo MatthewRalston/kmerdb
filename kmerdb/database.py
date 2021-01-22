@@ -95,9 +95,9 @@ class SqliteKdb:
         for x in range(self._max_records):
             null_profile.append({
                 'count': 0,
-                'starts': None,
-                'reverses': None,
-                'seqids': None
+                'starts': '[]',
+                'reverses': '[]',
+                'seqids': '[]'
             })
 
         with self._engine.connect() as conn:

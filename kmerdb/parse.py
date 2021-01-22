@@ -83,56 +83,49 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         # Build fasta/fastq parser object to stream reads into memory
         logger.debug("Constructing SeqParser object...")
         seqprsr = seqparser.SeqParser(filepath, b, k)
+        fasta = not seqprsr.fastq
         logger.debug("Constructing multiprocessing pool with {0} processors".format(p))
         pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
-        Kmer = kmer.Kmers(k, strand_specific=stranded) # A wrapper class to shred k-mers with
+        Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta) # A wrapper class to shred k-mers with
         # Look inside the seqprsr object for the type of file
-        s = "fastq" if seqprsr.fastq else "fasta"
+
 
         recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
-        if s == "fastq":
+        if not fasta:
             logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
             assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
         else:
-            logger.debug("Read {0} sequences from the {1} seqparser object".format(len(recs), s))
             logger.debug("Skipping the block size assertion for fasta files")
+        logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
+
         while len(recs): # While the seqprsr continues to produce blocks of reads
             # Run each read through the shred method
             list_of_dicts = pool.map(Kmer.shred, recs)
 
             logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
-
-            logger.info("Everything in list_of_dicts is perfect, everything past here is garbage")
+            #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
             
             # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
             kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
-            logger.debug("Flatmapped {0} kmer ids for these {1} sequence ids".format(len(kmer_ids), len(list_of_dicts)))
-
             reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
-
-            
-            logger.debug("Flatmapped and matched {0} kmers with these {1} sequence ids".format(len(reads), len(list_of_dicts)))
-
-
             starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
-            logger.debug("Flatmapped {0} kmers for their {1} offsets".format(len(kmer_ids), len(starts)))
-
             reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
-            logger.debug("Flatmapped {0} reverse? bools for these {1} k-mers that were shredded".format(len(reverses), len(kmer_ids)))
+            logger.debug("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids), len(starts)))
+            # Assert that all list lengths are equal before adding metadata to k-mers
             if all_metadata is True and len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses):
                 N = len(starts)
 
                 data = list(zip(kmer_ids, reads, starts, reverses))
 
-                logger.error("Appended {0} records to rows".format(N))
+                logger.debug("Appended {0} records to rows".format(N))
 
                 rows += data 
 
-                logger.warning("Dumping all metadata into the .kdb file eventually")
-                logger.warning("Deferring to dump metadata to SQLite3 later...")
+                logger.warning("Dumping all metadata into the .kdb file eventually. This could be expensive...")
+
             elif len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses) and not all_metadata:
-                pass
-            else:
+                pass # If we're not doing metadata, don't do it
+            else: # Raise an error if the numbers of items per list are not equal
                 logger.error(len(kmer_ids))
                 logger.error(len(reads))
                 logger.error(len(start))
@@ -155,40 +148,47 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
             # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
             #sys.stderr("\n")
-            logger.debug("Read {0} more records from the {1} seqparser object".format(len(recs), s))
+            logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
         if all_metadata:
             sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the SQLite3 database...\n")
 
             unique_kmer_ids = list(set(list(map(lambda x: x[0], rows))))
 
-            executor = ThreadPoolExecutor()
-            futures = []
-            def submit(db, kmers, kid):
-                #logger.info("        === M E S S A G E ===")
-                #logger.debug("=====================================")
-                #logger.info("beginning to process all records of the {0} k-mer".format(kid))
-                db.conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid)
-                #logger.info("Transaction completed for the {0} kmer.".format(kid))
+            def submit(conn, kmers, kid):
+                logger.debug("        === M E S S A G E ===")
+                logger.debug("=====================================")
+                logger.debug("beginning to process all records of the {0} k-mer".format(kid))
+                with conn.begin():
+                    conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid+1)
+
                 return kid
 
             # If we round up to the nearest page, we should have 'pages' number of pages
             # and we'd read n on each page.
-            pages = int(float(len(unique_kmer_ids))/n) + 1 
-            sys.stderr.write("Submitting {0} k-mers to the SQLite3 database for on-disk metadata aggregation and k-mer counting\n\n".format(n))
-            for page in range(int(float(len(unique_kmer_ids))/pages)+1):
-                logger.info("PAGE {0}".format(page))
-                futures = []
-                with db.conn.begin():
-                    for i, kid in enumerate(unique_kmer_ids[page*n:(page*n)+n]):
-                        kmers = [x for x in rows if x[0] == kid]                        
-                        future = executor.submit(submit, db, kmers, kid)                
-                        futures.append(future)
+            kid = 0
+            for i in range(len(unique_kmer_ids)):
+                kid = unique_kmer_ids[i] # FOr SQLlite 1-based indexing
+                logger.debug("Beginning to commit {0} to the database".format(kid))
+                sys.stderr.write("\n")
+                kmers = [x for x in rows if x[0] == kid]
+                logger.debug("Located {0} relationships involving k-mer {1}".format(len(kmers), kid))
+                submit(db.conn, kmers, kid)
+
+                    
+                logger.info("Transaction completed for the {0} kmer.".format(kid))
+
+            logger.debug("===================================")
+            logger.debug("Example record with metadata:")
+            result = db.conn.execute("SELECT * FROM kmers WHERE id = ?", kid).fetchone()
+            logger.debug(result)
+            logger.debug("===================================")
+
         seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
         seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
     finally:
-        sys.stderr.write("\n")
-        logger.info("Finished loading records from '{0}' into '{1}'...".format(filepath, temp.name))
-        #db._engine.dispose()
+
+        sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}' into '{2}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath, temp.name))
+
     return db, seqprsr.header_dict()
 
 

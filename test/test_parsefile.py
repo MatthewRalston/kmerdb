@@ -89,6 +89,24 @@ class Test_parsefile(unittest.TestCase):
         with self.assertRaises(TypeError):
             parse.parsefile(self.fasta, self.k, b={'hello': 'world'})
 
+    def test_n_is_int_only(self):
+        """
+        parsefile throws a TypeError if it receives anything but an int
+        """
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n=None)
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n=True)
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n='hello')
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n=1.0)
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n=[1])
+        with self.assertRaises(TypeError):
+            parse.parsefile(self.fasta, self.k, n={'hello': 'world'})
+
+            
     def test_stranded_is_bool_only(self):
         """
         parsefile throws a TypeError if it receives anything but an int
@@ -117,7 +135,7 @@ class Test_parsefile(unittest.TestCase):
                               'mononucleotides': {'A': 1016563, 'C': 418556, 'G': 404380, 'T': 1033834},
                               'nullomers': 0,
                               'sha256': '61b5cf99700219774f05beb9203f0388d95273b227ae7ae37164f1c9a53665ca',
-                              'total_kmers': 5746658,
+                              'total_kmers': 2873329,
                               'total_reads': 2,
                               'unique_kmers': 64}
                              , headerDict)

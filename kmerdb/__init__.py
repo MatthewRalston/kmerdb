@@ -865,7 +865,11 @@ def profile(arguments):
 
         logger.debug("debugging the result of parsefile...")
 
-
+        logger.info("===============================")
+        logger.info("Outer scope")
+        result = db.conn.execute("SELECT * FROM kmers WHERE id = ?", 63).fetchone()
+        logger.info(result)
+        logger.info("===============================")
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -895,8 +899,6 @@ def profile(arguments):
                 print(kmer_dbrecs_per_file)
 
 
-                raise RuntimeError("Still depressing nothing is even here yet")
-                
                 # raise RuntimeError("HOW DOES THIS HAVE NONE")
                 if len(kmer_dbrecs_per_file):
                     i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
@@ -911,10 +913,12 @@ def profile(arguments):
                         # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
                         if arguments.all_metadata:
 
+
                             logger.debug("LAST ASPECT")
-                            seqids = [x[1] for x in kmer_dbrecs_per_file if x[1] is not None]
-                            starts = [x[2] for x in kmer_dbrecs_per_file if x[2] is not None]
-                            reverses = [x[3] for x in kmer_dbrecs_per_file if x[3] is not None]
+
+                            seqids = [x[2] for x in kmer_dbrecs_per_file]
+                            starts = [x[3] for x in kmer_dbrecs_per_file]
+                            reverses = [x[4] for x in kmer_dbrecs_per_file]
                             if "seqids" in kmer_metadata.keys():
                                 kmer_metadata["seqids"] += seqids
                             else:
