@@ -39,7 +39,7 @@ class Kmers:
     :ivar k: The choice of k to shred with
     :ivar strand_specific: Include k-mers from forward strand only
     """
-    def __init__(self, k, strand_specific=True):
+    def __init__(self, k, strand_specific=True, fasta=False):
         """
 
         :param k: The choice of k to shred with
@@ -53,8 +53,11 @@ class Kmers:
             raise TypeError("kmerdb.kmer.Kmers.__init__() expects an int as its first positional argument")
         elif type(strand_specific) is not bool:
             raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its second positional argument")
+        elif type(fasta) is not bool:
+            raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its third positional argument")
         self.k = k 
         self.strand_specific = strand_specific
+        self.fasta = fasta
 
     def shred(self, seqRecord):
         """
@@ -65,13 +68,19 @@ class Kmers:
         :rtype: 
 
         """
+        
+        
         if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
             raise TypeError("kmerdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+        seqlen = len(str(seqRecord.seq))
+        if seqlen < self.k:
+            logger.error("Offending sequence ID: {0}".format(seqRecord.id))
+            raise ValueError("kmerdb expects that each input sequence is longer than k.")
         kmers = []
         starts = []
         reverses = []
         # Each of the n-k+1 string slices become the k-mers
-        for c in range(len(seqRecord.seq) - self.k + 1):
+        for c in range(seqlen - self.k + 1):
             s = seqRecord.seq[c:(c+self.k)]
             kmers.append(str(s))
             reverses.append(False)
@@ -80,13 +89,10 @@ class Kmers:
                 kmers.append(str(s.reverse_complement()))
                 reverses.append(True)
                 starts.append(c)
-        
-        sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
-        sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {1} unique k-mers\n\n".format(len(seqRecord.seq), len(seqRecord.seq)-self.k+1, len(kmers)))
-        output = {'id': seqRecord.id, 'kmers': list(filter(lambda x: x is not None, map(kmer_to_id, kmers))), "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
-        #logger.debug(output['seqids'])
-        return output
-        #return list(filter(lambda x: x is not None, map(kmer_to_id, kmers)))
+        if self.fasta:
+            sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
+            sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {2} unique k-mers\n\n".format(len(seqRecord.seq), len(str(seqRecord.seq))-self.k+1, len(list(set(kmers)))))
+        return {'id': seqRecord.id, 'kmers': list(map(lambda x: kmer_to_id(x), kmers)), "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
 
 
 def kmer_to_id(s):
