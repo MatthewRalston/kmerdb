@@ -803,7 +803,6 @@ def view(arguments):
                 raise e
         else: # Read from the kdb_in file, and not STDIN
             logger.info("Reading from file...")
-            print(kdb_in)
             try:
                 for line in kdb_in:
                     print(line.rstrip())
@@ -848,8 +847,10 @@ def view(arguments):
             
 def profile(arguments):
     import math
-    from kmerdb import parse, fileutil, kmer
+    from itertools import chain, repeat
     import json
+    import time
+    from kmerdb import parse, fileutil, kmer
     from kmerdb.config import VERSION
 
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
@@ -858,9 +859,17 @@ def profile(arguments):
     file_metadata = []
     tempdbs = []
     for f in arguments.seqfile:
-        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, stranded=arguments.not_strand_specific)
+        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, n=arguments.n, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
         file_metadata.append(m)
         tempdbs.append(db)
+
+        logger.debug("debugging the result of parsefile...")
+
+        logger.info("===============================")
+        logger.info("Outer scope")
+        result = db.conn.execute("SELECT * FROM kmers WHERE id = ?", 63).fetchone()
+        logger.info(result)
+        logger.info("===============================")
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -882,19 +891,81 @@ def profile(arguments):
         iterating = True
         while iterating:
             try:
-            
-                kmer_counts_per_file = list(map(next, tempdbs)) # T
-                if len(kmer_counts_per_file):
-                    i = kmer_counts_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
-                    count = sum([x[1] for x in kmer_counts_per_file]) # The 1th element is the k-mer count
 
+                logger.info("Acquiring all records across all files to sum each count across all files being merged")
+                kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
+                logger.info("Done acquiring all k-mers across all files")
+
+                print(kmer_dbrecs_per_file)
+
+
+                # raise RuntimeError("HOW DOES THIS HAVE NONE")
+                if len(kmer_dbrecs_per_file):
+                    i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
+                    count = sum([x[1] for x in kmer_dbrecs_per_file]) # The 1th element is the k-mer count, the 0th is the id
                     if arguments.verbose == 2:
-                        sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_counts_per_file)), count))
+                        sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_dbrecs_per_file)), count))
                     if count == 0 and arguments.sparse is True:
                         pass
                     else:
                         seq = kmer.id_to_kmer(i, arguments.k)
                         kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                        # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
+                        if arguments.all_metadata:
+
+
+                            logger.debug("LAST ASPECT")
+
+                            seqids = [x[2] for x in kmer_dbrecs_per_file]
+                            starts = [x[3] for x in kmer_dbrecs_per_file]
+                            reverses = [x[4] for x in kmer_dbrecs_per_file]
+                            if "seqids" in kmer_metadata.keys():
+                                kmer_metadata["seqids"] += seqids
+                            else:
+                                kmer_metadata["seqids"] = seqids
+                            if "starts" in kmer_metadata.keys():
+                                kmer_metadata["starts"] += starts
+                            else:
+                                kmer_metadata["starts"] = starts
+                            if "reverses" in kmer_metadata.keys():
+                                kmer_metadata["reverses"] += reverses
+                            else:
+                                kmer_metadata["reverses"] = reverses
+                        else:
+                            kmer_metadata["seqids"]   = []
+                            kmer_metadata["starts"]   = []
+                            kmer_metadata["reverses"] = []
+                        if type(kmer_metadata["starts"]) is str:
+                            raise TypeError("kmerdb profile could not decode start sites from its preQLite3 database.")
+                        elif type(kmer_metadata["starts"]) is list and all(type(x) is int for x in kmer_metadata["starts"]):
+                            if arguments.verbose == 2:
+                                sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
+                        elif type(kmer_metadata["starts"]) is dict:
+                            logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
+                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                        elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
+                            if arguments.verbose == 2:
+                                sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
+                        elif type(kmer_metadata["seqids"]) is dict:
+                            logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
+                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                        elif type(kmer_metadata["reverses"]) is str:
+                            raise TypeError("kmerdb profile could not decode strand information from its sQLite3 database.")
+                        elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
+                            if arguments.verbose == 2:
+                                sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
+                        elif type(kmer_metadata["reverses"]) is dict:
+                            logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
+                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                        elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
+
+
+                            print(kmer_metadata)
+                            print(len(kmer_metadata.values()))
+
+                            
+                            print(list(set(type(x) for x in kmer_metadata["reverses"])))
+                            raise TypeError("Not all reverse bools were boolean")
                         kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
                 else:
                     iterating = False
@@ -950,7 +1021,7 @@ def get_root_logger(level):
     levels=[logging.WARNING, logging.INFO, logging.DEBUG]
     if level < 0 or level > 2:
         raise TypeError("{0}.get_root_logger expects a verbosity between 0-2".format(__file__))
-    logging.basicConfig(level=levels[level], format="%(levelname)s: %(asctime)s %(funcName)s L%(lineno)s| %(message)s", datefmt="%Y/%m%d %I:%M:%S")
+    logging.basicConfig(level=levels[level], format="%(levelname)s: %(asctime)s %(funcName)s L%(lineno)s| %(message)s", datefmt="%Y/%m/%d %I:%M:%S")
     root_logger = logging.getLogger()
     for name in logging.Logger.manager.loggerDict.keys():
         if ('boto' in name) or ('urllib3' in name) or ('s3' in name) or ('findfont' in name):
@@ -979,7 +1050,7 @@ def cli():
     primary_path = sys.path[0]
     ver_info = sys.version_info
     py_version = "python{0}.{1}".format(ver_info.major, ver_info.minor)
-    sys.path.append(os.path.join(primary_path, "../lib/{0}/site-packages".format(py_version)))
+    #sys.path.append(os.path.join(primary_path, "../lib/{0}/site-packages".format(py_version)))
     #sys.path.append(os.path.join(os.path.dirname(__file__), "../lib"))
     #site_packages = [p for p in sys.path if "kdb" in p]
     
@@ -997,10 +1068,11 @@ def cli():
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help="Shred k-mers from reads in parallel")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
     profile_parser.add_argument("--keep-sqlite", action="store_true", help=argparse.SUPPRESS)
-    profile_parser.add_argument("--not-strand-specific", action="store_false", default=True, help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    #profile_parser.add_argument("--no-metadata", dest="metadata", action="store_false", default=True, help="Include k-mer metadata in the .kdb")
+    profile_parser.add_argument("--strand-specific", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
