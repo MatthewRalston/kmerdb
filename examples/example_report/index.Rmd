@@ -179,9 +179,15 @@ Once the Cullen-Frey analysis led us to originally prefer the NB model for its p
 ## Primary distribution selection
 
 ```{r fig.cap="Primary histogram showing the discrete distribution of count data", echo=FALSE}
+
+# set k throughout
+k=8
+
 # library(DBI)
 # data <- NULL
 columns = c("Bsubtilis_168", "Cacetobutylicum_ATCC824", "Cacetobutylicum_DSM1731", "Cacetobutylicum_EA2018", "Cbeijerinckii_NCIMB14988", "Cdifficile_R3", "Cpasteurianum_ATCC6013", "Cpasteurianum_BC1", "Cperfringens_ATCC13124", "Ctetani_E88", "Ecoli_K12MG1655")
+
+## Here is how you could read the same data in from the SQLite3 databases that are kept when --keep-sql is used with profile.
 # i = 1
 # for (f in columns){
 #   con <- dbConnect(RSQLite::SQLite(), paste("../../test/data/", f, ".fasta.8.sqlite3", sep = ""))
@@ -203,7 +209,9 @@ data <- read.csv2("unnormalized_count_matrix.tsv", sep="\t", header=TRUE)
 
 data2 <- gather(data, key="Species", value="Count")
 
-d <- data2[data2$Species == "Bsubtilis_168",]
+data2$id <- rep(1:4^k, length(columns))
+
+#d <- data2[data2$Species == "Bsubtilis_168",]
 
 #summary(kmers$count) # Repetitive
 ggplot(data2) + geom_histogram(aes(x=Count)) + ylab("K-mers") + xlab("Counts") + ggtitle("8-mer  counts across 11 species")
@@ -257,6 +265,26 @@ for (s in columns){
 }
 ggplot(data2) + geom_density(aes(x=Count)) + geom_line(data=d5, aes(y=Fit, x=x, colour=Distr)) + ggtitle("Comparing model fit for 8-mer count across the Clostridia") + xlim(0, 500) + facet_wrap(~Species)
 ```
+
+
+```{r fig.cap="VGLM is not working", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
+
+data2$id <- rep(1:4^k, length(columns))
+d = data2[order(data2$Count),]
+d$species <- as.numeric(as.factor(d$Species))
+
+
+library('vcd')
+ggplot(d, aes(Count)) + geom_histogram()# + facet_wrap(. ~ Species, scales="free_y")
+gf2 <- goodfit(d$Count,type="nbinomial", method = "MinChisq")
+
+plot(gf2)
+library('VGAM')
+
+# Zero truncated NB regression with VGAM
+m1 <- vglm(Count ~ species, family=posnegbinomial(), data=d)
+```
+
 In summary, the k-mer count distribution is best approximated by a negative-binomial model. The k-mer counts/frequencies and their distribution should hold after normalization, and the normalized distributions could be used to model sequence likelihoods via Markov probabilities. Other applications of k-mer probabilities will be explored below.
 
 
