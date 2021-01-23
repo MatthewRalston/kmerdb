@@ -24,11 +24,12 @@ logger = logging.getLogger(__file__)
 
 import io
 import os
+import json
 #import sqlite3
 import sys
 import array
 from sqlalchemy import create_engine
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Sequence
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Sequence, Text, Boolean
 from sqlalchemy.pool import NullPool
 #from sqlalchemy.ext.declarative import declarative_base
 #from sqlalchemy.orm import sessionmaker
@@ -77,24 +78,34 @@ class SqliteKdb:
         metadata = MetaData()
         kmers = Table('kmers', metadata,
                       Column('id', Integer, Sequence('kmer_id_seq'), primary_key=True),
-                      Column('count', Integer)
+                      Column('count', Integer),
+                      Column('starts', Text),
+                      Column('reverses', Text),
+                      Column('seqids', Text)
         )
-        reads = Table('reads', metadata,
-                      Column('read_id', String),
-                      Column('kmer_id', None, ForeignKey('kmers.id'))
-        )
+        # reads = Table('reads', metadata,
+        #               Column('read_id', String),
+        #               Column('kmer_id', None, ForeignKey('kmers.id'))
+        # )
         # Create tables
         metadata.create_all(self._engine)
-        null_profile = array.array('B')
+        #null_profile = array.array('B')
+        null_profile = []
         # FIXME This won't work for certain values of k
         for x in range(self._max_records):
-            null_profile.append(0)
+            null_profile.append({
+                'count': 0,
+                'starts': '[]',
+                'reverses': '[]',
+                'seqids': '[]'
+            })
+
         with self._engine.connect() as conn:
             while len(null_profile) > 0:
                 temp = []
                 for y in range(rows_per_loading_transaction):
                     if len(null_profile) > 0:
-                        temp.append( {'count': null_profile.pop()} )
+                        temp.append( null_profile.pop(0) )
                 conn.execute(kmers.insert(), temp)
 
             
@@ -117,6 +128,11 @@ class SqliteKdb:
         res = self.conn.execute("SELECT SUM(count) from kmers")
         return res.fetchone()[0]
 
+    def _load_metadata(self):
+        """ Not implemented """
+        return
+
+    
     def __iter__(self):
         return self
 
