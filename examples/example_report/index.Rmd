@@ -94,13 +94,17 @@ Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant
 
 We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parenceite{marccais2011fast, zhang2014these, anvar2014determining}).
 
-For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA).
+For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA). The computational complexity of a problem or the inability to provide a tractable version of the problem requires assumptions and thorough understanding of the mutational models and probabilities to devise the correct heuristic shortcuts.
 
 Researchers are interested in k-mers and alignment-free methods because sequence identity, in-del behavior, rearrangements, and recombination are less likely to have large effects on scores in a context-less subspace of the sequences. I look to previous k-mer database formats(\{marccais2011fast, anvar2014determining, zhang2014these}) for guidance regarding the best approaches to exploring this k-mer space with our methodologies.
 
 First, there was Jellyfish (\parencite{marccais2011fast}), designed to keep k-mer count histograms in a specialized file with remarkable language bindings and profiling of the algorithm. At the center of its innovation to the number of data structures used to store k-mer counts was a lock-free hash table used for concurrent access to the k-mer profile. To my knowledge, this is the origin of the convention of encoding each k-mer as an integer, which saves on memory and file size. The only downside to the paper was the extreme focus on performance, for the rather narrow group of bioinformaticians who want to explore the subject through the lens of real-world datasets and biological insights. That said, I enjoyed the implementation, it's attention to language bindings, and the excellent focus.
 
 Next we have the k-mer Profile Analysis Library (\{anvar2014determining}), where Anvar points out that software is an analytical tool that we use can use on real world and simulated data. The authors note the primary questions involved in exploration of these subsequence spaces are the modalities of certain spectra, and the characteristic curve i.e. the over-representation and underrepresentation along the spectrum for any particular input. The authors note that a choice of k of 10 seemed to be optimal for them to establish maximal separation between simulated metagenomes and their randomly permuted counterparts. I look to confirm these findings, as perhaps there are general patterns for microbial genome complexity and they could be specified better with model criterion in k-mer space.
+
+
+
+
 
 
 
@@ -117,11 +121,20 @@ A good choice of k that biologists would suggest would be in the range of 20 - 4
 
 But then you have computer scientists and mathematicians who 
 
-## 
+## What are the gotchas or assumptions this software makes?
 
+The key assumption with the probability function, which will play a central role in future investigations I will make, is that it assumes the probability of a sequence is equal to a product of transition probailities and a X1, a seed probability, a k-mer frequency, the frequency of the first k-mer specificially. There is both the X1 component and the transition probabilities. And even if the transition probabilities were perfect, that's not the end of what you can do. It's fairly simple to achieve a perfect profile, you just use the FASTA sequence of the assembled organism. So perfect transition probabilities are a big deal in the genomic space, don't get me wrong. We're just trying to divide the achievable goals into categories of long term, short term, and immediate needs for the project. 
 
+The software just recently had some new life brought into it by a certain interviewee who missed the opportunity to get a new job and instead had more time to devote to the project. Basically when I was assembling the presentation for the companies at the tail end of the Bayer contract, I invested in a thorough understanding of the current goals of the project and its needs in terms of benchmarking.
 
+But anyway back to the transition probabilities, so for instance, when you have the transition probabilities multipled out, it predicts state, but nothing more, nothing less. It's discrete, and complicated, or not. Anyway the model is more simple than that, it's a first order model with transition probabilities as good as you can get in a well filtered sequencing dataset, and it represents the maximum likelihood estimate of the transition probabilities, because it was an estimate of the approximate layout of the genome in this organization of the graph collapse that has grown to be cannon. And now we must contrast that with the initial k-mer, which is a state that has been chosen. This too can represent a probability either entirely realistic or perhaps the MLE estimate, again, or it could represent something completely irrelevant, and so we do both, and compare, and this takes the form of the result of the unidimensional likelihood ratio. And so the null model is the uniform random prior across all k-mers, which is currently only size adjusted, so it'd worth noting that if you had other quantitative factors, you'd be able to do your own Python to create probability calculations based on k-mer probabilities.
 
+The other approximations that are made, include the following.
+
+1. we ignore the graph aspect, because learning that quickly would be expensive compared to our capabilities with plain old numpy.
+2. we enable the graph aspect, in-case another developer would like to fork, pull request, or otherwise collaborate on the source.
+3. we simplify the transactional compliances of not only the floating point in frequency estimations, but also with the integer sensitivity necessary to achive enough inflation of sensitivity such that replicate size is not as much of an issue, to the extent that it is always the essential issue. Anyways. We do keep the total sequences proccessed, the k-mer counts, and we're working on getting genome size estimation in here too.
+4. We don't presume to present formulas, as we expect data normalization and or other adjustments to sensitivity or specificity are made through expert knowledge, and may be difficult to express fully with an oversimplified interface. So to this extent, we leave that as an investigation for the reader.
 
 
 ## Developing an understanding of the biological applications of k-mer profiles
