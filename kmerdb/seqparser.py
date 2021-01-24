@@ -64,10 +64,17 @@ class SeqParser:
             nogzexts = os.path.splitext(exts[0])
             if nogzexts[-1] == ".fq" or nogzexts[-1] == ".fastq":
                 self.fastq = True
-        else:
+            elif nogzexts[-1] == ".fna" or nogzexts[-1] == ".fasta" or exts[-1] == ".fa":
+                self.fastq = False
+            else:
+                raise ValueError("Cannot parse files of extension '{0}'.\n\nRequires fasta (.fna, .fasta, .fa), fastq (.fq, .fastq), or their gzipped equivalents")
+        else: # Must be fasta or fastq uncompressed
             if exts[-1] == ".fq" or exts[-1] == ".fastq":
                 self.fastq = True
-
+            elif exts[-1] == ".fna" or exts[-1] == ".fasta" or exts[-1] == ".fa":
+                self.fastq = False
+            else:
+                raise ValueError("Cannot parse files of extension '{0}'.\n\nRequires fasta (.fna, .fasta, .fa), fastq (.fq, .fastq), or their gzipped equivalents")
         if self.fastq:
             self.__class__.__iter__ = self._iter_fastq
             self.__class__.__next__ = self._next_fastq
