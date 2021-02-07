@@ -4,6 +4,14 @@
 The initial prototype would be plaintext
 The final prototype would be .bgzf format from biopython
 
+
+* Bugfix
+** DONE don't create an array of strings
+   CLOSED: [2021-01-26 Tue 18:35]
+
+
+
+
 * Outbox
 ** DONE Sparse .kdb
    CLOSED: [2021-01-07 Thu 21:37]
@@ -32,6 +40,8 @@ The final prototype would be .bgzf format from biopython
 **** use readline to parse the counts, the count is all you need, populate that into a list
 **** then convert that list into an nd.array and write it plus the index (enumerate) to disk
 **** like you would do in profile
+** DONE store fasta/fastq offsets in the database
+   CLOSED: [2021-01-26 Tue 18:33]
 * Assessment of probability function
 ** sequence length, starting position, strand
 ** The length of the parameter space theta is 3
@@ -54,7 +64,6 @@ The final prototype would be .bgzf format from biopython
 ** The brute force method is to try random walks with the same initialized k-mer.
 ** Then we do 
 
-* VERIFY store fasta/fastq offsets in the database
 * Release 0.0.7
 * Do report 1:
 * Rmd report1
@@ -139,11 +148,35 @@ The final prototype would be .bgzf format from biopython
 * Genome size estimation 
 * Likelihood of dataset given prior k-mer profiles
 * Calculate graph properties indicative of de Bruijn graph collapse
-
+* 
 
 * 'kmerdb random' sequence simulator
 ** given a certain length of sequence N, suggest a sequence that best solves the k-mer abundance graph
 
+* Priorities
+** Connect this to meme suite
+** Hypotheses:
+*** Suppose that k-mer spectra have a positive and negative saturation direction.
+*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
+*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
+** Graph database layer
+*** TODO Export to RDF
+*** TODO SemanticWeb
+**** Semantic web is a W3C standard for organizing datasets in the 'web of data' as opposed to the 'web of documents'
+**** TODO [[
+*** TODO Neptune for active app deployment
+*** TODO Development layer - alternate to Neptune for local development. 
+**** TODO RDF to Neo4J
+**** TODO AllegroGraph - RDF/SPARQL compliant
+** Visualization layer (VR)
+*** Need an eventual custom client layer and/or query language
+*** VIS.js and/or D3.js
+*** WebXR
+**** [[https://immersiveweb.dev][ImmersiveWeb]]
+**** [[https://w3.org/TR/webxr][WebXR device API]]
+*** Topology of DNA/RNA space datasets
+*** Valve Index ($1000)
+*** OpenXR
 * kmerize
 ** to use bed/gff features to select reads from bam/bai using pysam
 ** and then creating sparse profiles for each feature
@@ -183,12 +216,6 @@ The final prototype would be .bgzf format from biopython
 *** sort k-mers by counts (in memory, not on file), then create b-tree, leafs are k-mer file indices (above)
 ** tag : hash index
 ** float, int indices : similar to count index above6
-* Priorities
-** Connect this to meme suite
-** Hypotheses:
-*** Suppose that k-mer spectra have a positive and negative saturation direction.
-*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
-*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
 * Operations
 ** DONE Get all neighbors
    CLOSED: [2019-11-12 Tue 14:41]

@@ -1,7 +1,7 @@
 # README - kmerdb
 > A Python CLI and module for k-mer profiles, similarities, and graph databases
 
-NOTE: This project is pre-alpha, all of the badge links are broken and are just placeholders at the moment. Development is ongoing. But feel free to clone the repository and play with the code for yourself!
+NOTE: This project is in alpha stage. Development is ongoing. But feel free to clone the repository and play with the code for yourself.
 
 ## Development Status
 
@@ -19,9 +19,13 @@ NOTE: This project is pre-alpha, all of the badge links are broken and are just 
 
 ## Summary 
 
-KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. A per-kmer metadata feature is planned for the future. The k-mer spectrum of the fasta or fastq sequencing data is stored in the `.kdb` format spec, a bgzf file similar to `.bam`.
+KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. An experimental per-kmer metadata feature is included, which includes the coordinates of each k-mer w.r.t. their generating sequences. You can think of the current form as a "pre-index", as it includes all the essential information for indexing on any field in the landscape of k-mer to sequence relationships. One restriction is that k-mers with unspecified sequence residues 'N' create gaps in the k-mer to sequence relationship space, and are excluded. That said, non-standard IUPAC residues are supported.
 
-The principle goal of the library is k-mer statistics and rapid access to specific k-mers and associated abundances with a Python CLI and API. Other goals include access to the k-mer count distribution, k-mer transition probabilities, and more by leveraging the bgzf specification. Another low-hanging fruit could be approximating demultiplexing coefficients for artificial metagenomes.
+
+Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quickstart) for more information about the format, the library, and the project.
+
+The k-mer spectrum of the fasta or fastq sequencing data is stored in the `.kdb` format spec, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided to decompress a `.kdb` file into a standard output stream.
+
 
 
 ## Installation

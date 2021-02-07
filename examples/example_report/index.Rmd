@@ -90,7 +90,7 @@ getmode <- function(v) {
 
 # Introduction
 
-Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space in that it rapidly matches new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) have all been topics of great research interest for programmatic access to the substrings available for exact matching of sequences. 
+Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space, rapidly matching new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) are topics of great research interest for programmatic access to the substrings.
 
 We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parenceite{marccais2011fast, zhang2014these, anvar2014determining}).
 
@@ -385,8 +385,22 @@ We do not restrict our attention to the 1st or 2nd dimension only of PCA, but in
 
 ![Hierarchical clustering on spearman distance matrix derived from normalized count data](dendrogram.png)
 
-## Markov probabilities
+## Sufficient values of k for genomic separation
 
+We used the simulated metagenomes of firmicutes and proteobacteria of Anvar et al. to test some hypotheses related to microbial diversity in the abstract k-space (\parencite{anvar2014determining}). First we downloaded 
+
+
+Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM, 
+
+```bash
+function getmetagenome(){
+  col=$1
+  metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  echo "${metagenome[@]}"
+}
+export -f getmetagenome
+parallel -j 30 "metagenome=($(getmetagenome {1})); kmerdb profile -k {2} ${metagenome[@]} metagenome_{1}.{2}.kdb" ::: $(seq 1 30) ::: $(seq 8 14)
+```
 
 # Discussion
 

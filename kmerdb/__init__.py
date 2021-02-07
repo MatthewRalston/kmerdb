@@ -858,22 +858,20 @@ def profile(arguments):
     
     file_metadata = []
     tempdbs = []
+    logger.info("Parsing {0} sequece files to generate a k-mer profile...".format(len(arguments.seqfile)))
+    nullomers = set()
     for f in arguments.seqfile:
-        db, m = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, n=arguments.n, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
+        db, m, n = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, n=arguments.n, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
         file_metadata.append(m)
         tempdbs.append(db)
-
-        logger.debug("debugging the result of parsefile...")
-
-        logger.info("===============================")
-        logger.info("Outer scope")
-        result = db.conn.execute("SELECT * FROM kmers WHERE id = ?", 63).fetchone()
-        logger.info(result)
-        logger.info("===============================")
+        nullomers = nullomers.union(n)
+    logger.info("Completed transfer of k-mers into temporary SQLite3 databases.")
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
         "k": arguments.k,
+        "total_kmers": sum(list(map(lambda x: x["total_kmers"], file_metadata))),
+        "unique_kmers": 4**arguments.k - len(nullomers),
         "metadata": False,
         "tags": [],
         "files": file_metadata
@@ -885,19 +883,15 @@ def profile(arguments):
     metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
     metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
 
-    logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb))    
+    logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
         iterating = True
         while iterating:
             try:
-
                 logger.info("Acquiring all records across all files to sum each count across all files being merged")
                 kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
-                logger.info("Done acquiring all k-mers across all files")
-
-                print(kmer_dbrecs_per_file)
-
+                #print(kmer_dbrecs_per_file)
 
                 # raise RuntimeError("HOW DOES THIS HAVE NONE")
                 if len(kmer_dbrecs_per_file):
@@ -958,14 +952,12 @@ def profile(arguments):
                             logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
                             raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
-
-
-                            print(kmer_metadata)
-                            print(len(kmer_metadata.values()))
-
-                            
-                            print(list(set(type(x) for x in kmer_metadata["reverses"])))
+                            #logger.error("kmer metadata: {0}".format(kmer_metadata))
+                            logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
+                            #logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
                             raise TypeError("Not all reverse bools were boolean")
+                        elif count == 0:
+                            n += 1
                         kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
                 else:
                     iterating = False

@@ -129,7 +129,7 @@ class Test_parsefile(unittest.TestCase):
         """
         parsefile returns a header dictionary object
         """
-        testdb, headerDict = parse.parsefile(self.fasta, self.k)
+        testdb, headerDict, n = parse.parsefile(self.fasta, self.k)
         self.assertDictEqual({'filename': 'test/data/Ctetani_E88.fasta.gz',
                               'md5': '2d6e56382e6b296cd7aa00d33d6a3a25',
                               'mononucleotides': {'A': 1016563, 'C': 418556, 'G': 404380, 'T': 1033834},
