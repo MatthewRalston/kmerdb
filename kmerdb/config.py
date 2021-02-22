@@ -27,6 +27,8 @@ metadata_schema = {
         "version": {"type": "string"},
         "metadata_blocks": {"type": "number"},
         "k": {"type": "number"},
+        "total_kmers": {"type": "number"},
+        "unique_kmers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "tags": {
             "type": "array",
