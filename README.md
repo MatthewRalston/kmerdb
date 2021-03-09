@@ -45,7 +45,7 @@ pip install -e .
 
 ## Usage Example
 
-Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kdb/quickstart.html#usage)
+Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kmerdb/quickstart#usage)
 
 CLI Usage
 
