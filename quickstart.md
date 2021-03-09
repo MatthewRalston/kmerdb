@@ -43,7 +43,11 @@ See the commands in the [Usage](#/usage) section for an idea of what functionali
 See the original blog post on the concept [here](https://matthewralston.github.io/blog/kmer-database-format-part-1).
 
 
-The kdb project was designed to facilitate conversation between heavily optimized legacy codebases without much public attention, like Jellyfish, regarding the utility of standardizing k-mer frameworks. These frameworks are used throughout assembly and alignment hashing/seed-matching strategies. The primary goal of this project is documenting data shapes, compression strategies (which of course related to efficiency of storage, transmission, rapid access, etc.), and anticipating UI possibilities with the increases in read/write speeds afforded by improving SSD technologies and utilization of more channels of more rapid interfaces for data transmission (i.e. m2, NVMe, PCIx). 
+## What are k-mers?
+
+Please see the [Wikipedia article](https://en.wikipedia.org/wiki/K-mer) on the subject for more details.
+
+In brief, genomic/genetic, transcriptomics/dynamics, and perhaps even metagenomic/metagenetic spectra can be inferred directly from the k-mer spectra. And by keeping associations with reads, we can get to the spectral nature before any deeper or more performant methods need to be done on the datasets to generate other statistical calculations with a degree of precision perhaps not feasible with a pure k-mer frametwork at this point. But we can provide coverage information and pseudo-assembly information embedded in the graph. We next need a graph database layer and queries to perform certain de Brujin graph collapse methods in real time for the biologists to see.
 
 ## kdb is a file format
 
@@ -51,18 +55,22 @@ The k-mer database format is rather simple. It contains a metadata section, foll
 
 Each file can be inspected with the view and header commands detailed in the [section below](#kdb-view).
 
+## kdb features a bgzf graph database
+
+Currently, the feature does not exist to transform the entire database to RDF for exploration with graph database visualization tools. But in the future, graphs could be loaded into Neptune databases for active app deployment. However, the fundamental relationships between the k-mers and each other, and the k-mers versus the dataset are all catloged with the `--all-metadata`
+
 
 # Install
 
-[![PyPI version](https://img.shields.io/pypi/v/kdb.svg)][pip]
-[![Python versions](https://img.shields.io/pypi/pyversions/kdb.svg)][Pythons]
-[![Travis Build Status](https://travis-ci.org/MatthewRalston/kdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kdb)
-[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
+[![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
+[![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
+[![Travis Build Status](https://travis-ci.org/MatthewRalston/kdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kmerdb)
+[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kmerdb/master.svg)][Coveralls]
 [![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
 
-[pip]: https://pypi.org/project/kdb/
-[Pythons]: https://pypi.org/project/kdb/
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
+[pip]: https://pypi.org/project/kmerdb/
+[Pythons]: https://pypi.org/project/kmerdb/
+[Coveralls]: https://coveralls.io/r/MatthewRalston/kmerdb?branch=master
 [RTD]: https://kdb.readthedocs.io/en/latest/
 
 The current version on PyPI is shown above.
@@ -109,7 +117,7 @@ optional arguments:
 
 ## kmerdb profile
 
-A typical workflow first requires the generation of k-mer profiles. Complete metadata for each k-mer can be saved to the same database with `--all-metadata`. Note that this could cause significant increases in file size depending on the total k-mer coverage and the sequencing complexity. It is not recommended to experiment with `--all-metadata` at this time. Instead, we focus our attention on the numbers rather than the graph structure. Note that while individual profiles may be composite (i.e. you could mimic your own metagenomic compositions with downsampled fastq files to adjust proportions), the counts are stored in aggregate. 
+A typical workflow first requires the generation of k-mer profiles. Complete metadata for each k-mer can be saved to the same database with `--all-metadata`. Note that this could cause significant increases in file size depending on the total k-mer coverage and the sequencing complexity. It is not recommended to experiment with `--all-metadata` at this time. Instead, we focus our attention on the numbers rather than the graph structure. Note that while individual profiles may be composite (i.e. you could mimic your own metagenomic compositions with downsampled fastq files to adjust proportions), the counts are stored in aggregate. All k-mer counts are stored in the header metadata, per-file.
 
 ```bash
 usage: kmerdb profile [-h] [-v] [-p {1,2,3,4,...}] [-b FASTQ_BLOCK_SIZE] [-n N]
@@ -146,6 +154,9 @@ parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz
 ## kmerdb view
 
 As mentioned before under [KDB format](#kdb-is-a-file-format), the kdb file consists of a header or metadata section, followed by data blocks until the end of the file. The header is YAML formatted and the data blocks are formatted as tab-separated value files (.tsv), with the last/right-most column being a JSON formatted metadata column. For developers, the YAML schema can be found in the config.py file.
+
+It is worth noting that the 'files' attribute contains an array of file metadata for each file used to construct the profile, including total and unique k-mers per file *and* in aggregate. Note that you cannot sum unique k-mers across all files to retrieve the total unique count, rather an extra pass is required after the counts are summed to acquire the true nullomer/unique k-mer counts.
+
 ```bash
 # This should display the entire header of most files
 >zcat test/data/foo.12.kdb | head -n 30 
@@ -300,14 +311,16 @@ where x is the full sequence, X<sub>1</sub> is the first k-mer subsequence of x,
 
 <img src="https://render.githubusercontent.com/render/math?math=a_{st} = \frac{q_{t}}{\sum_{c=1}^{4} q_{s_{c}}}">
 
-where c is one of the four possible suffixes prior to transition, q<sub>t</sub> is the frequency of the suffix transitioned to, q<sub>s</sub> are frequencies of each possible suffix.
+where c is one of the four possible suffixes prior to transition, q<sub>t</sub> is the frequency of the suffix transitioned to, q<sub>s</sub> are frequencies of each possible prefix.
 
 
-I also must note the following equation I have had on my noteboard for about 12 months. The note at the bottom of the chalkboard says "take the log of both sides, since both represent the odds ratio.
+I also must note the following equation I have had on my noteboard for about 12 months. The note at the bottom of the chalkboard says "take the log of both sides, since both represent the odds ratio."
 
 <img src="https://render.githubusercontent.com/render/math?math=\frac{P(x|N)}{P(x|R)} = \frac{ p(x_{1}|N)\prod_{i=2}^{N-k} a_{X_{i-1}X_{i}} }{ p(x_{1}|R)\prod_{i=2}^{N-k} a_{ij} }">
 
 Note that the a<sub>ij</sub> may be estimated from their maximum likelihood estimators for a first order markov model with a uniform random prior.
+
+More specifically, p(x1\|R) is 1/4<sup>k</sup>. The transition probabilities, however, are estimated from the mononucleotide frequencies.
 
 Then we log-transform the whole thing for a log-odds ratio test.
 
@@ -335,7 +348,7 @@ Then, for the actual model of the choice of state change, we add  the frequencie
 
 3. a<sub>Xi-1,Xi</sub>
 
-The same transition probability as above, but under the ALTERNATIVE model. In our model, we use the frequency of the 1st/0th observed k-mer, P(X1|R) = q<sub>X1</sub> to initialize the Markov chain.
+The same transition probability as above, but under the ALTERNATIVE model. In our model, we use the frequency of the 1st/0th observed k-mer, P(X1\|R) = q<sub>X1</sub> to initialize the Markov chain.
 
 Then, we use the observed frequencies of each outgoing state change as the denominator as before, to represent the first order state changes.
 

@@ -1,0 +1,176 @@
+
+* Intro
+** Introduction
+*** Bioinformatics is rate limiting
+*** Bioinformatics analyses are slow and suffer from poor automation
+*** Alignment-free methods enable rapid identification of species, genes, mutations, while allowing for precise quantification.
+** Alignment-free methods are futureproof
+** K-mer databases are the backbone of alignment indexing and database strategies
+** The key comparison is a linear v quadtratic 
+** What key researchquestions are you trying to answer
+*** Are k-mer spectra useful for calculating sequence similarities?
+*** Can k-mer spectra be used for inferring population compositions from artificial metagenomes?
+*** What is the correct choice of k to resolve genomic differences between microbial strains?
+*** Are k-mer spectra interesting on their own for Markov probabilities?
+*** What is the stationary distribution in this case?
+* Numbers
+** Size of a genomic profile
+*** a 12-mer is a typical resolution for assessing k-mer profiles
+*** a 32-bit floating point frequency for example, or a 32-bit integer count would yield about 0.537Gb of data, per-profile.
+*** If you wanted to perform a reasonable regression for some simple microbiological contrasts,
+*** you would need several hundreds of data points for a very useful model. Ideally in this thought experiment we are talking about fastq files, since fasta files are considered 'complete' assemblies for standard convention.
+*** We will not consider fastas of amino acids or of coding regions in a nucleic acid fasta.
+*** Consider that that would easily be 50Gb or more of data, and we could easily be staring at terabytes if we went into the machine learning territory of model construction.
+*** For example, a Zhang et al Microbiome 2020 uses a dataset of 155,810 prokaryotic genomes from public datasets.
+*** If we were to make that many profiles, our estimate would yield about 83.65 TB of memory to hold all of the 12-mer profiles.
+*** If we scaled this back however to k=11, it would take 2.09 TB of memory and would still be reasonable resolution.
+*** If we asked a biologist what they woud feel comfortable with, they would say k between 22 and 25 at a minimum, and that would take between 87 exabytes and 6 ZB.
+*** This is why biologists are idiots and should not be trusted.
+
+** Size of a reasonable metagenomic regression problem for adequate choice of k
+** Real world estimates of memory per profile
+*** 60-70% of system memory on a 64Gb machine ~= 38.4-44.8 Gb at k=12 and n=30
+*** n is the parallelization level
+*** k is the primary spectral parameter
+*** this means we're looking at ~1.5Gb per profile uncompressed.
+
+* Introduction
+** Bioinformatics dataset generation rate remains exponential
+** Premium components, qualified talent, quality software are scarce
+*** Quick and efficient techniques for bioinformatics
+**** sequence identification
+**** sequence abundance
+**** sequence similarity space
+*** Driven by changing paradigms for non-model organisms
+**** metagenomics
+**** microbiology
+**** non-model Eukaryotes
+*** Alignment-free methods are quantified faster and are about as accurate as genomic/transcriptomic alignment-based quantification
+*** Several challenges remain (correct distribution, correct statistical frameworks that leverage existing linear-modeling techniques)
+** What are alignment free methods?
+*** does not involve the alignment of millions (or more) of reads to a reference genome.
+*** Involves the computation of spectral properties of the sequence reads, and tallying abundance at each step.
+** What are genomic/transcriptomic spectra?
+*** Genomic/transcriptomic spectra are 2D representations of a characteristic curve that describes the abundances of each type of k-mer for a fixed choice of k.
+*** Even more simply, it's a histogram that is fairly characteristic of the genus and species of the organisms that compose the sequencing dataset (fasta/fastq, currently).
+** How is this more efficient than alignment?
+*** Broadly speaking, alignment is quadratic in the length of the sequences being aligned, but the alignment problem more generally is O(Lnm) = L*O(n*m), where L is the constant read length, n is the number of alignable reads, and m is the length of the input sequences
+*** In contrast, counting k-mers is linear (L*O(n)) in the number of sequence reads in the case of fastq input, but is also linear for fasta input where m is the combined length of chromosomes in the sample's fasta file.
+*** That said, the advantage of a classical alignment file (.bam) is that you can use it for visualization, quantification, variant calling, etc.
+*** The same cannot be said for alignment free methods.
+** Are there other advantages to alignment-free methods?
+*** While variant calling and visualization cannot be done directly through alignment-free methods, there are other outputs which biologists would consider valuable
+*** For example, the similarity between k-mer spectra can be used to construct hierarchical trees based on genomic similarity
+*** And in the software I've written, arbitrary distance metrics in SciPy can be used.
+*** Secondly, Markov probabilities may be calculated for unknown sequence inputs, providing an estimate of the likelihood of a sequence given the hypothesized organism.
+*** Next, there is the assembly context itself, where the entire deBruijn graph is available for interactive assembly.
+*** Additionally, the number of nullomers (k-mers that weren't observed), the total k-mer count, and unique k-mer counts are retained for normalization purposes
+*** An extra application area of k-mer methods includes codon optimization
+*** But most importantly, when biologists use alignment-free methods for quantification and phylogenomic/genomic/genetic similarity, absent or low-quality references do not impeded inference.
+** Are there existing software suites that achieve the same goal?
+*** To some extent, there are existing k-mer libraries and formats available
+*** For example, the Jellyfish library is a performant utility and format for storing k-mer count histograms (profiles or spectra).
+*** Jellyfish focus on performance instead of applications
+**** including profile similarity, composite profiles, artificial metagenomes, subsampling, and other applications
+*** Jellyfish ignores high-level objectives stated earlier, such as
+**** sequence identification
+**** quantification
+**** sequence similarity space
+** Are there other things readers should know about genomic/transcritomic spectra and k-mers?
+*** The reader should understand that rapid, online quantification and identification will likely make use
+*** of spectral databases in the future, much in the same way that analytical chemists uses spectrometry databases to identify unknowns.
+*** The key goal for this software is to make a platform that is suitable for Illumina, PacBio, and other sequencing techonlogies in the future
+*** We currently support IUPAC residues from fasta and fastq input formats and believe most raw data will use these compact formats in the future.
+* Numbers
+** Size of a single profile
+** 
+* Objectives
+** Several key objectives should be outlines regarding the high-level deliverables for this project
+** Graph database
+*** A RDF compliant linked dataset is generated
+*** Suitable for querying by SPARQL data query language
+*** Suitable for ingestion into Amazon Neptune service
+*** Or ingestion into AllegroDB
+** GPU regression for metagenomics
+*** Community compositions approximated through regression with known community members
+** Algorithm performance benchmarking
+*** Calculate scalability with k, input sizes, and memory profiling
+** Sensitivity analysis (0 <= k <= 12)
+*** Reproduce findings from Anvar et al
+*** Goal is to see which values of k produce the best discrimination from 'random' or 'shuffled' profiles
+*** Use alternate distances to see how distance plays a role
+*** Two plots needed
+**** optimal K: average distance from shuffled profiles vs k
+**** optimal distance: For fixed value of k, choose distance that improves Silhouette/Davies Bouldin/clustering metrics
+** Sampling fidelity from simulated fastqs with standard error profiles
+*** Goal is to understand what values of depth are needed to create realistic correlations 
+*** between a genome fasta and fastq reads sampled from the same genome.
+*** Empirically, if k is too low, then correlation will be artificially high
+*** Actual error profile of the reads is understandable at higher k, causing lower correlations.
+*** A balance between sufficient sampling depth and appropriate choice of k
+** Homopolymer treatment
+*** Can unsupervised learning be used to identify values of k that have little impact on the distance?
+*** Could a homopolymer score be associated with each k-mer?
+** Markov probability
+** Dashboards
+* Methods
+** Python3
+*** popular programming language, advanced numerical features: numpy, scipy, tensorflow, etc.
+*** Bio.bgzf-based parsing library
+*** Connections to common database and web frameworks: SQLAlchemy, rdflib, flask
+** PCA, t-SNE dimensionality reduction
+** Clustering algorithms
+*** k-means
+*** hierarchical
+*** Needs Silhouette, Davies Bouldin, etc.
+** Randomization
+*** Certain profiles are shuffled to compare the true profile to the average of randomized/shuffled profiles
+*** This tells us how much sequence uniqueness/specificity (as determined by k) is required to distinguish true profiles from noise
+** Distance metrics
+*** Distance metrics are explored through scipy, which has arbitrary distance metrics available to calculate similarities between profiles
+*** And to use distance matrices for clustering
+** Fastq sample fidelity
+*** We use the ART toolkit (art_illumina) to simulate fastq reads from sequenced genomes
+*** By comparing profiles derived from the true genome (fasta) vs simulated WGS samples with basic error profiles
+*** we observe how much sampling depth is required fro profiles with high similarity to the true genome
+** Markov probabilities
+*** We compare the distrbutions of probabilities between
+*** Known sequences originating from genome A, which should have large/likely (close to 1) probabilities
+*** and sequences not originating from genome A.
+*** We calcualte positive predictive value from this approach.
+* Requirements
+** A6000 GPU for learning, modeling, exploratory data analysis on 48Gb of data
+*** Note: depending on sample size, this number can be reached relatively easily.
+*** A few back of the envelope calculations should show the idea
+*** For instance, take a 32bit integer encoding, or floating point encoding and assume normalization is done prior to model building, or whatever method seems appropriate to move to the GPU
+*** For a very modest sample size of 5000, and setting k = 10, we generate 167Gib of data
+*** If we set k just slightly lower to 9, we get the amount of data required to be held in memory *at a minimum*, the dataset, not any of the model memory requirements,
+*** down to 41Gib. So if we assume that the model isn't much more than 2x the size of the input data,
+*** setting k = 8 gives us 10.49Gib, and this data size would be appropriate for model building.
+*** Although the sensitivity at k=8 is much lower (by a factor of 16, i think), higher numbers of k can be tolerated, so long as the sample size is similarly shrunk to balance the memory.
+*** For example, if we set the sample size to 60, as in a two sided t-test with 30 of group A and 30 of group B,
+*** or a modest regression of a few data points, we could accomodate k=11 with about 8Gib of VRAM. A little higher value of k=12 gives us 32Gib, which is close to the limit of VRAM.
+*** As a final example, a more exciting regression that could involve multiple covariates and a sample size of about 1000, could tolerate a k=10 (which may be sufficient for microbes) at 33Gib.
+** DSI clusters
+*** DARWIN
+**** 9x NVidia T4 16Gb (2560 CUDA cores each) (VISUALIZATION ONLY)
+**** 3/4 x NVidia V100 16Gib (5120 CUDA cores)
+**** Large memory nodes (~10 x 1024 Gib)
+**** Standard nodes (48 x 512 Gib, 64 CPU / node, 3072 CPU total)
+*** BioMix
+**** > 425 CPU cores total
+*** Personal machine
+**** 48 CPU cores
+**** 128 GiB RAM
+**** RTX A6000 (10,752 CUDA cores, 336 Tensor coes, 48 GiB VRAM)
+** 128Gib RAM
+*** This is needed for creating distance matrices of large sample sizes, sometimes on the order of
+*** tens of thousands to quadrillions of rows (depending on choice of k) by hundreds or thousands of columns/samples.
+** Government or industry funding
+*** grants.gov
+*** pivot UD library database
+** Academic assistance in securing funding
+*** Drafting research proposal
+*** Identifying committee members
+*** Target funding agencies and/or grants
+*** Preparing manuscripts
