@@ -11,7 +11,7 @@ numba==0.52.0
 numpy==1.18.1
 pandas==1.2.0
 psutil==5.8.0
-PyYAML==5.1.2
+PyYAML==5.4
 rdflib==5.0.0
 rdflib-jsonld==0.5.0
 rpy2==3.4.2
