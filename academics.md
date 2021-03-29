@@ -30,11 +30,11 @@ About a 5-10min read.
 
 # Abstract
 
-A brief introduction to the biomathematical topics of k-mer counting, motif abundance, alignment-free quantification and variant analysis, and alignment-free linear runtime are presented to the reader to frame a discussion about common formats for k-mer counts and deBruijn graphs. These techniques can bypass the rate-limiting quadratic step in the topic of gene expression to provide faster results for a more rapid, on-line expression measurement experience. 
+A brief introduction to the biomathematical topics of k-mer counting, motif abundance, alignment-free quantification and variant analysis, and alignment-free linear runtime are presented to the reader to frame a discussion about common formats for k-mer counts and deBruijn graphs. The k-mer counting technique bypasses the rate-limiting quadratic step in the topic of gene expression to provide faster results for a more rapid, on-line expression measurement experience. Eventually, an on-line real-time gene-expression measurement method may treat genomic sequences as abstract spectra through k-mer counting, much like certain high-throughput chemical and biochemical platforms are capable of analyzing complex, multiplexed spectra, and/or 'unknown' spectra to determine closest known chemical structures.
 
-Eventually, an on-line real-time gene-expression measurement method may treat genomic sequences as abstract spectra, much like certain high-throughput chemical and biochemical platforms are capable of doing with robotics. To this end, we discuss key research topics such as the juxtaposition of alignment and assembly throughout the analytical process, constructive interference on discrete spectral combinations, linear runtimes, graph databases, alignment-free sequence similarity, alignment-free sequence distance metrics usable for machine learning, normalization practices, embedded sequence frequencies, and the nature of the multivariate probability density landscape for known and unknown sequence lengths.
+To this end, we discuss key research topics such as the juxtaposition of alignment and assembly throughout the analytical process, constructive interference of spectra in multiplexed samples, linear runtimes, graph databases, alignment-free sequence similarity, alignment-free sequence distance metrics usable for machine learning, and normalization practices.
 
-To achieve all of these goals, the reader is asked to consider their academic and/or professional networks to locate an advisor who is capable of guideing a student through their first grant-writing process. Potentially, I would like to stay for both a masters and a PhD, so this would grant considerable time to manage the scope and timelines of the project.
+To achieve all of these goals, the reader is asked to consider their academic and/or professional networks to locate an advisor who is capable of guideing a student through their first grant-writing and/or fellowship application process. Potentially, I would like to stay for both a masters and a PhD, so this would grant considerable time to manage the scope and timelines of the project.
 
 
 
@@ -44,9 +44,9 @@ To achieve all of these goals, the reader is asked to consider their academic an
 
 Here we discuss the underlying bioinformatic techniques behind both alignment and assembly and use this discussion to present a novel alignment-free framework for metagenomic species decomposition, bacterial species inference, metagenome simulation, and Markov probabilities.
 
-A principle challenge in the acceleration and automation of bioinformatics analyses based on Illumina NGS and other platforms is the abstraction of conventional alignment-based methods into an alignment-free analytical space. Bioinformatics is expected to be rate-limiting in the modern biological discovery process, with the recent dramatic reductions in the cost of sequencing. Therefore, quick, efficient, and most importantly accurate methods are needed to identify sequences, quantify abundances, estimate mutational likelihoods, and explore the sequence similarity space. 
+A principle challenge in the acceleration and automation of bioinformatic analyses based on Illumina Next Generation Sequencing (NGS) and other platforms is the abstraction of conventional alignment-based methods into an alignment-free analytical space. Bioinformatics is expected to be rate-limiting in the modern biological discovery process, with the recent dramatic reductions in the cost of sequencing leading to mountains of raw data for analysis. Quick, efficient, and accurate methods are needed to identify sequences, quantify abundances, estimate mutational likelihoods, and explore the sequence similarity space.
 
-The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. This technology reflects a paradigm shift in metagnomics concerning the alignment of a sequence to reference, and a sequence identitty that extends beyond the concept of reference sequences and alignment.
+The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. Now we advocate for data structures, algorithms, and concepts of identity that extends beyond the concepts of reference sequences and alignment.
 
 The second advantage of foregoing the expensive quadratic mapping step (which is required in conventional alignment-based sequencing pipelines) is the comparable accuracy with which expression measurements (Kallisto) and mutations can be called (e.g. Kevlar, Cell 2019). 
 
@@ -58,7 +58,7 @@ The first step of many bioinformatic algorithms is to generate the counts of all
 
 ## Alignment-free methods are futureproof
 
-Alignment-free methods are more flexible in their sequencing inputs, in a figurative sense. *Specifically, k-mer spectra are likely to retain their sequence identity in the face of indel-producing sequencing technologies.* Because alignment is not considered, the "errors" from indels are encorporated differently, and thus a larger quantity of data can be utilized for indel-rich sequencing platforms like Oxford Nanopore, PacBio, and other similar technologies. Additionally, k-mer databases in particular are the backbone of many sequencing data applications including alignment (seed regions, minimizers, etc.) and assembly (deBruijn graphs). For this reason, the topic of alignment-free methods and in particular, the k-mer spectra abstraction layer, has received considerable attention in the literature for its efficiency.
+Alignment-free methods are more flexible in their sequencing inputs, in a figurative sense. *Specifically, k-mer spectra are likely to retain their sequence identity in the face of indel-producing sequencing technologies.* Because alignment is not considered, the "errors" from indels are encorporated into inferential errors through a less harmful scoring mechanism than in sequence alignment, and thus a larger quantity of data can be utilized for indel-rich sequencing platforms like Oxford Nanopore, PacBio, and other similar technologies. Additionally, k-mer databases in particular are the backbone of the two major sequencing data applications, sequence alignment (e.g. seed regions, minimizers, etc.) and assembly (e.g. deBruijn graphs). For this reason, the topic of alignment-free methods and in particular, the k-mer spectra abstraction layer, has received considerable attention in the literature for its efficiency.
 
 ## Linear vs quadratic runtime
 
@@ -66,7 +66,7 @@ Alignment-free methods can produce quantifications faster and with comparable ac
 
 How is this more efficient than alignment? Generally, alignment is quadratic in the length of the sequences being aligned. More specifically, the alignment of Illumina based WGS, RNA-Seq, or metagenomic datasets is L*O(nm), where L is the fairly constant read length of the dataset, n is the number of alignable reads, and m is the length of the reference sequence(s). In contrast, counting k-mers is linear, L*O(n), in the number of sequence reads in the case of Illumina data or L*O(m) in the case of fasta input where m is the combined length of chromosomes in the sample's fasta file.
 
-# What key research questions you are trying to answer?
+# What key research questions are you trying to answer?
 
 There are multiple candidate research questions that haven't been answered by the existing literature on the topic of k-mer spectra for genomics applications. The first is a general purpose questions, namely "are k-mer spectra useful for calculating sequence similarities?" If we can demonstrate use cases for sequence similarity, then we can provide estimates about the likelihood that an unknown sequence belongs to a given genome, metagenome, transcriptome, etc. using a simple Markov model.
 
@@ -122,6 +122,11 @@ I'd like to communicate this project to an academician who would support my gran
 I bring the following to the table: advanced study of microbial systems, metabolism, biomathematics, statistics, computer science, software engineering, biochemistry, molecular biology, and genomics. I am adept at building data processing pipelines, storage systems, reproducibility infrastructure, and creating custom reports in standardized formats such as Rmarkdown, LaTeX, and Jupyter. I believe I would be an asset to any laboratory and that this project has obvious merits for microbiologists, bioinformaticians, and mathematicians.
 
 The following are specific goals and milestones for the project.
+
+
+## Compositional Analysis
+
+One goal of the suite is to produce a type of regression such that exactly n compositional coefficients are obtained. These are the best estimates we can have with the simplest model possible for how the k-mer counts reflect the various genomes that compose the metagenome.
 
 ## Graph database
 
