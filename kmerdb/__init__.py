@@ -843,14 +843,29 @@ def view(arguments):
                 #kdb_out._handle.close()
                 sys.stderr.write(config.DONE)
 
+class Parseable:
+    def __init__(self, arguments):
+        self.arguments = arguments
+            
+        
+    def parsefile(self, filename):
+        """Wrapper function for parse.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
+            
+        :param data: { 'filename': ..., 'args': { argparse } }
+        :type data: dict
+        :returns: (db, m, n)
+        """
+        from kmerdb import parse
+        return parse.parsefile(filename, self.arguments.k, p=self.arguments.parallel_fastq, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
 
             
 def profile(arguments):
     import math
     from itertools import chain, repeat
+    from multiprocessing import Pool
     import json
     import time
-    from kmerdb import parse, fileutil, kmer
+    from kmerdb import parse, fileutil, kmer, database
     from kmerdb.config import VERSION
 
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
@@ -860,9 +875,17 @@ def profile(arguments):
     tempdbs = []
     logger.info("Parsing {0} sequece files to generate a k-mer profile...".format(len(arguments.seqfile)))
     nullomers = set()
-    for f in arguments.seqfile:
-        db, m, n = parse.parsefile(f, arguments.k, p=arguments.parallel, b=arguments.fastq_block_size, n=arguments.n, stranded=arguments.strand_specific, all_metadata=arguments.all_metadata)
+    pool = Pool(processes=arguments.parallel)
+    parseable = Parseable(arguments)
+    if fileutil.is_all_fasta(list(arguments.seqfile)):
+        logger.info("Processing fastas in parallel")
+        list_of_dbs = pool.map(parseable.parsefile, arguments.seqfile)
+    else:
+        logger.info("Processing as fastqs with alternate parallelization schema")
+        list_of_dbs = list(map(parseable.parsefile, arguments.seqfile))
+    for db, m, n in list_of_dbs:
         file_metadata.append(m)
+        db = database.SqliteKdb(db, arguments.k)
         tempdbs.append(db)
         nullomers = nullomers.union(n)
     logger.info("Completed transfer of k-mers into temporary SQLite3 databases.")
@@ -876,6 +899,8 @@ def profile(arguments):
         "tags": [],
         "files": file_metadata
     })
+        
+    
     
     metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
     # The number of metadata blocks is the number of bytes of the header block(s) / the number of bytes per block in the BGZF specification
@@ -889,8 +914,10 @@ def profile(arguments):
         iterating = True
         while iterating:
             try:
-                logger.info("Acquiring all records across all files to sum each count across all files being merged")
+                logger.debug("Collating counts across all files for the {0} k-mer".format())
                 kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
+
+                # Unstable code
                 #print(kmer_dbrecs_per_file)
 
                 # raise RuntimeError("HOW DOES THIS HAVE NONE")
@@ -1059,6 +1086,7 @@ def cli():
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help="Shred k-mers from reads in parallel")
+    profile_parser.add_argument("-pq", "--parallel-fastq", type=int, default=1, help="The number of blocks to read in parallel for reading fastqs")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")

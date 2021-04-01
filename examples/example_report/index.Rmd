@@ -399,7 +399,7 @@ function getmetagenome(){
   echo "${metagenome[@]}"
 }
 export -f getmetagenome
-parallel -j 30 "metagenome=($(getmetagenome {1})); kmerdb profile -k {2} ${metagenome[@]} metagenome_{1}.{2}.kdb" ::: $(seq 1 30) ::: $(seq 8 14)
+parallel -j 30 "metagenome=($(getmetagenome {1})); kmerdb profile -k {2} ${metagenome[@]} metagenome_{1}.{2}.kdb 2> metagenome_{1}.{2}.log;" ::: $(seq 1 30) ::: $(seq 8 14)
 ```
 
 # Discussion

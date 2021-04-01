@@ -86,7 +86,8 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         seqprsr = seqparser.SeqParser(filepath, b, k)
         fasta = not seqprsr.fastq
         logger.debug("Constructing multiprocessing pool with {0} processors".format(p))
-        pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
+        if not fasta:
+            pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
         Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
         # Look inside the seqprsr object for the type of file
 
@@ -102,7 +103,11 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         while len(recs): # While the seqprsr continues to produce blocks of reads
             # Run each read through the shred method
             num_recs = len(recs)
-            list_of_dicts = pool.map(Kmer.shred, recs)
+
+            if fasta:
+                list_of_dicts = list(map(Kmer.shred, recs))
+            else:
+                list_of_dicts = pool.map(Kmer.shred, recs)
 
             logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
             #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
@@ -266,8 +271,9 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
 
     finally:
         sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}' into '{2}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath, temp.name))
+        db.conn.close()
 
-    return db, seqprsr.header_dict(), nullomers
+    return temp.name, seqprsr.header_dict(), nullomers
 
 
 # class MetadataAppender:
