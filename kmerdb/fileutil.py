@@ -48,6 +48,22 @@ s3client = boto3.client('s3')
 s3prefix = "s3://"
 
 
+
+def is_all_fasta(filenames):
+    """Tests if all the strings in a list are fasta format.
+    
+    :param filenames:
+    :type list:
+    :returns bool:
+    :rtype bool:
+    """
+    if type(filenames) is not list:
+        raise TypeError("kmerdb.fileutil.is_all_fasta() expects a list as its first positional argument")
+    elif not all(type(s) is str for s in filenames):
+        raise TypeError("kmerdb.fileutil.is_all_fasta() expects a list of str as its first positional argument")
+    return all((f.endswith('.fa') or f.endswith('.fasta') or f.endswith('.fa.gz') or f.endswith('.fasta.gz') or f.endswith('.fna') or f.endswith('.fna.gz')) for f in filenames)
+
+
 def _s3_file_download(self, seqpath, temporary=True):
     """
     Note: the file will be downloaded into a temporary file that needs to be deleted afterwards
