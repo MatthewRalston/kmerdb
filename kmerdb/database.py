@@ -34,7 +34,7 @@ from sqlalchemy.pool import NullPool
 #from sqlalchemy.ext.declarative import declarative_base
 #from sqlalchemy.orm import sessionmaker
 
-rows_per_loading_transaction = 1000000
+rows_per_loading_transaction = 100000000
 #Base = declarative_base()
 
 
@@ -57,7 +57,7 @@ class SqliteKdb:
         if type(filename) is not str:
             raise TypeError("kmerdb.database.SqliteKdb expects a str as its first positional argument")
         elif not os.path.exists(filename):
-            raise OSError("kmerdb.database.SqliteKdb expects an existing .kmerdb file as its first positional argument")
+            raise OSError("kmerdb.database.SqliteKdb expects an existing Sqlite3 file as its first positional argument")
         elif type(k) is not int:
             raise TypeError("kmerdb.database.SqliteKdb expects an int as its second positional argument")
         self._max_records = 4**k
@@ -92,6 +92,7 @@ class SqliteKdb:
         #null_profile = array.array('B')
         null_profile = []
         # FIXME This won't work for certain values of k
+        logger.info("Creating empty k-mer profile structs in Python memory space")
         for x in range(self._max_records):
             null_profile.append({
                 'count': 0,
@@ -99,16 +100,21 @@ class SqliteKdb:
                 'reverses': '[]',
                 'seqids': '[]'
             })
-
+        logger.debug("Populating a length 4^k = {0} profile in Python space for loading into the SQLite3 database".format(self._max_records))
+        logger.info("Loading {0} records at a time into the SQLite3 database, in case there are limits to memory that are imposed.".format(rows_per_loading_transaction))
         with self._engine.connect() as conn:
+            sys.stderr.write("Populating.")
             while len(null_profile) > 0:
+                sys.stderr.write(".")
                 temp = []
                 for y in range(rows_per_loading_transaction):
                     if len(null_profile) > 0:
                         temp.append( null_profile.pop(0) )
                 conn.execute(kmers.insert(), temp)
-
-            
+            sys.stderr.write("\r")
+        logger.info("Finished populating the empty database")
+        
+        
     def __exit__(self, exc_type, exc_value, traceback):
         self.conn.close()
         self._engine.dispose()
@@ -146,16 +152,3 @@ class SqliteKdb:
             return results
 
 
-    
-# class Kmer(Base):
-#     __tablename__ = 'kmers'
-
-#     id = Column(Integer, Sequence('kmer_id_seq'), primary_key=True)
-#     count = Column(Integer)
-
-
-#     def __repr__(self):
-#         return "<Kmer(id='%s', count='%s')>" % (self.id, self.count)
-
-
-    
