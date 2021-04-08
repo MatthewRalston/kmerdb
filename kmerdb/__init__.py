@@ -843,21 +843,6 @@ def view(arguments):
                 #kdb_out._handle.close()
                 sys.stderr.write(config.DONE)
 
-class Parseable:
-    def __init__(self, arguments):
-        self.arguments = arguments
-            
-        
-    def parsefile(self, filename):
-        """Wrapper function for parse.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
-            
-        :param data: { 'filename': ..., 'args': { argparse } }
-        :type data: dict
-        :returns: (db, m, n)
-        """
-        from kmerdb import parse
-        return parse.parsefile(filename, self.arguments.k, p=self.arguments.parallel_fastq, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
-
             
 def profile(arguments):
     import math
@@ -876,16 +861,16 @@ def profile(arguments):
     logger.info("Parsing {0} sequece files to generate a k-mer profile...".format(len(arguments.seqfile)))
     nullomers = set()
     pool = Pool(processes=arguments.parallel)
-    parseable = Parseable(arguments)
+    infile = parse.Parseable(arguments)
     if fileutil.is_all_fasta(list(arguments.seqfile)):
         logger.info("Processing fastas in parallel")
-        list_of_dbs = pool.map(parseable.parsefile, arguments.seqfile)
+        list_of_dbs = pool.map(infile.parsefile, arguments.seqfile)
     else:
         logger.info("Processing as fastqs with alternate parallelization schema")
-        list_of_dbs = list(map(parseable.parsefile, arguments.seqfile))
+        list_of_dbs = list(map(infile.parsefile, arguments.seqfile))
     for db, m, n in list_of_dbs:
         file_metadata.append(m)
-        db = database.SqliteKdb(db, arguments.k)
+        db = database.PostgresKdb(arguments.k, arguments.postgres_connection, tablename=db, filename=None)
         tempdbs.append(db)
         nullomers = nullomers.union(n)
     logger.info("Completed transfer of k-mers into temporary SQLite3 databases.")
@@ -911,10 +896,11 @@ def profile(arguments):
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
+        x = 0
         iterating = True
         while iterating:
             try:
-                logger.debug("Collating counts across all files for the {0} k-mer".format())
+                logger.debug("Collating counts across all files for the {0} k-mer".format(x))
                 kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
 
                 # Unstable code
@@ -933,9 +919,6 @@ def profile(arguments):
                         kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                         # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
                         if arguments.all_metadata:
-
-
-                            logger.debug("LAST ASPECT")
 
                             seqids = [x[2] for x in kmer_dbrecs_per_file]
                             starts = [x[3] for x in kmer_dbrecs_per_file]
@@ -963,13 +946,13 @@ def profile(arguments):
                                 sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
                         elif type(kmer_metadata["starts"]) is dict:
                             logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
                             if arguments.verbose == 2:
                                 sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
                         elif type(kmer_metadata["seqids"]) is dict:
                             logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif type(kmer_metadata["reverses"]) is str:
                             raise TypeError("kmerdb profile could not decode strand information from its sQLite3 database.")
                         elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
@@ -977,7 +960,7 @@ def profile(arguments):
                                 sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
                         elif type(kmer_metadata["reverses"]) is dict:
                             logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Sqlite3 database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
                             #logger.error("kmer metadata: {0}".format(kmer_metadata))
                             logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
@@ -986,6 +969,7 @@ def profile(arguments):
                         elif count == 0:
                             n += 1
                         kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+                    x += 1
                 else:
                     iterating = False
             except StopIteration as e:
@@ -996,21 +980,25 @@ def profile(arguments):
         logger.info("Done")
     finally:
         import shutil
+        from psycopg2 import sql
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
         for db in tempdbs:
-            db.conn.close()
-            db._engine.dispose()
-            if not arguments.keep_sqlite:
-                os.unlink(db.filepath)
-            else:
-                kdbfile = arguments.kdb
-                kdbbasename = arguments.kdb.rstrip(".kdb")
-                kdbsqlite = kdbbasename + ".sqlite3"
-                shutil.move(db.filepath, kdbsqlite)
-                sys.stderr.write("    Database file retained as    '{0}'".format(kdbsqlite))
+            if not arguments.keep_db:
+                #os.unlink(db.filepath)
+                with db.conn.begin():
+                    db.conn.execute("DROP TABLE {}".format(db._tablename))
+                # else:
+            #     kdbfile = arguments.kdb
+            #     kdbbasename = arguments.kdb.rstrip(".kdb")
+            #     kdbsqlite = kdbbasename + ".sqlite3"
+            #     shutil.move(db.filepath, kdbsqlite)
+            #     sys.stderr.write("    Database file retained as    '{0}'".format(kdbsqlite))
 
+            if db.conn is not None:
+                db.conn.close()
+            db._engine.dispose()
 
     
 # def gen_hist(arguments):
@@ -1085,12 +1073,14 @@ def cli():
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    profile_parser.add_argument("-pg", "--postgres-connection", type=str, help="A postgresql connection string, of the format postgres://user:password@host:port/dbname", required=True)
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help="Shred k-mers from reads in parallel")
     profile_parser.add_argument("-pq", "--parallel-fastq", type=int, default=1, help="The number of blocks to read in parallel for reading fastqs")
+    profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
-    profile_parser.add_argument("--keep-sqlite", action="store_true", help=argparse.SUPPRESS)
+    profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--strand-specific", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")

@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.0.7"
+VERSION="0.0.8"
 end_header_line = "    kdb: can someone get me some sentries"
 header_delimiter = end_header_line + "\n" + ("="*24) + "\n"
 
