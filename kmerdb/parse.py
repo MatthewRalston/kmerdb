@@ -20,10 +20,13 @@ import os
 import sys
 import yaml
 import json
+from datetime import datetime
+from math import ceil
 from itertools import chain, repeat
 from concurrent.futures import ThreadPoolExecutor
 
 
+from psycopg2 import sql
 import tempfile
 
 #import threading
@@ -36,7 +39,7 @@ import logging
 logger = logging.getLogger(__file__)
 
 
-def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -59,6 +62,8 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         raise OSError("kmerdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
     elif type(k) is not int:
         raise TypeError("kmerdb.parse.parsefile expects an int as its second positional argument")
+    elif type(connection_string) is not str:
+        raise TypeError("kmerdb.parse.parsefile expects a str as its third positional argument")
     elif type(p) is not int:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'p' to be an int")
     elif type(b) is not int:
@@ -68,10 +73,10 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
     elif type(stranded) is not bool:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
     # Create temporary SQLite3 database file for on-disk k-mer counting
-    temp = tempfile.NamedTemporaryFile(mode="w+", suffix=".sqlite3", delete=False)
-    logger.debug("Creating temporary database to tally k-mers: '{0}'".format(temp.name))
-    temp.close()
-    db = database.SqliteKdb(temp.name, k)
+    # temp = tempfile.NamedTemporaryFile(mode="w+", suffix=".sqlite3", delete=False)
+    # logger.debug("Creating temporary database to tally k-mers: '{0}'".format(temp.name))
+    # temp.close()
+    db = database.PostgresKdb(k, connection_string, filename=filepath)
     from kmerdb import kmer
 
 
@@ -86,7 +91,8 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         seqprsr = seqparser.SeqParser(filepath, b, k)
         fasta = not seqprsr.fastq
         logger.debug("Constructing multiprocessing pool with {0} processors".format(p))
-        pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
+        if not fasta:
+            pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
         Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
         # Look inside the seqprsr object for the type of file
 
@@ -102,7 +108,11 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         while len(recs): # While the seqprsr continues to produce blocks of reads
             # Run each read through the shred method
             num_recs = len(recs)
-            list_of_dicts = pool.map(Kmer.shred, recs)
+
+            if fasta:
+                list_of_dicts = list(map(Kmer.shred, recs))
+            else:
+                list_of_dicts = pool.map(Kmer.shred, recs)
 
             logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
             #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
@@ -206,13 +216,33 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
             # Thank you, this was brilliant
             # https://stackoverflow.com/a/9294062/12855110
             num_kmers = len(kmer_ids)
-            logger.debug("Parsed/mapped the remainder or the data from list_of_dicts")
-            logger.info("Updating the k-mer counts in the SQLAlchemy connection to SQLite3 for {0} k-mer ids in one transation".format(num_kmers))
+
             if num_kmers == 0:
                 raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
-            with db.conn.begin():
-                db.conn.execute("UPDATE kmers SET count = count + 1 WHERE id = ?",
-                                list(map(lambda x: (x+1,), kmer_ids)))
+            else:
+                # for kmer_id in kmer_ids:
+                #     db.conn.execute("UPDATE {0} SET count = count + 1 WHERE id = $1".format(db._tablename),
+                inserts = list(map(lambda x: (x+1,), kmer_ids))
+
+                batches = ceil(num_kmers/rows_per_batch)
+                t0 = datetime.now()
+                for i in range(batches):
+
+                    try:
+                        with db.conn.begin():
+
+                            db.conn.execute("UPDATE {0} SET count = count + 1 WHERE id IN (%s)".format(db._tablename), inserts[i*rows_per_batch:(i*rows_per_batch+rows_per_batch)])
+
+                    except Exception as e:
+                        logger.error(db.conn)
+                        raise e
+
+                    t1 = datetime.now()
+                    d = (t1 - t0).seconds
+                    logger.info("\n\nLoaded {0} k-mers in batch {1} transaction ({2} rows/second)".format(rows_per_batch, i, rows_per_batch/(d+0.1)))
+                    t0 = t1
+                    t1 = None
+                    
             
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
             # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
@@ -223,14 +253,7 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
 
             unique_kmer_ids = list(set(list(map(lambda x: x[0], rows))))
 
-            def submit(conn, kmers, kid):
-                logger.debug("        === M E S S A G E ===")
-                logger.debug("=====================================")
-                logger.debug("beginning to process all records of the {0} k-mer".format(kid))
-                with conn.begin():
-                    conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid+1)
 
-                return kid
 
             # If we round up to the nearest page, we should have 'pages' number of pages
             # and we'd read n on each page.
@@ -241,7 +264,11 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
                 sys.stderr.write("\n")
                 kmers = [x for x in rows if x[0] == kid]
                 logger.debug("Located {0} relationships involving k-mer {1}".format(len(kmers), kid))
-                submit(db.conn, kmers, kid)
+                logger.debug("        === M E S S A G E ===")
+                logger.debug("=====================================")
+                logger.debug("beginning to process all records of the {0} k-mer".format(kid))
+                with conn.begin():
+                    conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid+1)
 
                     
                 logger.info("Transaction completed for the {0} kmer.".format(kid))
@@ -255,7 +282,7 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
         seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
         # Get nullomer ids
-        res = list(db.conn.execute("SELECT id FROM kmers WHERE count = 0").fetchall())
+        res = list(db.conn.execute("SELECT id FROM {0} WHERE count = 0".format(db._tablename)).fetchall())
         if type(res) is not list or not all(type(x[0]) is int for x in res):
             logger.error("{0}\nSELECT id FROM kmers WHERE count = 0".format(res))
             logger.error("Type of res: {0}".format(type(res)))
@@ -265,9 +292,11 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
         nullomers = list(map(lambda x: x[0], res))
 
     finally:
-        sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}' into '{2}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath, temp.name))
+        sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}' into the database...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
+        if db.conn is not None:
+            db.conn.close()
 
-    return db, seqprsr.header_dict(), nullomers
+    return db._tablename, seqprsr.header_dict(), nullomers
 
 
 # class MetadataAppender:
@@ -331,3 +360,21 @@ def parsefile(filepath:str, k:int, p:int=1, b:int=50000, n:int=1000, stranded:bo
 #         #     self.conn.execute("UPDATE kmers SET reverses = ? WHERE id = ?", json.dumps(reverses), self.ids[i])
 
 #         return row
+
+
+
+class Parseable:
+    def __init__(self, arguments):
+        self.arguments = arguments
+            
+        
+    def parsefile(self, filename):
+        """Wrapper function for parse.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
+            
+        :param data: { 'filename': ..., 'args': { argparse } }
+        :type data: dict
+        :returns: (db, m, n)
+        """
+        return parsefile(filename, self.arguments.k, self.arguments.postgres_connection, p=self.arguments.parallel_fastq, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
+
+
