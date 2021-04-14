@@ -920,9 +920,28 @@ def profile(arguments):
                         # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
                         if arguments.all_metadata:
 
-                            seqids = [x[2] for x in kmer_dbrecs_per_file]
-                            starts = [x[3] for x in kmer_dbrecs_per_file]
-                            reverses = [x[4] for x in kmer_dbrecs_per_file]
+
+                            seqids = [x[4] for x in kmer_dbrecs_per_file]
+                            starts = [x[2] for x in kmer_dbrecs_per_file]
+                            reverses = [x[3] for x in kmer_dbrecs_per_file]
+
+
+                            if len(reverses) == 0:
+                                logger.error("REVERSES: {0}".format(reverses[0]))
+                                raise RuntimeError("reverses: IS THIS INCORRECT?")
+                            elif len(starts) == 0:
+                                logger.error("STARTS: {0}".format(starts[0]))
+                                raise RuntimeError("starts: IS THIS INCORRECT?")
+                            elif len(seqids) == 0:
+                                logger.error("SEQIDS: {0}".format(seqids[0]))
+                                raise RuntimeError("seqids: IS THIS INCORRECT?")
+                            elif len(seqids) == 1 and type(seqids) is list and type(seqids[0]) is list:
+                                seqids = seqids[0]
+                            elif len(starts) == 1 and type(starts) is list and type(starts[0]) is list:
+                                starts = starts[0]
+                            elif len(reverses) == 1 and type(reverses) is list and type(reverses[0]) is list:
+                                reverses = reverses[0]
+                            
                             if "seqids" in kmer_metadata.keys():
                                 kmer_metadata["seqids"] += seqids
                             else:
@@ -954,7 +973,7 @@ def profile(arguments):
                             logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
                             raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif type(kmer_metadata["reverses"]) is str:
-                            raise TypeError("kmerdb profile could not decode strand information from its sQLite3 database.")
+                            raise TypeError("kmerdb profile could not decode strand information from its PostgreSQL database.")
                         elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
                             if arguments.verbose == 2:
                                 sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
@@ -962,9 +981,9 @@ def profile(arguments):
                             logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
                             raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
                         elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
-                            #logger.error("kmer metadata: {0}".format(kmer_metadata))
+                            logger.error("kmer metadata: {0}".format(kmer_metadata))
                             logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
-                            #logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
+                            logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
                             raise TypeError("Not all reverse bools were boolean")
                         elif count == 0:
                             n += 1

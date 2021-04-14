@@ -20,11 +20,16 @@ import os
 import sys
 import yaml
 import json
+import time
 from datetime import datetime
 from math import ceil
 from itertools import chain, repeat
 from concurrent.futures import ThreadPoolExecutor
 
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Sequence, JSON, Boolean
 
 from psycopg2 import sql
 import tempfile
@@ -37,6 +42,13 @@ from kmerdb import seqparser, database, kmer
 
 import logging
 logger = logging.getLogger(__file__)
+
+
+
+
+Base = declarative_base()
+
+
 
 
 def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
@@ -127,7 +139,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             num_sus = 0
             for i, k in enumerate(kmer_ids):
                 if k is None:
-                    sus.add(i)
+                    sus.add(i) # This propagates the N removal, by adding those to the set for removal later.
                     num_sus += 1
 
             logger.info("Created {0} gaps in the k-mer profile to clean it of N-content".format(num_sus))
@@ -156,22 +168,22 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                 reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
                 starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
                 reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
-                for i, x in enumerate(kmer_ids):
-                    if i in sus:
+                for i, x in enumerate(kmer_ids): # This removes N content
+                    if i in sus: # This is where we actually delete the N content, in case that is eventually supported.
                         kmer_ids[i] = None
                         reads[i] = None
                         starts[i] = None
                         reverses[i] = None
-                kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
+                kmer_ids = list(filter(lambda k: k is not None, kmer_ids)) 
                 reads = list(filter(lambda r: r is not None, reads))
                 starts = list(filter(lambda s: s is not None, starts))
                 reverses = list(filter(lambda r: r is not None, reverses))
             else:
-                for i, x in enumerate(kmer_ids):
+                for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
                     if i in sus:
                         kmer_ids[i] = None
                 kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
-                reads = []
+                reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
                 starts = []
                 reverses = []
                 if None in kmer_ids:
@@ -191,8 +203,20 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             if all_metadata is True and len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses):
                 N = len(starts)
 
-                data = list(zip(kmer_ids, reads, starts, reverses))
 
+                
+                data = list(zip(kmer_ids, reads, starts, reverses))
+                # Everything is in the right order
+                # logger.debug("num k-mer ids: {0}".format(len(kmer_ids)))
+                # logger.debug("K-mer id types: {0}".format(type(kmer_ids[0])))
+                # logger.debug("Example: {0}".format(kmer_ids[0]))
+                # logger.debug("Num reads: {0}".format(len(reads)))
+                # logger.debug("reads type: {0}".format(type(reads[0])))
+                # logger.debug("Example: {0}".format(reads[0]))
+                # logger.debug("Num reverses: {0}".format(len(reverses)))
+                # logger.debug("reverse type: {0}".format(type(reverses[0])))
+                # logger.debug("Example: {0}".format(reverses[0]))
+                # raise RuntimeError("Deciding whether to set a dictionary, or a 4x? array")
                 logger.debug("Appended {0} records to rows".format(N))
 
                 rows += data 
@@ -258,8 +282,19 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             # If we round up to the nearest page, we should have 'pages' number of pages
             # and we'd read n on each page.
             kid = 0
+            Session = sessionmaker(bind=db._engine)
+            session = Session()
+            class Kmer(Base):
+                __tablename__ = db._tablename
+
+                id = Column(Integer, primary_key=True)
+                count = Column(Integer)
+                starts = Column(JSON)
+                reverses = Column(JSON)
+                seqids = Column(JSON)
+
             for i in range(len(unique_kmer_ids)):
-                kid = unique_kmer_ids[i] # FOr SQLlite 1-based indexing
+                kid = kmer_ids[i] # FOr SQLlite 1-based indexing
                 logger.debug("Beginning to commit {0} to the database".format(kid))
                 sys.stderr.write("\n")
                 kmers = [x for x in rows if x[0] == kid]
@@ -267,18 +302,40 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                 logger.debug("        === M E S S A G E ===")
                 logger.debug("=====================================")
                 logger.debug("beginning to process all records of the {0} k-mer".format(kid))
-                with conn.begin():
-                    conn.execute("UPDATE kmers SET seqids = ?, starts = ?, reverses = ? WHERE id = ?", json.dumps(list(map(lambda y: y[1], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), json.dumps(list(map(lambda y: y[2], kmers))), kid+1)
 
-                    
-                logger.info("Transaction completed for the {0} kmer.".format(kid))
+
+                row = session.query(Kmer).filter_by(id=kid+1).first()
+                if row is None:
+                    logger.error(kid+1)
+                    raise RuntimeError("Could not locate k-mer with id {0} in the Postgres table".format(kid+1))
+
+
+                logger.debug("Before: {0}".format(len(row.reverses)))
+                row.seqids = list(map(lambda y: y[1], kmers))
+                row.starts = list(map(lambda y: y[2], kmers))
+                row.reverses = list(map(lambda y: y[3], kmers))
+                #flag_modified(Kmer, 'seqids')
+                #flag_modified(Kmer, 'starts')
+                #flag_modified(Kmer, 'reverses')
+
+
+                logger.debug("After: {0}".format(len(row.reverses)))
+                session.add(row)
+
+                if i % rows_per_batch == 0:
+                    session.commit()
+                    logger.info("Transaction completed for the {0} kmer.".format(kid+1))
+            session.commit()
+            logger.debug("Sleeping...")
+            time.sleep(200)
+            session.commit()
 
             logger.debug("===================================")
             logger.debug("Example record with metadata:")
-            result = db.conn.execute("SELECT * FROM kmers WHERE id = ?", kid).fetchone()
-            logger.debug(result)
+            result = session.query(Kmer).filter_by(id=kid+1).first()
+            logger.debug(result.__dict__)
             logger.debug("===================================")
-
+            session.close()
         seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
         seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
         # Get nullomer ids
@@ -288,7 +345,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             logger.error("Type of res: {0}".format(type(res)))
             logger.error("Types of values: {0}".format([type(x[0]) for x in res]))
             logger.error("The result of the query was not a list of singleton tuples of ints")
-            raise ValueError("SQLite3 database query returned unexpected data types")
+            raise ValueError("PostgreSQL database query returned unexpected data types")
         nullomers = list(map(lambda x: x[0], res))
 
     finally:
