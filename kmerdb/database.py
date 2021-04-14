@@ -51,6 +51,9 @@ Base = declarative_base()
 # conn.execute(ins, [{'count': 0}, ...])
 
 
+
+
+
 def histogram(conn):
     res = conn.execute("SELECT COUNT(count) FROM kmers GROUP BY count ORDER BY count")
     hist = array.array('H')
