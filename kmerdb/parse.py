@@ -304,10 +304,10 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                 logger.debug("beginning to process all records of the {0} k-mer".format(kid))
 
 
-                row = session.query(Kmer).filter_by(id=kid+1).first()
+                row = session.query(Kmer).filter_by(id=kid).first()
                 if row is None:
-                    logger.error(kid+1)
-                    raise RuntimeError("Could not locate k-mer with id {0} in the Postgres table".format(kid+1))
+                    logger.error(kid)
+                    raise RuntimeError("Could not locate k-mer with id {0} in the Postgres table".format(kid))
 
 
                 logger.debug("Before: {0}".format(len(row.reverses)))
