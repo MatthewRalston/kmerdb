@@ -54,7 +54,6 @@ library('ggplot2')
 library('scales')
 library('fitdistrplus')
 library('DBI')
-library('RSQLite')
 library('tidyr')
 library('sitools')
 
@@ -127,7 +126,7 @@ The key assumption with the probability function, which will play a central role
 
 The software just recently had some new life brought into it by a certain interviewee who missed the opportunity to get a new job and instead had more time to devote to the project. Basically when I was assembling the presentation for the companies at the tail end of the Bayer contract, I invested in a thorough understanding of the current goals of the project and its needs in terms of benchmarking.
 
-But anyway back to the transition probabilities, so for instance, when you have the transition probabilities multipled out, it predicts state, but nothing more, nothing less. It's discrete, and complicated, or not. Anyway the model is more simple than that, it's a first order model with transition probabilities as good as you can get in a well filtered sequencing dataset, and it represents the maximum likelihood estimate of the transition probabilities, because it was an estimate of the approximate layout of the genome in this organization of the graph collapse that has grown to be cannon. And now we must contrast that with the initial k-mer, which is a state that has been chosen. This too can represent a probability either entirely realistic or perhaps the MLE estimate, again, or it could represent something completely irrelevant, and so we do both, and compare, and this takes the form of the result of the unidimensional likelihood ratio. And so the null model is the uniform random prior across all k-mers, which is currently only size adjusted, so it'd worth noting that if you had other quantitative factors, you'd be able to do your own Python to create probability calculations based on k-mer probabilities.
+But anyway back to the transition probabilities, so for instance, when you have the transition probabilities multiplied out, it predicts state, but nothing more, nothing less. It's discrete, and complicated, or not. Anyway the model is more simple than that, it's a first order model with transition probabilities as good as you can get in a well filtered sequencing dataset, and it represents the maximum likelihood estimate of the transition probabilities, because it was an estimate of the approximate layout of the genome in this organization of the graph collapse that has grown to be cannon. And now we must contrast that with the initial k-mer, which is a state that has been chosen. This too can represent a probability either entirely realistic or perhaps the MLE estimate, again, or it could represent something completely irrelevant, and so we do both, and compare, and this takes the form of the result of the unidimensional likelihood ratio. And so the null model is the uniform random prior across all k-mers, which is currently only size adjusted, so it'd worth noting that if you had other quantitative factors, you'd be able to do your own Python to create probability calculations based on k-mer probabilities.
 
 The other approximations that are made, include the following.
 
@@ -189,7 +188,20 @@ Once the Cullen-Frey analysis led us to originally prefer the NB model for its p
 
 # Results
 
+
+
 ## Primary distribution selection
+
+The first step towards analyzing the distribution of k-mer counts is to assemble a count matrix. The following code provides the steps necessary to create an un-normalized count matrix programmatically.
+
+```bash
+# Assuming you have generated all 8-mer profiles programmatically with GNU parallel and kmerdb.
+# They can be done one at a time, as a single command as
+#kmerdb profile -k 8 -pg postgres://user@localhost:5432/kmerdb input.fna input.8.kdb
+kmerdb matrix *.8.kdb
+```
+
+
 
 ```{r fig.cap="Primary histogram showing the discrete distribution of count data", echo=FALSE}
 
@@ -232,7 +244,7 @@ ggplot(data2) + geom_histogram(aes(x=Count)) + ylab("K-mers") + xlab("Counts") +
 ```
 
 
-The k-mer profile is visualized here (Fig 1, 2.) as a histogram to illustrate the distribution of counts that any k-mer may have. Interestingly, `r length(d[d$Count > 500,1])` 8-mers occur more than 500 times in the *B. subtilis* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
+The k-mer profile is visualized here (Fig 1, 2.) as a histogram to illustrate the distribution of counts that any k-mer may have. Interestingly, `r length(data2[data2$Count > 500,1])` 8-mers occur more than 500 times in the *B. subtilis* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
 
 
 ```{r fig.cap="Similarity between individual, unnormalized distributions and the total distribution", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
@@ -256,7 +268,7 @@ descdist(data2$Count, discrete=TRUE, boot=50)
 To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
 
 
-```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
+```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=TRUE}
 d5 <- NULL
 for (s in columns){
   
@@ -280,7 +292,7 @@ ggplot(data2) + geom_density(aes(x=Count)) + geom_line(data=d5, aes(y=Fit, x=x, 
 ```
 
 
-```{r fig.cap="VGLM is not working", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
+```{r fig.cap="VGLM is not working", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=TRUE}
 
 data2$id <- rep(1:4^k, length(columns))
 d = data2[order(data2$Count),]
@@ -295,7 +307,7 @@ plot(gf2)
 library('VGAM')
 
 # Zero truncated NB regression with VGAM
-m1 <- vglm(Count ~ species, family=posnegbinomial(), data=d)
+#m1 <- vglm(Count ~ species, family=posnegbinomial(), data=d)
 ```
 
 In summary, the k-mer count distribution is best approximated by a negative-binomial model. The k-mer counts/frequencies and their distribution should hold after normalization, and the normalized distributions could be used to model sequence likelihoods via Markov probabilities. Other applications of k-mer probabilities will be explored below.
@@ -317,7 +329,8 @@ The choice of whether or not to log-normalize is rather simple but useful for no
 
 
 
-```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=FALSE}
+```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+
 unnormalized <- data2
 normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
 normalized <- gather(normalized, key="Species", value="Count")
@@ -328,7 +341,7 @@ ggplot(unnormalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_v
 
 
 
-```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE, eval=FALSE}
+```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}
 ggplot(normalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
 
 ```
@@ -395,11 +408,12 @@ Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM,
 ```bash
 function getmetagenome(){
   col=$1
-  metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  # metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  metagenome=(sed -n "${col}p" | sed 's/.*/&.fna/')
   echo "${metagenome[@]}"
 }
 export -f getmetagenome
-parallel -j 30 "metagenome=($(getmetagenome {1})); kmerdb profile -k {2} ${metagenome[@]} metagenome_{1}.{2}.kdb 2> metagenome_{1}.{2}.log;" ::: $(seq 1 30) ::: $(seq 8 14)
+parallel -j 30 'kmerdb profile -k {2} -pg postgres://matt@localhost:5432/kmerdb $(getmetagenome {1})  metagenome_{1}.{2}.kdb 2> metagenome_{1}.{2}.log;' ::: $(seq 1 30) ::: $(seq 8 14)
 ```
 
 # Discussion
