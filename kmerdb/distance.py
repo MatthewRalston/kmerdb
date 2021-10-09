@@ -61,8 +61,8 @@ def correlation(fname1, fname2):
             for kmer_id in range(N):
                 line1 = next(kdb1)
                 line2 = next(kdb2)
-                _, x = (int(_x) for _x in line1.rstrip().split("\t"))
-                _, y = (int(_y) for _y in line2.rstrip().split("\t"))
+                _, x = (int(_x) for _x in line1.rstrip().split("\t")[0:2])
+                _, y = (int(_y) for _y in line2.rstrip().split("\t")[0:2])
                 ssxx += np.square(x - x_bar)
                 ssyy += np.square(y - y_bar)
                 ssxy += (x - x_bar)*(y - y_bar)
@@ -131,37 +131,37 @@ def hamming(k, x, y):
 
 
 
-def d2s(x, y):
-    if type(x) is not np.ndarray:
-        raise TypeError("kmerdb.distance.d2s expects a Numpy array as its first positional argument")
-    elif type(y) is not np.ndarray:
-        raise TypeError("kmerdb.distance.d2s expects a Numpy array as its second positional argument")
+# def d2s(x, y):
+#     if type(x) is not np.ndarray:
+#         raise TypeError("kmerdb.distance.d2s expects a Numpy array as its first positional argument")
+#     elif type(y) is not np.ndarray:
+#         raise TypeError("kmerdb.distance.d2s expects a Numpy array as its second positional argument")
 
     
-    from kmerdb import kmer
-    import math
+#     from kmerdb import kmer
+#     import math
     
-    N = len(x)
-    k = int(math.log(N, 4))
-    total_kmers_x = np.sum(x)
-    total_kmers_y = np.sum(y)
-    #mono_x = dict([c, np.round(mono_x[c]/total_kmers_x, 2) for c in mono_x])
-    #mono_y = dict([c, np.round(mono_y[c]/total_kmers_y, 2) for c in mono_y])
-    mono_x = dict([c, mono_x[c]/float(total_kmers_x) for c in mono_x])
-    mono_y = dict([c, mono_y[c]/float(total_kmers_y) for c in mono_y])
+#     N = len(x)
+#     k = int(math.log(N, 4))
+#     total_kmers_x = np.sum(x)
+#     total_kmers_y = np.sum(y)
+#     #mono_x = dict([c, np.round(mono_x[c]/total_kmers_x, 2) for c in mono_x])
+#     #mono_y = dict([c, np.round(mono_y[c]/total_kmers_y, 2) for c in mono_y])
+#     mono_x = dict([c, mono_x[c]/float(total_kmers_x) for c in mono_x])
+#     mono_y = dict([c, mono_y[c]/float(total_kmers_y) for c in mono_y])
 
 
-    def _d2s(ex, ey, xi, yi):
-        xi_ = xi - (N-k+1)*ex
-        yi_ = yi - (N-k+1)*ey
+#     def _d2s(ex, ey, xi, yi):
+#         xi_ = xi - (N-k+1)*ex
+#         yi_ = yi - (N-k+1)*ey
 
-        return (xi_ * yi_)/np.sqrt(np.square(xi_) + np.square(yi_))
+#         return (xi_ * yi_)/np.sqrt(np.square(xi_) + np.square(yi_))
     
-    s = 0
-    for i in range(N):
-        seq = kmer.kmer_to_id(i)
-        Ex = functools.reduce(lambda a,b: a*mono_x[b], list(seq), 1)
-        Ey = functools.reduce(lambda a,b: a*mono_y[b], list(seq), 1)
-        s += _d2s(Ex, Ey, x[i], y[i])
+#     s = 0
+#     for i in range(N):
+#         seq = kmer.kmer_to_id(i)
+#         Ex = functools.reduce(lambda a,b: a*mono_x[b], list(seq), 1)
+#         Ey = functools.reduce(lambda a,b: a*mono_y[b], list(seq), 1)
+#         s += _d2s(Ex, Ey, x[i], y[i])
 
-    return s
+#     return s

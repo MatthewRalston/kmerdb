@@ -53,6 +53,15 @@ mv kmeans_elbow_graph.png kmeans_k3_elbow_graph_on_spearman_dist.png
 
 ```
 
+
+# Monitoring performance
+
+```bash
+sudo iotop
+iostat -x 1
+```
+
+
 # RStudio
 
 Then customize the report to the needs of your samples and clustering results, and be sure to notify me in an issue if you happen across a case where DESeq2 normalization doesn't make sense with the dataset.
