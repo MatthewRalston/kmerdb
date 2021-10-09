@@ -1,8 +1,8 @@
 # Kmer DB
 
-.kdb files should be debrujin graph databases
-The initial prototype would be plaintext
-The final prototype would be .bgzf format from biopython
+# .kdb files should be debrujin graph databases
+# The initial prototype would be plaintext
+# The final prototype would be .bgzf format from biopython
 
 
 * Bugfix
@@ -54,7 +54,7 @@ The final prototype would be .bgzf format from biopython
 ** For known sequences against different lengths
 ** For sequences simulated by ideal fasta (through what? we have frequencies, not distributions for the frequencies
 ** We need an error model
-** The error to minimize
+**`2 The error to minimize
 ** Well we have the probability of any k-mer
 ** so we can walk from here to there
 ** and we can compare the likelihood to a better null model.

@@ -88,6 +88,8 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
     # temp = tempfile.NamedTemporaryFile(mode="w+", suffix=".sqlite3", delete=False)
     # logger.debug("Creating temporary database to tally k-mers: '{0}'".format(temp.name))
     # temp.close()
+
+    logger.debug("Creating empty database table to store the k-mers counts.")
     db = database.PostgresKdb(k, connection_string, filename=filepath)
     from kmerdb import kmer
 
@@ -99,15 +101,16 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
     nullomers = set()
     try:
         # Build fasta/fastq parser object to stream reads into memory
-        logger.debug("Constructing SeqParser object...")
+        logger.debug("Initializing parser...")
         seqprsr = seqparser.SeqParser(filepath, b, k)
-        fasta = not seqprsr.fastq
-        logger.debug("Constructing multiprocessing pool with {0} processors".format(p))
-        if not fasta:
+        fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
+        logger.info("Constructing multiprocessing pool with {0} processors".format(p))
+        if not fasta: # Cannot process fast files in parallel due to spawning issue.
             pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
-        Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
-        # Look inside the seqprsr object for the type of file
 
+
+        # Instantiate the kmer class
+        Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
         recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
         if not fasta:
@@ -124,7 +127,8 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             if fasta:
                 list_of_dicts = list(map(Kmer.shred, recs))
             else:
-                list_of_dicts = pool.map(Kmer.shred, recs)
+                list_of_dicts = list(map(Kmer.shred, recs))
+
 
             logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
             #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
@@ -165,9 +169,12 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             logger.debug("We have chosen to omit k-mer with unspecified nucleotides 'N', and these make gaps in our database explicitly.")
             logger.info("These can be recovered from the reads if they are needed, and the read ids may be found with the experimental --all-metadata flag")
             if all_metadata:
+
+                logger.warning("\n\n\nGENERATING ALL METADATA\n\n\nThis is extremely expensive and experimental. You have been warned.\n\n\n")
                 reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
                 starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
                 reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
+                logger.debug("Checking each k-mer for N-content and IUPAC substitution")
                 for i, x in enumerate(kmer_ids): # This removes N content
                     if i in sus: # This is where we actually delete the N content, in case that is eventually supported.
                         kmer_ids[i] = None
@@ -179,9 +186,11 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                 starts = list(filter(lambda s: s is not None, starts))
                 reverses = list(filter(lambda r: r is not None, reverses))
             else:
+                logger.debug("Checking each k-mer for IUPAC substitution or N content.")
                 for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
                     if i in sus:
                         kmer_ids[i] = None
+                logger.info("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions")
                 kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
                 reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
                 starts = []
@@ -194,7 +203,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                     raise ValueError("K-mer ids should never actually be none.")
 
             #logger.debug(kmer_ids)
-            logger.debug("{0} kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs))
+            logger.debug("{0} 'clean' kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs))
                 
             
 
