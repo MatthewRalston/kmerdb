@@ -22,6 +22,7 @@ import argparse
 import os
 import sys
 import yaml
+import json
 import time
 from multiprocessing import cpu_count
 from collections import OrderedDict
@@ -113,7 +114,7 @@ def markov_probability(arguments):
                     
                         markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
 
-                        sys.stderr.write(markov_probs)
+                        sys.stderr.write(json.dumps(markov_probs))
                         if profiles.shape == (0,):
                             profiles = np.array(markov_probs)
                         else:
@@ -222,6 +223,7 @@ def distances(arguments):
                 elif i < j:
                     if arguments.metric == "correlation":
                         data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+                        # data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
                     elif arguments.metric == "euclidean":
                         data[i][j] = distance.euclidean(arguments.kdb[i], arguments.kdb[j])
                     elif arguments.metric == "spearman":
@@ -247,7 +249,8 @@ def distances(arguments):
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
         if arguments.metric == "correlation":
-            dist = np.subtract[(np.ones(dist.shape, dtype="int64"), dist)]
+            ones = np.ones(dist.shape, dtype="int64")
+            dist = np.subtract(ones, dist)
     if dist.shape == (2,2):
         print(dist[0][1])
     else:
@@ -290,7 +293,7 @@ def get_matrix(arguments):
 
         column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
         df = pd.DataFrame(profiles, columns=column_names)
-    elif len(arguments.kdb) == 1 and (arguments.kdb == "STDIN" or arguments.kdb == "/dev/stdin"):
+    elif len(arguments.kdb) == 1 and (arguments.kdb[0] == "STDIN" or arguments.kdb[0] == "/dev/stdin"):
         logger.info("Hidden: 1 argument. Reading input as tsv from STDIN")
         try:
             df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
@@ -310,6 +313,7 @@ def get_matrix(arguments):
         column_names = list(df.columns)
     else:
         logger.error("bin/kdb.get_matrix() received {0} arguments as input, and this is not supported.".format(len(arguments.kdb)))
+        logger.error(arguments.kdb)
         sys.exit(1)
     sys.stderr.write(config.DEFAULT_MASTHEAD)
     if logger.level == logging.DEBUG:
@@ -853,27 +857,48 @@ def profile(arguments):
     from kmerdb import parse, fileutil, kmer, database
     from kmerdb.config import VERSION
 
+    logger.debug(arguments)
+
+
+    
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
     
     file_metadata = []
     tempdbs = []
-    logger.info("Parsing {0} sequece files to generate a k-mer profile...".format(len(arguments.seqfile)))
+    logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
     pool = Pool(processes=arguments.parallel)
-    infile = parse.Parseable(arguments)
+    infile = parse.Parseable(arguments) # 
     if fileutil.is_all_fasta(list(arguments.seqfile)):
-        logger.info("Processing fastas in parallel")
+        logger.info("Processing {0} fasta files...".format(len(list(arguments.seqfile))))
+        #logger.info("Processing fastas in parallel")
+        logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
+        logger.debug("In other words, running the kmerdb.parse.parsefile() method many times on each file multiply specified via the CLI")
         list_of_dbs = pool.map(infile.parsefile, arguments.seqfile)
     else:
-        logger.info("Processing as fastqs with alternate parallelization schema")
+        logger.info("Processing (some) fastqs with alternate parallelization schema. WARNING: UNTESTED")
+        logger.warning("WARNING: UNTESTED")
+        logger.debug("Mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
         list_of_dbs = list(map(infile.parsefile, arguments.seqfile))
+    logger.info("Generating list of temporary database handles")
+    # list_of_dbs is a list of tuples returned from the mapping (either via pool.map or via regular Pythonic map) of the .parsefile() method
+    # each tuple is a triple of the database handle, the metadata, and the set/list of nullomer ids
     for db, m, n in list_of_dbs:
+        logger.debug("Appending metadata...")
         file_metadata.append(m)
-        db = database.PostgresKdb(arguments.k, arguments.postgres_connection, tablename=db, filename=None)
+        db = database.PostgresKdb(arguments.k, arguments.postgres_connection, tablename=db, filename=m["filename"])
         tempdbs.append(db)
+
+        # Calculating nullomer additions
+        lenBefore = len(nullomers)
         nullomers = nullomers.union(n)
-    logger.info("Completed transfer of k-mers into temporary SQLite3 databases.")
+        lenAfter = len(nullomers)
+        newNullomers = lenAfter - lenBefore
+        logger.info("{0} contributed {1} unique nullomers to the profile".format(m["filename"], len(n)))
+        logger.info("Completed transfer of k-mers from {0} into PostgreSQL database.".format(m["filename"]))
+    logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
+    logger.info("Formatting master metadata dictionary...")
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -885,7 +910,8 @@ def profile(arguments):
         "files": file_metadata
     })
         
-    
+
+
     
     metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
     # The number of metadata blocks is the number of bytes of the header block(s) / the number of bytes per block in the BGZF specification
@@ -1104,6 +1130,7 @@ def cli():
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+    #profile_parser.add_argument("--random-seed", default=sys.)
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
@@ -1165,7 +1192,7 @@ def cli():
     hierarchical_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     hierarchical_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
     hierarchical_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=None, help="The input distance matrix for hierarchical clustering")
-    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["singe", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting in R to use")
+    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["single", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting in R to use")
     hierarchical_parser.set_defaults(func=hierarchical)
     
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")

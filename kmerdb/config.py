@@ -18,8 +18,7 @@
 
 
 VERSION="0.0.8"
-end_header_line = "    kdb: can someone get me some sentries"
-header_delimiter = end_header_line + "\n" + ("="*24) + "\n"
+header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
     "type": "object",
