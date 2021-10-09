@@ -28,6 +28,7 @@ import json
 #import sqlite3
 import sys
 import hashlib
+import random
 
 from datetime import datetime
 from sqlalchemy import create_engine
@@ -79,8 +80,13 @@ class PostgresKdb:
 
         if filename is not None and tablename is None:
             m = hashlib.md5()
-            m.update((filename + str(datetime.utcnow()) + str(os.getpid())).encode('utf-8'))
+            #m.update((filename + str(datetime.utcnow()) + str(os.getpid())).encode('utf-8'))
 
+            # Database tablename hash format: filename, random, pid, time
+            hash_combination = ("{}_{}_{}_{}".format(filename, random.SystemRandom(), str(os.getpid), str(datetime.utcnow()))).encode('utf-8') # UTF8 encoded text for the hashlib
+            m.update(hash_combination)
+            
+            
         if tablename is not None:
             self._tablename = tablename
         else:
@@ -140,7 +146,7 @@ class PostgresKdb:
 
         
     def __make_empty_database(self, session):
-
+        logger.info("Initializing database...")
         class Kmer(Base):
             __tablename__ = self._tablename
 
