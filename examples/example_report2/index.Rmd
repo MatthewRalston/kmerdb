@@ -1,0 +1,432 @@
+---
+title: "K-mer databases and k-mer profile matrices"
+author:
+- no: 1
+  name: Matthew Ralston
+  affil: "University of Delaware"
+  email: mralston.development@gmail.com
+  thanks: "Unaffiliated independent researcher and corresponding author"
+biblatex: true
+biblio-title: Bibliography
+biblio-style: oxyear
+bibliography:
+- bibliography.bib
+abstract: |
+  **Background:** With the second decade since Altschul's BLAST, a new era of exploration and inter-sequence relationships may be understood, both graphically and empirically. This work is a proper reflection on the utility of the seed region as a metaconcept in inter-sequence relationships. Specifically, the k-mer is now used to generate alignments, generate sequences worth aligning to, and generate more rapid estimates in sequencing depth and transcriptional signal. Is it possible that each k-mer index is the lightweight graph structure that must be exposed more readily to demonstrate from what contigs, reads, etc. did a certain mutational variant come from, and to show layers of related sequences, while addressing what subspace a sequence comes from and how that subspace is related to assemblies, prior knowledge, etc. I have implemented a database format on top of existing open standards but superseding the TABIX standard by adding YAML formatted metadata to multiple header blocks. This program has additional characteristics such as an index function, normalization, PCA and t-Stochastic Neighbor Embedding (t-SNE) dimensionality reduction techniques, distance matrices from scipy, and a final Markov probability function that produces a log-odds ratio test for each input sequence.
+  **Methodology:** I began by selecting 3 strains of *Clostridium acetobutylicum*, 2 strains of *pasteurianum*, *difficile*, and *perfringens* were some of the other *Clostridia* added, supplemented by *B. subtilis* and *E. coli* for reference in a k-mer subspace. A total of 11 species were assessed for their 8-mer profiles. The dimensionality of the input matrix is exponential in k and analyses could benefit from both normalization and dimensionality reduction. I used PCA and/or t-SNE coupled with k-means clustering to explore the perspectives on the species that can be mathematically specified by the data. By inspecting the high dimensional space through its first principal components, we see a large amount of the variation in the dataset properly reflected in the Pearson and Spearman distance matrices when used for k-means clustering and for considering the preservation of the 3 Clostridium strains at nearly every level of clustering on different subspaces of the original dataset. We use dimensionality reduction and k-means clustering to explore this microbial genomic axes in a pure k-mer space. Then we used hierarchical clustering to confirm our understanding of the results in the pure space and attempt a meaningful comparison of trees. Now that we have assessed the utility of k-mer profiles in an abstract space, we describe a specific application of our profile, namely it's use in the graph assembly of a sequence and test it's likelihood against a null model. We conclude with a brief discussion of other methods, approaches, and historical uses of k-mers in bioinformatics applications and advocate the adoption of the new file format described here.
+  **Results:** Spearman correlations above 0.9995815 and Pearson correlations above 0.999893 between *C. acetobutylicum* strains reflect the strong association of the k-mer profiles between strains, providing tolerance estimates along the axes between these specific *C. acetobutylicum* strains. What follows is a tight association, optimized in a clustering shown in the first two principal components at a specific bump in the WCSS elbow graph of the PCA model of variance accumulation, when using k-means clustering with k equal to 3 or 4 the cluster is perfectly identified as distinct from the rest of the *Clostridia* cluster. Consistently, k-means chooses to reject associations between *Clostridia* species and *B. subtilis* or *E. coli* and the appropriate picture of the relationship between these species emerges, even for low choices of k. We investigate the strong correlation to look at dissimilarities between strains and to look at the axis between the *Clostridia* and the "others" (*B. subtilis* and *E. coli*). This analyis suggests that some features between species are possible to be specified, even if they are very strange in their nature (specific disjointed k-mers). And finally, we use the database and index features to calculate the probability of an unknown sequence given a kdb as a model. We look at the effect of sequence length on these probabilities as well.
+classoption: fleqn,10pt #,lineno
+documentclass: wlpeerj
+geometry: left=5cm,right=2cm,top=2.25cm,bottom=2.25cm,headheight=12pt,letterpaper
+keywords:
+- k-mer
+- k-mer hashing
+- k-mer biology
+lot: true
+lof: true
+linenumbers: true
+output: 
+  pdf_document: 
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 6.5
+    keep_tex: yes
+    template: peerj.tex
+    latex_engine: xelatex
+    highlight: espresso
+  html_document:
+    df_print: paged
+header-includes:
+- \usepackage{setspace,relsize}
+- \usepackage[autosize,dot]{dot2texi}
+- \usepackage{tikz}
+toc: true
+toc-depth: 2
+---
+
+```{r include=F, message=F, echo=F, warning=F}
+set.seed(1234)
+gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
+
+
+
+library('ggplot2')
+library('scales')
+library('fitdistrplus')
+library('DBI')
+library('tidyr')
+library('sitools')
+
+
+
+###################################
+#  F u n  c t i o n s
+###################################
+median.quartile <- function(x){
+    out <- quantile(x, probs = c(0.25,0.5,0.75))
+    names(out) <- c("ymin","y","ymax")
+    return(out) 
+}
+
+bottom.quartile <- function(x){
+    out <- quantile(x,probs=c(0.25))
+    return(out)
+}
+
+top.quartile <- function(x){
+    out <- quantile(x,probs=c(0.75))
+    return(out)
+}
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+```
+
+
+
+# Introduction
+
+Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space, rapidly matching new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) are topics of great research interest for programmatic access to the substrings.
+
+We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parenceite{marccais2011fast, zhang2014these, anvar2014determining}).
+
+For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA). The computational complexity of a problem or the inability to provide a tractable version of the problem requires assumptions and thorough understanding of the mutational models and probabilities to devise the correct heuristic shortcuts.
+
+Researchers are interested in k-mers and alignment-free methods because sequence identity, in-del behavior, rearrangements, and recombination are less likely to have large effects on scores in a context-less subspace of the sequences. I look to previous k-mer database formats(\{marccais2011fast, anvar2014determining, zhang2014these}) for guidance regarding the best approaches to exploring this k-mer space with our methodologies.
+
+First, there was Jellyfish (\parencite{marccais2011fast}), designed to keep k-mer count histograms in a specialized file with remarkable language bindings and profiling of the algorithm. At the center of its innovation to the number of data structures used to store k-mer counts was a lock-free hash table used for concurrent access to the k-mer profile. To my knowledge, this is the origin of the convention of encoding each k-mer as an integer, which saves on memory and file size. The only downside to the paper was the extreme focus on performance, for the rather narrow group of bioinformaticians who want to explore the subject through the lens of real-world datasets and biological insights. That said, I enjoyed the implementation, it's attention to language bindings, and the excellent focus.
+
+Next we have the k-mer Profile Analysis Library (\{anvar2014determining}), where Anvar points out that software is an analytical tool that we use can use on real world and simulated data. The authors note the primary questions involved in exploration of these subsequence spaces are the modalities of certain spectra, and the characteristic curve i.e. the over-representation and underrepresentation along the spectrum for any particular input. The authors note that a choice of k of 10 seemed to be optimal for them to establish maximal separation between simulated metagenomes and their randomly permuted counterparts. I look to confirm these findings, as perhaps there are general patterns for microbial genome complexity and they could be specified better with model criterion in k-mer space.
+
+
+
+
+
+
+
+## What are "alignment-free" methods?
+
+Alignment-free sequence comparisons abstracts sequences directly into the k-mer abundances, which are both spectral and digital, and uses the uniform counts or k-mer coverage to describe the specificity behind the frequency or activity behind a certain abundant sequence within a sample (zhang2014these, anvar2014determining, marccais2011fast). Alignment-free methods have also made an impact with pseudo-alignment methods for RNA-Seq quantification (\parencite{patro2014sailfish, srivastava2016rapmap, bray2016near, patro2017salmon}).
+
+
+Similarly, alignment-free comparison involves the tolerance of any comparison or distance metric, Euclidean or otherwise to experimental noise or sampling noise is the beginning of what could be a very well-adapted null-model and accompanying model that addresses the many features behind the measurments that are visible in k-mer count abundances, like imbalances in k-mer counts because of sampling bias or pure abundance relationships, the necessary coverage for graph collapse, the properties of query sequences, the relationship with sequence identity, the spatial relationships compare to MSA trees.
+
+## What is a good choice of k?
+
+A good choice of k that biologists would suggest would be in the range of 20 - 40. We are first given this supposition with the concept of PCR primers, a choice of 20-25bp, 18-30bp, 22-25bp, whatever you feel is specific seems to gravitate around the range of 20-40 in my opinion. And this is deemed sufficiently specific. And again we are given the concept of allele specific oligos which have a near identical range, and you can see for yourself what range of k would be biologically ideal. 
+
+But then you have computer scientists and mathematicians who 
+
+## What are the gotchas or assumptions this software makes?
+
+The key assumption with the probability function, which will play a central role in future investigations I will make, is that it assumes the probability of a sequence is equal to a product of transition probailities and a X1, a seed probability, a k-mer frequency, the frequency of the first k-mer specificially. There is both the X1 component and the transition probabilities. And even if the transition probabilities were perfect, that's not the end of what you can do. It's fairly simple to achieve a perfect profile, you just use the FASTA sequence of the assembled organism. So perfect transition probabilities are a big deal in the genomic space, don't get me wrong. We're just trying to divide the achievable goals into categories of long term, short term, and immediate needs for the project. 
+
+The software just recently had some new life brought into it by a certain interviewee who missed the opportunity to get a new job and instead had more time to devote to the project. Basically when I was assembling the presentation for the companies at the tail end of the Bayer contract, I invested in a thorough understanding of the current goals of the project and its needs in terms of benchmarking.
+
+But anyway back to the transition probabilities, so for instance, when you have the transition probabilities multiplied out, it predicts state, but nothing more, nothing less. It's discrete, and complicated, or not. Anyway the model is more simple than that, it's a first order model with transition probabilities as good as you can get in a well filtered sequencing dataset, and it represents the maximum likelihood estimate of the transition probabilities, because it was an estimate of the approximate layout of the genome in this organization of the graph collapse that has grown to be cannon. And now we must contrast that with the initial k-mer, which is a state that has been chosen. This too can represent a probability either entirely realistic or perhaps the MLE estimate, again, or it could represent something completely irrelevant, and so we do both, and compare, and this takes the form of the result of the unidimensional likelihood ratio. And so the null model is the uniform random prior across all k-mers, which is currently only size adjusted, so it'd worth noting that if you had other quantitative factors, you'd be able to do your own Python to create probability calculations based on k-mer probabilities.
+
+The other approximations that are made, include the following.
+
+1. we ignore the graph aspect, because learning that quickly would be expensive compared to our capabilities with plain old numpy.
+2. we enable the graph aspect, in-case another developer would like to fork, pull request, or otherwise collaborate on the source.
+3. we simplify the transactional compliances of not only the floating point in frequency estimations, but also with the integer sensitivity necessary to achive enough inflation of sensitivity such that replicate size is not as much of an issue, to the extent that it is always the essential issue. Anyways. We do keep the total sequences proccessed, the k-mer counts, and we're working on getting genome size estimation in here too.
+4. We don't presume to present formulas, as we expect data normalization and or other adjustments to sensitivity or specificity are made through expert knowledge, and may be difficult to express fully with an oversimplified interface. So to this extent, we leave that as an investigation for the reader.
+
+
+## Developing an understanding of the biological applications of k-mer profiles
+
+Understanding species differences with k-mer techniques is a poorly studied area and understanding requires multiple perspectives. My perspective is that the underlying data behind k-mer counts is no more than a profile that can be used to develop quantitative methods for k-mers, in the abstract sense of the phrase. But first we must understand under which conditions is this really possible or foreseeable by certain sample sizes or compositions. 
+
+We must first begin with the available datasets and the available tooling for this k-mer space. In this vignette, I will be presenting the k-mer tool `kmerdb`, which stands for k-mer database, a command line utility for accessing k-mer frequencies/counts/profiles from a bgzf file format I have developed, similarly named `.kdb`. The tool was used to generate 8-mer profiles from the following species:
+
+1. *B. subtilis* 168
+2. *C. acetobutylicum* ATCC824
+3. *C. acetobutylicum* DSM1731
+4. *C. acetobutylicum* EA2018
+5. *C. beijerinckii* NCIMB14988
+6. *C. difficile* R3
+7. *C. pasteurianum* ATCC6013
+8. *C. pasteurianum* BC1
+9. *C. perfringens* ATCC13124
+10. *C. tetani* E88
+11. *E. coli* K12 MG1655
+
+In this report, we will look at the shape of the data as it is normalized by sample size using the DESeq2 method, then we use PCA to produce an elbow graph to consider how many dimensions to reduce the samples into when considering how they might cluster. We use both t-SNE and PCA to reduce dimensions and produce a k-means clustering of the species, to see if the 8-mer frequency dimension has enough information to distinguish between species. We also look at distance matrix calculations using the Pearson and Spearman correlation coefficients, without dimensionality reduction, for use with k-means clustering.
+
+
+# Methodology
+
+## kmerdb and on-disk k-mer counting
+
+kmerdb is a Python module, distributed through the Python Package Index (PyPI) using the command line interface 'pip'. Installation is very simple and the experience should be painless for most users. The primary feature of kmerdb is a series of command-line actions called "sub-commands." These sub-commands perform specific functions on kdb database files or matrices of their origin. But perhaps more specifically the k-mer database is designed to generate very simple k-mer graphs: neighbors and abundances. It stores these in a bgzf file format (.kdb) with an associated plain gzipped index file (.kdbi).
+
+The first step of any analysis done with kmerdb on kdb datasets is the k-mer counting done when generating one or more k-mer "profiles." During this first step, .fastq or .fasta files (we eventually look to add support for .bam files) are assessed to create k-mer database files. Each read (or sequence in the case of fasta format) is a considerably different kind of sub-profile with error mixed in. It is expected that read quality control be done prior to any analysis with kmerdb, much like any other experimental sequencing dataset. This must be emphasized because there isn't currently an error model associated with the signals we are able to see in the dataset and how they might relate to the ideal graph structure that represents the perfect assembly of all available data. To be candid, I am stuck between whether to study the error rates associated with fastq subsampling of a perfect fasta genome (the topic just discussed) versus the computational performance profiling of the profile subcommand. 
+
+The more deliberate feature of the on-disk k-mer counting is that higher choices of k may be used, and according to the other report, it seems like choices of k below 30 would be extremely preferable for the immediate future. In fact, I will use a choice of k of 8 to ensure that all matrices can be properly stored in memory. This is covered to a better extent by `example_report1` because it is more focused on the profiling side of things, to what limit I can explore k meaningfully. Taking a break to review the choice of k handled by my system.
+
+
+## Distribution fitting on normalized and unnormalized k-mer counts
+
+The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments \parencite{love2014moderated, anders2010differential, daley2013predicting}. My null-model is based on the use of this model in these specific ways to model count data without standardizing the raw data. I am concerned with immediately looking at a standardized dimension of this data, and I would prefer for hypothesis testing to be done in the negative-binomial space, whatever methods must be used or devised for such analysis. Since these do represent ecological counts, albeit at a sub-cellular level, they may benefit long-term from analyses that consider both methods on standardized data and on unstandardized counts, which we presume for now could follow a Poissonian model. 
+
+So my first null hypothesis must be formalized as follows: "The k-mer count data do not follow a negative-binomial distribution and perhaps fit a more standard count distribution such as the Poissonian." If we make the hypothesis this aggressive, we could completely address both sides of the hypothesis by covering Poissonian hypothesis testing and distribution fitting through Cullen-Frey analysis. The method for hypothesis testing in a Poissonian framework in R is the ppois function `ppois(x, lambda=l)`, and the y-values associated with the pdf, fully-specified by lambda, can be graphed with `dpois(x, lambda=l)`). 
+
+
+<!-- We also try transforming the poissonian by setting lambda to the median, the mode, and the geometric average and the arithmetic average. Although the Cullen-Frey may be a fairly accepted method, we can still try to imitate the ideal NB --> <!-- behavior through imitating the Poissonian by transforming the values in this way. -->
+
+
+## Count Normalization
+
+My second hypothesis was that the effect of normalization in the next section would have no effect on the distribution selected for modeling. I will address this hypothesis by looking at the efficacy of normalization on the quartiles of each sample's k-mer counts, and then see if the Cullen-Frey analysis produces the same suggestion and thus we would think that normalization does not affect the choice of model we should use.
+
+My first assumption is that since the count models are similar between RNA-Seq DGE and k-mer counts, that it is reasonable to use the median of ratios method for count normalization, and round these to the nearest integer before performing dimensionality reduction and k-means clustering. My method
+
+Once the Cullen-Frey analysis led us to originally prefer the NB model for its purity, we then adopted the DESeq2 method for count normalization. To test our acceptance of the normalization, I will use boxplots to look at the distribution uniformity or homoscedasticity and the effect of median of ratios on the quartiles.
+
+# Results
+
+
+
+## Primary distribution selection
+
+The first step towards analyzing the distribution of k-mer counts is to assemble a count matrix. The following code provides the steps necessary to create an un-normalized count matrix programmatically.
+
+```bash
+# Assuming you have generated all 8-mer profiles programmatically with GNU parallel and kmerdb.
+# They can be done one at a time, as a single command as
+#kmerdb profile -k 8 -pg postgres://user@localhost:5432/kmerdb input.fna input.8.kdb
+kmerdb matrix *.8.kdb
+```
+
+
+
+```{r fig.cap="Primary histogram showing the discrete distribution of count data", echo=FALSE}
+
+# set k throughout
+k=8
+
+# library(DBI)
+# data <- NULL
+columns = c("Bsubtilis_168", "Cacetobutylicum_ATCC824", "Cacetobutylicum_DSM1731", "Cacetobutylicum_EA2018", "Cbeijerinckii_NCIMB14988", "Cdifficile_R3", "Cpasteurianum_ATCC6013", "Cpasteurianum_BC1", "Cperfringens_ATCC13124", "Ctetani_E88", "Ecoli_K12MG1655")
+
+## Here is how you could read the same data in from the SQLite3 databases that are kept when --keep-sql is used with profile.
+# i = 1
+# for (f in columns){
+#   con <- dbConnect(RSQLite::SQLite(), paste("../../test/data/", f, ".fasta.8.sqlite3", sep = ""))
+#   #dbListTables(con)
+#   kmers <- dbReadTable(con, "kmers")
+#   if (is.null(data)){
+#     data <- kmers
+#     data <- data.frame(data[,2])
+#     colnames(data) <- c(f)
+#   } else {
+#     data$counts <- kmers$count
+#     colnames(data) <- columns[1:i]
+#   }
+#   
+#   dbDisconnect(con)
+#   i = i + 1
+# }
+data <- read.csv2("unnormalized_count_matrix.tsv", sep="\t", header=TRUE)
+
+data2 <- gather(data, key="Species", value="Count")
+
+data2$id <- rep(1:4^k, length(columns))
+
+#d <- data2[data2$Species == "Bsubtilis_168",]
+
+#summary(kmers$count) # Repetitive
+ggplot(data2) + geom_histogram(aes(x=Count)) + ylab("K-mers") + xlab("Counts") + ggtitle("8-mer  counts across 11 species")
+
+```
+
+
+The k-mer profile is visualized here (Fig 1, 2.) as a histogram to illustrate the distribution of counts that any k-mer may have. Interestingly, `r length(data2[data2$Count > 500,1])` 8-mers occur more than 500 times in the *B. subtilis* genome. These sequences likely represent homopolymers, regions where misassemblies are likely to occur, and potentially repetitive regulatory motifs.
+
+
+```{r fig.cap="Similarity between individual, unnormalized distributions and the total distribution", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=FALSE}
+ggplot(data2) + geom_histogram(aes(x=Count), stat="count") + ylab("K-mers") + xlab("Counts") + facet_wrap(~Species)# + scale_x_discrete(breaks=seq(0, 400, 200))
+```
+
+
+We begin with the k-mer count distribution. In this graphical analysis we are looking to understand if the $4^{k}$ k-mers' count distribution is in agreement with existing k-mer distributions in the literature, such as the classical discrete Poissonian distribution or the negative binomial, which has use in RNA-Seq differential gene expression literature (@love2014moderated, @anders2010differential). This ELN does not claim to address the question of "which distribution is most suitable to model k-mer counts" but instead offers the distribution to illustrate what background model might be appropriate for modeling efforts based on individual k-mer counts taken from k-mer spectra, like those generated by this software and accessible via the index. The k-mers table consists of all $4^{k}$ k-mer counts for each of the 11 species listed above and is the basis for the histogram (Fig 1.).
+
+
+By generating the histogram and associated skewness-kurtosis analysis (@cullen1999probabilistic, Fig 3.), we can ask ourselves whether a Poisson model is appropriate, or if alternatives are more appropriate for modeling probabilities of counts of specific k-mer features associated with a genome. As we will see, although the negative-binomial(NB) seems more appropriate as suggested by the R package `fitdistrplus`, the kurtosis is still more extreme than would be required for an ideal fit in the NB model (@delignette2015fitdistrplus).
+
+
+```{r fig.cap="Skewness-kurtosis analysis for distribution fitting of the count model across all 11 species.", echo=FALSE}
+library(fitdistrplus)
+
+descdist(data2$Count, discrete=TRUE, boot=50)
+
+```
+
+To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
+
+
+```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=TRUE}
+d5 <- NULL
+for (s in columns){
+  
+  d <- data2[data2$Species == s,]
+
+  poisson_fit <- fitdist(d$Count, 'pois')
+  poisson_fitD <- dpois(0:max(d$Count), lambda=poisson_fit$estimate)
+  nbinom_fit <- fitdist(d$Count, 'nbinom')
+  nbinom_fitD <- dnbinom(0:max(d$Count), size=nbinom_fit$estimate[1], mu=nbinom_fit$estimate[2])
+  d2 <- gather(data.frame("negativeBinomial"=nbinom_fitD, "x"=1:length(nbinom_fitD)), "Distr", "Fit", -x)
+  d3 <- gather(data.frame("poisson"=poisson_fitD, "x"=1:length(poisson_fitD)), "Distr", "Fit", -x)
+  d4 <- rbind(d2, d3)
+  d4$Species <- s
+  if (is.null(d5)){
+    d5 <- d4
+  } else {
+    d5 <- rbind(d5, d4)
+  }
+}
+ggplot(data2) + geom_density(aes(x=Count)) + geom_line(data=d5, aes(y=Fit, x=x, colour=Distr)) + ggtitle("Comparing model fit for 8-mer count across the Clostridia") + xlim(0, 500) + facet_wrap(~Species)
+```
+
+
+```{r fig.cap="VGLM is not working", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=TRUE}
+
+data2$id <- rep(1:4^k, length(columns))
+d = data2[order(data2$Count),]
+d$species <- as.numeric(as.factor(d$Species))
+
+
+library('vcd')
+ggplot(d, aes(Count)) + geom_histogram()# + facet_wrap(. ~ Species, scales="free_y")
+gf2 <- goodfit(d$Count,type="nbinomial", method = "MinChisq")
+
+plot(gf2)
+library('VGAM')
+
+# Zero truncated NB regression with VGAM
+#m1 <- vglm(Count ~ species, family=posnegbinomial(), data=d)
+```
+
+In summary, the k-mer count distribution is best approximated by a negative-binomial model. The k-mer counts/frequencies and their distribution should hold after normalization, and the normalized distributions could be used to model sequence likelihoods via Markov probabilities. Other applications of k-mer probabilities will be explored below.
+
+
+## Effect of discrete normalization for total k-mer amount by median of ratios
+
+
+This report looks at the effect of normalization vs raw data through box plots. It is easy to generate a normalized matrix with the subcommand `kdb matrix Normalize`, which uses DESeq2's method of normalization on counts to produce a matrix either the floating point normalized values or rounding to the nearest integer, as we have chosen. The normalized count matrix, 'K,' is a Nxn matrix, where $N = 4^k$, and n is the number of samples. Each element of N is a k-mer with an unambiguous count, contextualized by whether the input dataset was a fasta file or a fastq file. Each element $k_{ij}$ in K give by a $4^k$ dimensional indicator 'i' and a sample identifier, that may not express the same k-mers, or in the same proportions between species. This matrix must not be confused with the distance matrices we will generate, which will in fact be nxn square matrices. You can see that they are quite different, and the purpose of the normalization is just to normalize for size, and then we could transform the data into a different space to see if it is log-normal.
+
+```{r fig.cap="Is the count dimension of k-mer space log-normal", echo=FALSE}
+
+ggplot(data2) + geom_density(aes(x=log10(Count)))
+
+```
+
+
+The choice of whether or not to log-normalize is rather simple but useful for normalizing the data in displays (like boxplots) that are best with significant symmetries. Now we will look directly at the boxplots to understand the distribution of counts in this space on both the unnormalized and normalized data. As we can see in the unnormalized datasets there are variantions in the median count by more than 20 in these specific genomes. This represents a considerable size effect to correct between the sequenced genomes.
+
+
+
+```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+
+unnormalized <- data2
+normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
+normalized <- gather(normalized, key="Species", value="Count")
+
+ggplot(unnormalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
+```
+
+
+
+
+```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}
+ggplot(normalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
+
+```
+
+
+Now that we have corrected this size effect through normalization, let's consider whether there remains a size effect in certain species. There is certainly a lot of signal, and even some highly comparable distributions between the Clostridia. However, it's worth reminding ourselves here that the rarest k-mers have the highest probability density throughout the negative binomial. There may be lots of very rare sequences with low abundances and this sequence space has high propensity for change since the abundances don't necessarily reflect the connectivity.
+
+With an acceptable normalization in place, we can use PCA to reduce the dimensionality of the dataset into a highly compressed, information rich dimension of which it is easy to transform the whole dataset in to, but not to create dimensionality from within. So we layer our intuition about gram positives, gram negatives, and Clostridia into a reduced, small dimension like 2-3 from what was once $4^k$ and you have a significant change. But we can determine in the most abstract sense, are the data separable in a way that makes some sense.
+
+
+
+
+## PCA and K-means clustering of k-mer profiles
+
+<!-- Thanks to https://www.earthdatascience.org/courses/earth-analytics/document-your-science/add-images-to-rmarkdown-report/ for the blog post that demonstrated how I could add pre-made images to an .Rmd report. -->
+
+Now that we have normalized our data successfully, we can use PCA to reduce dimensionality and cluster. Clustering is very efficient but imprecise at reduced dimensions. I say efficient because it means you can generate multiple angles quickly if you know what you're looking at in the dataset. Let's try to do this with species in a $4^{8-12}$ dimensional k-mer space on either fasta, fastq, or sam/bam datasets. I must add here that we don't yet support sam/bam, we're still in the process of analyzing what we're seeing at the 8-mer level. I haven't yet moved around to see other angles of 8-mer space beyond this. I am still developing this method but we have a model of the variances that holds for datasets that are seen. The next step is to look at the fidelity of subsampling and the amount of time required for each iteration of the profiling curve. But anyway, I am digressing from my primary objective here which is to assess the normalized counts with PCA.
+
+So we perform a dimensionality reduction in euclidean space by exploring the tangent to the hyperplane specified by the rotations, the direction vectors. And the dimension vectors that we get in PCA can be optimized by selecting an optimal number of components to use via the elbow graph. But then you can also select the use of less than that for simple operations that you want to perform rapidly. In this case we wanted to use different PCA dimensions. From figure 7. You can see that 3, 6, and 8 are the best dimensions to sum up the variances of the entire modelable space. And so lets say that we transform into the first space, the first 3 dimensions of the singular value decomposition, which account for 94% of all variance, and just use a simple k-means clustering to explore the data.
+
+![The PCA elbow graph on Normalized Counts](PCA_variance_accumulation.png)
+
+
+In figure 8, we see a k-means elbow graph with the Within-cluster Sum of Squared-residuals (WCSS) error plotted on the Y-axis, and the choice of k on the x-axis. We can see that the most appropriate choices for exploratory data analysis are the groupings we see from choices of k ranging from 2-4, this seems appropriate because of the small number of samples and the admittedly limited amount of knowledge of this genus. Let's consider a k of 3 to begin, because I did dope the series of Clostridia with a known neighbor gram-positive bacterium *B. subtilis* 168 and a known **distant** relative gram-negative *E. coli* K12 MG1655. We consider these because of their importance in the history of sequencing of bacterial species is as well. But the distinguishing feature of this selection of bacteria for study is the three central *acetobutylicum* strains: ATCC824, DSM1731, and EA2018. We will see in a later clustering that this emerges as a completely separate acute cluster.
+
+![The K-means elbow graph for Normalized PCA3](kmeans_k3_elbow_graph_on_pca3.png)
+The k-means clustering does indeed show E.coli separated from the primary group, as well as the appropriate distance between *B. subtilis* and the *Clostridia* strains. However, we are looking at this artifact through their k-mer spaces at the moment, not by virtue of direct sequence similarity. If a one dimensional sequence is like a harmonized constant, with minor drifts and mutations at play drifting in and out with differing rate constants, then it is all resolvable, but the harmonization that we get is very much the product of a lot of labor of love to make the original assemblies, and we must be patient with the conclusions they have made during sequencing. Because the k-mer spaces are similar in some regards to the alignment space, there are uncertainties, there are deviations, but there are also signals to be be compared, frequencies. Essentially k-mer are a type of genomic spectrum in the 4-bit space at certain substring frequencies. Ideally we could analyze all frequencies simultaneously, but we are restricted to certain dimensions. And in my space we are restricted to analyzing 8 at a time commonly, and these are called 8-mers. An 8-mer can fit into memory very easily, with enough RAM to essentially perform all distance matrix operations without issue. At my level of hardware availability and budget, I am restricted to certain ranges where I can make comparisons. And in the 8-mer space only, the reduced dimensionality snapshot of the picture looks like the following, summarizing a Nxn matrix K, with each element $K_{ij}$ equal to the k-mer count of the ith species, and the "jth k-mer"(\texttrademark, \copyright Matthew Ralston). When we reduce this to 3 dimensions for visualization in 2, with the k-means clustering result of k=3, then we see separation of *B. subtilis* and *E. coli* into a separate cluster, away in sense and in direction from the primary *Clostridia* cluster, centered on the *acetobutylicum* triplet.
+
+Interestingly enough, *C. tetani* and *C. perfringens* have a much different spatial dynamic with the rest of the *Clostridia* compared to *C. difficile*, which seems much closer than I would expect to *acetobutylicum*. They form their own cluster in this subspace, interestingly enough.
+
+
+![The K-means clustering for Normalized PCA3](kmeans_k3_clustering_on_pca3.png)
+
+
+This graph is similar but accomplished two things. The first is that by using k=4 in the k-means clustering, we are able to identify the acute cluster of the *C. acetobutylicum* strains. The second thing accomplished is that the first and second principal components of a '-n 6' PCA produces the sample values for each species via the PCA dimensionality reduction. However, the clustering outcome is slightly more colorful, with the identification of the 4th cluster as the *C. acetobutylicum* triplet.
+
+![The K-means clustering for Normalized PCA6](kmeans_k4_clustering_on_normalized_pca6.png)
+
+
+## t-SNE
+
+We do not restrict our attention to the 1st or 2nd dimension only of PCA, but instead we can expand our perspective on the separability of the *Clostridia* from the *B. subtilis* and *E. coli* strains further with the addition of another dimensionality reduction technique: t-Stochastic Neighbor Embedding (t-SNE), a dimensionality reduction technique also used for visualizing highly complex and high-dimensional datasets. The outcome is usually a t-SNE down to two dimensions of results for visualization purposes, and we can see that the main Clostridia cluster between -400 to 200 on the first dimension and between -100 and 150 on the second dimension represents the primary *Clostridia* centroid. The *E. coli* and *B. subtilis* are ejected from the centroid to an obvious extent in this reduced dimension. and they have been thoroughly named as their own cluster, while *C. acetobutylicum* strains are also observed as their own centroid.
+
+
+![The K-means clustering for t-SNE in $R^{2}$](kmeans_k4_clustering_on_tsne2.png)
+
+
+## K-means clustering of correlation distance metrics
+
+
+![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+
+## Hierarchical clustering
+
+![Hierarchical clustering on spearman distance matrix derived from normalized count data](dendrogram.png)
+
+## Sufficient values of k for genomic separation
+
+We used the simulated metagenomes of firmicutes and proteobacteria of Anvar et al. to test some hypotheses related to microbial diversity in the abstract k-space (\parencite{anvar2014determining}). First we downloaded 
+
+
+Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM, 
+
+```bash
+function getmetagenome(){
+  col=$1
+  # metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  metagenome=(sed -n "${col}p" | sed 's/.*/&.fna/')
+  echo "${metagenome[@]}"
+}
+export -f getmetagenome
+parallel -j 30 'kmerdb profile -k {2} -pg postgres://matt@localhost:5432/kmerdb $(getmetagenome {1})  metagenome_{1}.{2}.kdb 2> metagenome_{1}.{2}.log;' ::: $(seq 1 30) ::: $(seq 8 14)
+```
+
+# Discussion
+
+# Supporting Information
+
+The list of supporting files can be seen here.
+
+![The K-means elbow graph for Normalized PCA6](kmeans_k4_elbow_graph_on_normalized_pca6.png)}
+
+![The K-means elbow graph for a t-SNE in $R^{2}$](kmeans_k4_elbow_graph_on_tsne2.png)
+
+![The K-means elbow graph for a spearman distance matrix](kmeans_k3_elbow_graph_on_spearman_dist.png)
+
+
+# Acknowledgements
