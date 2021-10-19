@@ -255,6 +255,15 @@ def distances(arguments):
         print(dist[0][1])
     else:
         df = pd.DataFrame(dist, columns=column_names)
+
+
+        ## FIXME: CUSTOM sorting code, not commiting to git repo
+        #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
+        #suffixes.sort(key=lambda x: x[0])
+        #sorted_column_names = [column_names[s[1]] for s in suffixes]
+        #df.sort_values(sorted_column_names)
+        
+
         df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
 
 def get_matrix(arguments):
@@ -432,6 +441,13 @@ def get_matrix(arguments):
         tsne_df = pd.DataFrame(np.transpose(tsne), columns=column_names)
         #tsne_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = tsne_df
+
+    ## FIXME: CUSTOM SORTING. WILL NOT COMMIT TO GIT REPO
+    #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
+    #suffixes.sort(key=lambda x: x[0])
+    #sorted_column_names = [column_names[s[1]] for s in suffixes]
+    #final_df.sort_values(sorted_column_names)
+
     final_df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=arguments.with_index)
     logger.info("Done printing {0} matrix to STDOUT".format(arguments.method))
 

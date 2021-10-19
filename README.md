@@ -118,6 +118,7 @@ Thanks to Erin for getting my feet wet in this new field.
 Thanks to Rachel for the good memories and friendship.
 Thanks to Yasmeen for the usual banter.
 Thanks to Max, Robin, and Robert for the halfway decent memories in St. Louis.
+Thanks to Freddy Miller for the good memories.
 And thanks to my family and friends.
-Go Blue Hens 2021.
+Go Blue Hens
 -->
