@@ -137,15 +137,15 @@ def distances(arguments):
 
 
     from kmerdb import fileutil, distance, config
-    n = len(arguments.kdb)
+    n = len(arguments.input)
 
 
-    if len(arguments.kdb) > 1:
-        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.kdb))
+    if len(arguments.input) > 1:
+        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
         logger.debug("Files: {0}".format(files))
         if arguments.k is None:
             arguments.k = files[0].k
-        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.kdb):
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
         if not all(kdbrdr.k == arguments.k for kdbrdr in files):
             logger.error("Files: {0}".format(files))
@@ -174,8 +174,8 @@ def distances(arguments):
             raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
 
         df = pd.DataFrame(profiles, columns=column_names)
-    elif len(arguments.kdb) == 1 and (arguments.kdb[0] == "/dev/stdin" or arguments.kdb[0] == "STDIN"):
-        logger.info("Hidden: 1 argument. Reading input from stdin")
+    elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
+        logger.info("Reading input as tsv/csv from STDIN")
         try:
             df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
@@ -185,10 +185,10 @@ def distances(arguments):
         profiles = np.array(df)
         column_names = list(df.columns)
         n = len(column_names)
-    elif len(arguments.kdb) == 1 and os.path.splitext(arguments.kdb[0])[-1] == ".tsv":
+    elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
         logger.info("Hidden: 1 argument. Reading input as tsv")
         try:
-            df = pd.read_csv(arguments.kdb[0], sep=arguments.delimiter)
+            df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
@@ -196,11 +196,11 @@ def distances(arguments):
         profiles = np.array(df)
         column_names = list(df.columns)
         n = len(column_names)
-    elif len(arguments.kdb) == 1 and os.path.splitext(arguments.kdb)[-1] == ".kdb":
+    elif len(arguments.input) == 1 and os.path.splitext(arguments.input)[-1] == ".kdb":
         logger.error("kdb distance requires more than one .kdb file as positional inputs")
         sys.exit(1)
     else:
-        logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.kdb)))
+        logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)))
         sys.exit(1)
 
     # Masthead stuff
@@ -222,10 +222,10 @@ def distances(arguments):
                     data[i][j] = None
                 elif i < j:
                     if arguments.metric == "correlation":
-                        data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+                        data[i][j] = distance.correlation(arguments.input[i], arguments.input[j])
                         # data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
                     elif arguments.metric == "euclidean":
-                        data[i][j] = distance.euclidean(arguments.kdb[i], arguments.kdb[j])
+                        data[i][j] = distance.euclidean(arguments.input[i], arguments.input[j])
                     elif arguments.metric == "spearman":
                         cor, pval = distance.spearman(profiles[i], profiles[j])
                         # FIXME! also print pval matrices
@@ -248,9 +248,9 @@ def distances(arguments):
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
         dist = squareform(dist)
-        if arguments.metric == "correlation":
-            ones = np.ones(dist.shape, dtype="int64")
-            dist = np.subtract(ones, dist)
+        # if arguments.metric == "correlation":
+        #     ones = np.ones(dist.shape, dtype="int64")
+        #     dist = np.subtract(ones, dist)
     if dist.shape == (2,2):
         print(dist[0][1])
     else:
@@ -279,11 +279,11 @@ def get_matrix(arguments):
     from kmerdb import fileutil, config
 
     
-    if len(arguments.kdb) > 1:
-        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.kdb))
+    if len(arguments.input) > 1:
+        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
         if arguments.k is None:
             arguments.k = files[0].k
-        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.kdb):
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
         if not all(kdbrdr.k == arguments.k for kdbrdr in files):
             logger.error("Files: {0}".format(files))
@@ -302,8 +302,8 @@ def get_matrix(arguments):
 
         column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
         df = pd.DataFrame(profiles, columns=column_names)
-    elif len(arguments.kdb) == 1 and (arguments.kdb[0] == "STDIN" or arguments.kdb[0] == "/dev/stdin"):
-        logger.info("Hidden: 1 argument. Reading input as tsv from STDIN")
+    elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
+        logger.info("Reading input as tsv/csv from STDIN")
         try:
             df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
@@ -311,18 +311,19 @@ def get_matrix(arguments):
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
         column_names = list(df.columns)
-    elif len(arguments.kdb) == 1 and (os.path.splitext(arguments.kdb[0])[-1] == ".tsv"):
-        logger.info("Hidden: 1 argument. Reading input as tsv from {0}".format(arguments.kdb[0]))
+    elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
+        logger.info("Reading input file as tsv/csv")
         try:
-            df = pd.read_csv(arguments.kdb[0], sep=arguments.delimiter)
+            df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
         column_names = list(df.columns)
     else:
-        logger.error("bin/kdb.get_matrix() received {0} arguments as input, and this is not supported.".format(len(arguments.kdb)))
-        logger.error(arguments.kdb)
+        logger.error(arguments)
+        logger.error("bin/kdb.get_matrix() received {0} arguments as input, and this is not supported.".format(len(arguments.input)))
+        logger.error(arguments.input)
         sys.exit(1)
     sys.stderr.write(config.DEFAULT_MASTHEAD)
     if logger.level == logging.DEBUG:
@@ -1180,7 +1181,7 @@ def cli():
 
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
     matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized"], default=None, help="Choice of distance metric between two profiles")
-    matrix_parser.add_argument("kdb", nargs="+", type=str, metavar="<.kdb>", help="Two or more .kdb files")
+    matrix_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     matrix_parser.set_defaults(func=get_matrix)
     
     # rarefy_parser = subparsers.add_parser("rarefy", help="Generate rarefaction information using ecopy.diversity.rarefy for the supplied .kdb files")
@@ -1241,7 +1242,7 @@ def cli():
         "spearman",
         "sqeuclidean",
         "yule"], default="correlation", help="Choice of distance metric between two profiles")
-    dist_parser.add_argument("kdb", nargs="+", type=str, metavar="<kdbfile1 kdbfile2 ...>", help="Two or more .kdb files")
+    dist_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     dist_parser.set_defaults(func=distances)
 
 
