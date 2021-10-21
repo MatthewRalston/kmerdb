@@ -120,28 +120,32 @@ optional arguments:
 A typical workflow first requires the generation of k-mer profiles. Complete metadata for each k-mer can be saved to the same database with `--all-metadata`. Note that this could cause significant increases in file size depending on the total k-mer coverage and the sequencing complexity. It is not recommended to experiment with `--all-metadata` at this time. Instead, we focus our attention on the numbers rather than the graph structure. Note that while individual profiles may be composite (i.e. you could mimic your own metagenomic compositions with downsampled fastq files to adjust proportions), the counts are stored in aggregate. All k-mer counts are stored in the header metadata, per-file.
 
 ```bash
-usage: kmerdb profile [-h] [-v] [-p {1,2,3,4,...}] [-b FASTQ_BLOCK_SIZE] [-n N]
-[--strand-specific] [--all-metadata] [--sparse] [-k K]
-<.fasta|.fastq> [<.fasta|.fastq> ...] kdb
+usage: kmerdb profile [-h] [-v] -pg POSTGRES_CONNECTION [-p {1,2,3...}] [-pq PARALLEL_FASTQ] [--batch-size BATCH_SIZE] [-b FASTQ_BLOCK_SIZE] [-n N] [--strand-specific] [--all-metadata]
+                      [--sparse] [-k K]
+                      <.fasta|.fastq> [<.fasta|.fastq> ...] kdb
 
 positional arguments:
-<.fasta|.fastq>       Fasta or fastq files
-kdb                   Kdb file
+  <.fasta|.fastq>       Fasta or fastq files
+  kdb                   Kdb file
 
 optional arguments:
--h, --help            show this help message and exit
--v, --verbose         Prints warnings to the console by default
--p {1,2,3,4,...}
-Shred k-mers from reads in parallel
--b FASTQ_BLOCK_SIZE, --fastq-block-size FASTQ_BLOCK_SIZE
-Number of reads to load in memory at once for processing
--n N                  Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during
-on-disk database generation
---strand-specific     Retain k-mers from the forward strand of the fast(a|q) file only
---all-metadata        Include read-level k-mer metadata in the .kdb
---sparse              Whether or not to store the profile as sparse
+  -h, --help            show this help message and exit
+  -v, --verbose         Prints warnings to the console by default
+  -pg POSTGRES_CONNECTION, --postgres-connection POSTGRES_CONNECTION
+                        A postgresql connection string, of the format postgres://user:password@host:port/dbname
+  -p {1,2,3...}, --parallel {1,2,3...}
+                        Shred k-mers from reads in parallel
+  -pq PARALLEL_FASTQ, --parallel-fastq PARALLEL_FASTQ
+                        The number of blocks to read in parallel for reading fastqs
+  --batch-size BATCH_SIZE
+                        Number of updates to issue per batch to PostgreSQL while counting
+  -b FASTQ_BLOCK_SIZE, --fastq-block-size FASTQ_BLOCK_SIZE
+                        Number of reads to load in memory at once for processing
+  -n N                  Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation
+  --strand-specific     Retain k-mers from the forward strand of the fast(a|q) file only
+  --all-metadata        Include read-level k-mer metadata in the .kdb
+  --sparse              Whether or not to store the profile as sparse
   -k K                  Choose k-mer size (Default: 12)
-
 ```
 
 

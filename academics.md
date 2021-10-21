@@ -30,47 +30,45 @@ About a 5-10min read.
 
 # Abstract
 
-A brief introduction to the biomathematical topics of k-mer counting, motif abundance, alignment-free quantification and variant analysis, and alignment-free linear runtime are presented to the reader to frame a discussion about common formats for k-mer counts and deBruijn graphs. The k-mer counting technique bypasses the rate-limiting quadratic step in the topic of gene expression to provide faster results for a more rapid, on-line expression measurement experience. Eventually, an on-line real-time gene-expression measurement method may treat genomic sequences as abstract spectra through k-mer counting, much like certain high-throughput chemical and biochemical platforms are capable of analyzing complex, multiplexed spectra, and/or 'unknown' spectra to determine closest known chemical structures.
+A brief introduction to the biomathematical topics of k-mer counting, motif abundance, alignment-free quantification and variant analysis, and alignment-free linear runtime are presented to the reader to frame a discussion about common formats for k-mer counts and de Bruijn graphs. The k-mer counting technique bypasses the rate-limiting quadratic step in the topic of gene expression to provide faster results for a more rapid, on-line expression measurement experience. 
 
-To this end, we discuss key research topics such as the juxtaposition of alignment and assembly throughout the analytical process, constructive interference of spectra in multiplexed samples, linear runtimes, graph databases, alignment-free sequence similarity, alignment-free sequence distance metrics usable for machine learning, and normalization practices.
-
-To achieve all of these goals, the reader is asked to consider their academic and/or professional networks to locate an advisor who is capable of guideing a student through their first grant-writing and/or fellowship application process. Potentially, I would like to stay for both a masters and a PhD, so this would grant considerable time to manage the scope and timelines of the project.
-
-
-
+To this end, we discuss key research topics such as the juxtaposition of alignment and assembly throughout the field, constructive interference of spectra in multiplexed samples, linear runtimes, graph databases, alignment-free sequence similarity, alignment-free sequence distance metrics usable for machine learning, and normalization practices.
 
 # Introduction
-
 
 Here we discuss the underlying bioinformatic techniques behind both alignment and assembly and use this discussion to present a novel alignment-free framework for metagenomic species decomposition, bacterial species inference, metagenome simulation, and Markov probabilities.
 
 A principle challenge in the acceleration and automation of bioinformatic analyses based on Illumina Next Generation Sequencing (NGS) and other platforms is the abstraction of conventional alignment-based methods into an alignment-free analytical space. Bioinformatics is expected to be rate-limiting in the modern biological discovery process, with the recent dramatic reductions in the cost of sequencing leading to mountains of raw data for analysis. Quick, efficient, and accurate methods are needed to identify sequences, quantify abundances, estimate mutational likelihoods, and explore the sequence similarity space.
 
-The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. Now we advocate for data structures, algorithms, and concepts of identity that extends beyond the concepts of reference sequences and alignment.
+The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. Now we advocate for data structures, algorithms, and concepts of sequence identity/similarity beyond the concepts of reference sequences and alignment. This first advantage is leveraged through metagenome simulation to compare our k-mer counter with others, and to explore the differences between idealized fidelity of the simulated metagenomic fractions under simulated subsampling conditions versus the behavior of real world metagenomic samples. 
 
-The second advantage of foregoing the expensive quadratic mapping step (which is required in conventional alignment-based sequencing pipelines) is the comparable accuracy with which expression measurements (Kallisto) and mutations can be called (e.g. Kevlar, Cell 2019). 
+The second advantage of foregoing the expensive quadratic mapping step (which is required in conventional alignment-based sequencing pipelines) is the comparable accuracy with which expression measurements (Kallisto) and mutations can be called (e.g. Kevlar, Cell 2019). This presents the opportunity to discuss the role of the minimizer and k-mer as an exposable data layer to promote the comparison of indexing and k-mer/minimizer-generating strategies.
 
 Here I provide a brief primer on the two branches of nucleic acid sequencing biology: assembly and alignment. The goal is to familiarize the reader with the essentials of sub-sequence biology and discuss a framework for the investigation of genomic spectra.
 
 ## What are K-mer spectra
 
-The first step of many bioinformatic algorithms is to generate the counts of all length k subsequences in the dataset. This vector may be thought of as the k-mer spectra at that choice of k. This k-mer count histogram can be thought of as a kind of genomic or transcriptomic spectrum, a charactristic curve describing the dataet in terms of both the species of interest and the abundance of certain subsequences, which could refelect amplicon targeting in the case of exome sequence, expressed regions in the case of (meta)transcriptomics, or the ratios of composition of microbiomes in the case of metagenomics.
+The first step of many bioinformatic algorithms is to generate the counts of all length k subsequences in the dataset. This vector may be thought of as the k-mer spectra at that choice of k. This k-mer count histogram can be thought of as a kind of genomic or transcriptomic spectrum, a charactristic curve describing the dataet in terms of both the species of interest and the abundance of certain subsequences. Those subsequence subspectra and corresponding "abundance" measurements (the k-mer count vector) are in an additive space with the complete spectra of the organism, the transcribed regions only, and the intergenic regions as well.
+
+Because of this additive nature between genes and genomes, genomes and metagenomes etc., ratios of composition in uncharacterized metagenomes may be estimated when reference sequences are provided through the method of least squares.
 
 ## Alignment-free methods are futureproof
 
-Alignment-free methods are more flexible in their sequencing inputs, in a figurative sense. *Specifically, k-mer spectra are likely to retain their sequence identity in the face of indel-producing sequencing technologies.* Because alignment is not considered, the "errors" from indels are encorporated into inferential errors through a less harmful scoring mechanism than in sequence alignment, and thus a larger quantity of data can be utilized for indel-rich sequencing platforms like Oxford Nanopore, PacBio, and other similar technologies. Additionally, k-mer databases in particular are the backbone of the two major sequencing data applications, sequence alignment (e.g. seed regions, minimizers, etc.) and assembly (e.g. deBruijn graphs). For this reason, the topic of alignment-free methods and in particular, the k-mer spectra abstraction layer, has received considerable attention in the literature for its efficiency.
+Alignment-free methods are more flexible in their sequencing inputs, in a figurative sense. *Specifically, k-mer spectra are likely to retain their sequence identity in the face of indel-producing sequencing technologies.* Because alignment is not considered, the "errors" from indels are encorporated into inferential errors through a less harmful scoring mechanism than in sequence alignment, and thus a larger quantity of data can be utilized for indel-rich sequencing platforms like Oxford Nanopore, PacBio, and other similar technologies. 
+
+K-mer databases are the backbone of modern bioinformatic sequence alignment (e.g. seed regions, minimizers, etc.) and sequence assembly algorithms (e.g. deBruijn graphs). The topic of alignment-free methods and in particular, the k-mer spectra abstraction layer, has received considerable attention in the literature for its efficiency and because of its broad applicability.
 
 ## Linear vs quadratic runtime
 
-Alignment-free methods can produce quantifications faster and with comparable accuracy to genomic/transcriptomic alignment-based quantification. Several challenges remain including the choice of correct distribution and statistical framewok for modeling and hypothesis testing, Of course, it would be preferable to correctly characterize and then perhaps transform, with appropriate assumptions, the discrete count value into an alternative variable space with conditions suitable for traditional linear modeling, along with the imposed normality assumptions.
+Alignment-free methods can produce quantifications faster and with comparable accuracy to genomic/transcriptomic alignment-based quantification. Several challenges remain including the choice of correct distribution and statistical framewok for modeling and hypothesis testing. 
 
-How is this more efficient than alignment? Generally, alignment is quadratic in the length of the sequences being aligned. More specifically, the alignment of Illumina based WGS, RNA-Seq, or metagenomic datasets is L*O(nm), where L is the fairly constant read length of the dataset, n is the number of alignable reads, and m is the length of the reference sequence(s). In contrast, counting k-mers is linear, L*O(n), in the number of sequence reads in the case of Illumina data or L*O(m) in the case of fasta input where m is the combined length of chromosomes in the sample's fasta file.
+How exactly is alignment-free quantification more efficient than alignment-based quantification methods? Generally, alignment is quadratic in the length of the sequences being aligned. More specifically, the alignment of Illumina based WGS, RNA-Seq, or metagenomic datasets is O(Lnm), where L is the fairly constant read length of the dataset, n is the number of alignable reads, and m is the length of the reference sequence(s). In contrast, counting k-mers is linear, L*O(n), in the number of sequence reads in the case of Illumina data or L*O(m) in the case of fasta input where m is the combined length of chromosomes in the sample's fasta file.
 
 # What key research questions are you trying to answer?
 
 There are multiple candidate research questions that haven't been answered by the existing literature on the topic of k-mer spectra for genomics applications. The first is a general purpose questions, namely "are k-mer spectra useful for calculating sequence similarities?" If we can demonstrate use cases for sequence similarity, then we can provide estimates about the likelihood that an unknown sequence belongs to a given genome, metagenome, transcriptome, etc. using a simple Markov model.
 
-Also, the spectra and their additive nature permits simple deconstruction into known components with linear regression. This could be used to determine the fractions of each species in artificial and/or characterized metagenomes. This would be useful in cases where a researcher wants to quickly identify the fractions of known species that make up the sample. The regression coefficiencts would provide users with estimates of how complete the deconvolution is into the component species. 
+Also, the spectra and their additive nature permits simple deconstruction into known components with linear regression. This could be used to determine the fractions of each species in artificial and/or characterized metagenomes. This would be useful in cases where a researcher wants to quickly identify the fractions of known species that make up the sample. The regression coefficients would provide users with estimates of how complete the deconvolution is into the component species. 
 
 Another key finding that I hope to produce with this software, is a graphic from Anvar et al. in the kPAL study that suggests that a choice of k as small as 10 may be sufficient to distinguish between microbial genomes. They reached this conclusion by graphing the median distance between the metagenomes and their corresponding shuffled/randomized sets. The graph displayed a sigmoid shape with the center around k=7. A choice of k=10 was obviously in the plateau and it could be said that this is a type of sensitivity analysis. I'd like to reproduce this figure to confirm what distance is at least sufficient for distinguishing between microbial metagenomes.
 
@@ -103,6 +101,8 @@ The technical specifications for Argo2 are given below
 | OS        | Arch Linux 5.11.1                    | Custom Arch linux distribution                            |
 
 
+![21 Gbps storage, AIC with 8Tb NVMe in RAID0](/assets/images/Argo-RAID0-8Tb-array_0.png "Here is the title")
+
 # Current state
 
 There have been 3 pre-releases in the codebase thus far, and we are on version number 0.0.7. The codebase has changed into a sophisticated on-disk k-mer counting strategy, with multiple parallelization options. The first of which is native OS parallelism using something like GNU parallels to run the program on many genomes or metagenomes, simultaneously. The second parallelization option use the Python3 multiprocessing library, particularly for processing fastq datasets.
@@ -126,7 +126,22 @@ The following are specific goals and milestones for the project.
 
 ## Compositional Analysis
 
-One goal of the suite is to produce a type of regression such that exactly n compositional coefficients are obtained. These are the best estimates we can have with the simplest model possible for how the k-mer counts reflect the various genomes that compose the metagenome.
+One possible analysis is into the estimation of the compositional coefficients (i.e. percentages of composition) of the species of a metagenome. We do not yet refer to the concept of the OTU. Instead we wish to know the composition of a metagenome when given some set of suspected species that compose the metagenome. With linear regression, we should be able to estimate regression parameters that in principle should be proportional to the compositional coefficients. The reason the regression parameters are applicable is because we know that k-mer counts are additive. This linear relationship between the species that compose the metagenome should reflect (and hopefully be related to the actual percentages we could estimate through regression.
+
+I haven't thought this through all the way, and I'd like some help from a metagenomics professor who would be interested in simulating metagenomes.
+
+
+Let me first describe the dataset for the problem. We have a nxm matrix, where n is a mostly constant 4^k, and k is our specificity parameter when converting genomic sequences into k-tuple, or k-mer space, where the tuple in this case is the DNA alphabet, and the k-mer refers to the biological concept of k-mers. The m refers to the number of genomes involved in our hypothetical system, and we perform regression on this matrix A. I think I should have m or m+1 regressors when specifying the model. Then we want to calculate the solution to the normal equations: (A'A)^-1A'y, where y is our metagenomic profile. Recall that the solution contains an inverse, which only exists if the columns of y are linearly independent. Linear independence and invertibility should be errors to check for before performing the calculation. This should give us the regression parameters which should be proportional to the compositions somehow. I forget exactly how but we should do the regression anyway, and this could be done with plain cupy on a GPU.
+
+
+
+The first aim is to show the additive nature of the waveforms, to demonstrate the composition of an artificial metagenome composed of known microbial genomes. The null hypothesis of the regression is that the regression coefficients are all zero, which would reflect very weak to no relationship between the metagenome's k-mer biases .
+
+Is this random forest? XGBoost?
+
+Or is this a regression problem?
+
+This proportionality or relationship between the regression coefficients and the compositional coefficients is not known, and would need to be investigated with many regressions across permuted compositions of those metagenomes to see if the reltionship between the regression coefficients and the compositional coefficients (i.e. percentages) is known. More specifically, there is an operation that must be done that escapes me, and it's related to the fact that the sum is known and we can turn all the regressors into their percentages, and this is the frequency conversion, which we do not officially do inside the software because we prefer to calculate frequencies when needed, rather than convert everything to frequencies initially, you lose scope of rht original level of sensitivity embedded in the counts.
 
 ## Graph database
 
