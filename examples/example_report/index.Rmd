@@ -91,7 +91,7 @@ getmode <- function(v) {
 
 Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space, rapidly matching new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) are topics of great research interest for programmatic access to the substrings.
 
-We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parenceite{marccais2011fast, zhang2014these, anvar2014determining}).
+We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parencite{marccais2011fast, zhang2014these, anvar2014determining}).
 
 For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA). The computational complexity of a problem or the inability to provide a tractable version of the problem requires assumptions and thorough understanding of the mutational models and probabilities to devise the correct heuristic shortcuts.
 
@@ -329,7 +329,7 @@ The choice of whether or not to log-normalize is rather simple but useful for no
 
 
 
-```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+```{r fig.cap="Un-normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}
 
 unnormalized <- data2
 normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
@@ -342,6 +342,8 @@ ggplot(unnormalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_v
 
 
 ```{r fig.cap="Normalized counts per sample", echo=FALSE, message=FALSE, eval=TRUE}
+normalized <- read.csv2("normalized_count_matrix.tsv", header=T, sep="\t")
+normalized <- gather(normalized, key="Species", value="Count")
 ggplot(normalized, aes(x=Species, y=Count)) + geom_jitter(alpha=0.05) + geom_violin() + theme(axis.text.x = element_text(angle=45, vjust=0.4)) + scale_y_log10(labels=trans_format('log10', math_format(10^.x))) + annotation_logticks(base=10, sides='l') + stat_summary(fun=median.quartile, fun.max=top.quartile, fun.min=bottom.quartile, geom='crossbar', colour='red')
 
 ```
@@ -409,7 +411,7 @@ Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM,
 function getmetagenome(){
   col=$1
   # metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
-  metagenome=(sed -n "${col}p" | sed 's/.*/&.fna/')
+  metagenome=($(sed -n "${col}p" microbes.txt | sed 's/.*/&.fna/'))
   echo "${metagenome[@]}"
 }
 export -f getmetagenome
