@@ -122,9 +122,10 @@ https://github.com/MatthewRalston/kdb
 Copyright 2020 Matt Ralston (mrals89@gmail.com)
 
 # First links
-https://matthewralston.github.io/blog/kmer-database-format-part-1
+https://matthewralston.github.io/kmerdb
+https://pypi.org/project/kmerdb/
 https://github.com/MatthewRalston/kdb
-
+https://matthewralston.github.io/blog/kmer-database-format-part-1
 
 Please cite my repository in your work!
 
@@ -151,8 +152,8 @@ Distance matrix generation beginning!
 Distance matrix will be written to STDOUT as this is the first step of the pipeline.
 
 """
-for i in range(42, 1, -1):
-    DISTANCE_MASTHEAD += i*"=" + "\n"
+# for i in range(42, 1, -1):
+#     DISTANCE_MASTHEAD += i*"=" + "\n"
 
 
 MATRIX_MASTHEAD = """
@@ -166,8 +167,8 @@ Matrix generation beginning!
 Matrix will be written to STDOUT as this is the first step of the pipeline.
 
 """
-for i in range(42, 1, -1):
-    MATRIX_MASTHEAD += i*"=" + "\n"
+# for i in range(42, 1, -1):
+#     MATRIX_MASTHEAD += i*"=" + "\n"
 
 
 KMEANS_MASTHEAD = """
@@ -179,8 +180,8 @@ KMEANS_MASTHEAD = """
 K-means clustering beginning!
 
 """
-for i in range(42, 1, -1):
-    KMEANS_MASTHEAD += i*"=" + "\n"
+# for i in range(42, 1, -1):
+#     KMEANS_MASTHEAD += i*"=" + "\n"
 
 
 HIERARCHICAL_MASTHEAD = """
@@ -208,16 +209,40 @@ The workflow is roughly as follows:
 #
 # -k $K is the parameter that specifies the k-mer resolution
 #
-# This command uses SQLite3 behind the scenes for on-disk k-mer counting
-# since memory is rate limiting for profile generation when dealing 
+# This command uses PostgreSQL behind the scenes for on-disk k-mer counting
+# since memory is limiting for profile generation when dealing 
 # with biologically conventional choices of k (20 < k < 35).
-parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
+# I STRONGLY SUGGEST YOU START WITH MORE MODERATE CHOICES OF K (10 < k < 15)
+parallel 'kmerdb profile -k $K -pg $PG_CONN_URI {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
 
 
 
 # # # # # # #
 # analysis  #
 # # # # # # #
+
+##################
+# normalization
+##################
+# Use rpy2 and DESeq2 to normalize NB-distributed k-mer counts
+# Graphical comparison can be made by comparing counts of unnormalized data to normalized
+# kmerdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb > (un)normalized_matrix.tsv
+# 
+#
+# Install DESeq2 with the following, if not installed
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+#
+# BiocManager::install("DESeq2")
+
+##################
+# distance matrix
+##################
+# kmerdb distance spearman normalized_matrix.tsv > normalized_spearman_dist.tsv
+
+
+
+
 ################################
 # W A R N I N G :  M E M O R Y #
 ################################
@@ -232,7 +257,7 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 #
 #
 ##################
-# PCA + k-means
+# dimensionality reduction + kmeans
 ##################
 # The first step ('kdb matrix') generates one from different profiles with the same choice of k.
 # This command uses ecopy to normalize between sample k-mer total counts before PCA/tSNE.
@@ -241,20 +266,20 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 # will be produced named '{0}'. Please use this graph to select
 # the number of principal components to use.
 # The pipeline will not continue until -n $N is selected by the user.
-# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kdb kmeans'
+# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kmerdb kmeans'
 # 
 # The PCA/tSNE matrix will be dimReduced ($N) * N, where N is the number of samples/files/profiles.
 #
 # And finally, a k-means clustering will be done on the reduced dimensionality dataset
 # Please note the randomness parameter 'random_state=42' for sklearn's kmeans is fixed at 42.
 # Note here that the -k $K is not related to the choice of substring length 'k' for profile generation.
-# The 'kdb kmeans' command produces two figures, first is an elbow graph looking at up to N clusters.
+# The 'kmerdb kmeans' command produces two figures, first is an elbow graph looking at up to N clusters.
 # This elbow graph will be written to '{1}'.
 # The second is the more typical scatterplot of the first two reduced dimensions
 # and the k-means clustering labels shown over the scatter.
 # This file will be written to '{2}'.
-kmerdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kmerdb kmeans -k $K sklearn
-kmerdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kmerdb kmeans -k $K --distance e Biopython
+kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K sklearn
+kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K --distance e Biopython
 #
 # If you wanted to save a matrix from kdb matrix for use on your own
 # it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
