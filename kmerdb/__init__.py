@@ -205,7 +205,7 @@ def distances(arguments):
 
     # Masthead stuff
     sys.stderr.write(config.DEFAULT_MASTHEAD)
-    if logger.level == logging.DEBUG:
+    if logger.level == logging.DEBUG or logger.level == logging.INFO:
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.DISTANCE_MASTHEAD)
 
@@ -326,7 +326,7 @@ def get_matrix(arguments):
         logger.error(arguments.input)
         sys.exit(1)
     sys.stderr.write(config.DEFAULT_MASTHEAD)
-    if logger.level == logging.DEBUG:
+    if logger.level == logging.DEBUG or logger.level == logging.INFO:
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.MATRIX_MASTHEAD)
 
@@ -377,6 +377,7 @@ def get_matrix(arguments):
         except PackageNotInstalledError as e:
             logger.error(e)
             logger.error("One or more R packages were not installed. Please see the install documentation about installing the associated R packages")
+            logger.error("Use -vv for suggested installation instructions.")
             sys.exit(1)
         #normalized.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
 
@@ -489,7 +490,7 @@ def kmeans(arguments):
         sys.exit(1)
 
     sys.stderr.write(config.DEFAULT_MASTHEAD) # Not working
-    if logger.level == logging.DEBUG: # Not working
+    if logger.level == logging.DEBUG or logger.level == logging.INFO: # Not working
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.KMEANS_MASTHEAD) # Not working
 
@@ -568,9 +569,9 @@ def kmeans(arguments):
 
         results += [metrics.silhouette_score(df, final_kmeans.labels_, metric="euclidean", sample_size=300,)]
 
-        formatter_result = ("{:9s}\t{:.3f}s\t{:.0f}\t{:.3f}\t{:.3f}"
+        formatter_result = ("\n{:9s}\t{:.3f}s\t{:.0f}\t{:.3f}\t{:.3f}"
                             "\t{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}\n\n\n")
-        sys.stderr.write("\t".join(["Name", "Total_time", "Inertia", "Homogeneity_score", "Completeness_score", "V_measure_score", "Adj_rand_score", "Adj_mutual_info_score", "Silhouette"]) + "\n")
+        sys.stderr.write("\n" + "\t".join(["Name", "Total_time", "Inertia", "Homogeneity_score", "Completeness_score", "V_measure_score", "Adj_rand_score", "Adj_mutual_info_score", "Silhouette"]) + "\n")
         sys.stderr.write(formatter_result.format(*results))
 
         #kmer_pca = pca(df, scale=False) # It's already been normalized (scaled) in get_matrix()
@@ -652,7 +653,7 @@ def hierarchical(arguments):
         sys.exit(1)
 
     sys.stderr.write(config.DEFAULT_MASTHEAD)
-    if logger.level == logging.DEBUG:
+    if logger.level == logging.DEBUG or logger.level == logging.INFO:
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.HIERARCHICAL_MASTHEAD)
     
@@ -876,8 +877,8 @@ def profile(arguments):
 
     logger.debug(arguments)
 
-
-    
+    if arguments.parallel <= 0 or arguments.parallel > cpu_count()+1:
+        raise argparse.ArgumentError("-p, --parallel must be a valid processor count.")
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
     
@@ -1109,6 +1110,7 @@ def citation_info():
         else:
             sys.stderr.write("Printing citation notice to stderr. This will not interfere with the execution of the program in any way. Please see CITATION_FAQ.md for any questions.\n")
             sys.stderr.write(citation + "\n\n\n")
+            sys.stderr.write("'kmerdb citation' to silence.\n")
     else:
         raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
@@ -1136,7 +1138,7 @@ def cli():
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("-pg", "--postgres-connection", type=str, help="A postgresql connection string, of the format postgres://user:password@host:port/dbname", required=True)
-    profile_parser.add_argument("-p", "--parallel", type=int, default=1, choices=list(range(1, cpu_count()+1)), help="Shred k-mers from reads in parallel")
+    profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
     profile_parser.add_argument("-pq", "--parallel-fastq", type=int, default=1, help="The number of blocks to read in parallel for reading fastqs")
     profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
@@ -1168,7 +1170,7 @@ def cli():
     view_parser.set_defaults(func=view)
 
 
-    matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the n * 4^k (sample x k-mer) data matrix.")
+    matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("--with-index", default=False, action="store_true", help="Print the row indices as well")
     matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
