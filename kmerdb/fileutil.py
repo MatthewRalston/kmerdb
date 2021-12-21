@@ -34,8 +34,8 @@ from builtins import open as _open
 
 import jsonschema
 from Bio import SeqIO, bgzf
-import boto3
-sys.path.append('..')
+#import boto3
+#sys.path.append('..')
 
 from kmerdb import kmer, database, util, config
 
