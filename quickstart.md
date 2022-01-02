@@ -120,7 +120,7 @@ optional arguments:
 A typical workflow first requires the generation of k-mer profiles. Complete metadata for each k-mer can be saved to the same database with `--all-metadata`. Note that this could cause significant increases in file size depending on the total k-mer coverage and the sequencing complexity. It is not recommended to experiment with `--all-metadata` at this time. Instead, we focus our attention on the numbers rather than the graph structure. Note that while individual profiles may be composite (i.e. you could mimic your own metagenomic compositions with downsampled fastq files to adjust proportions), the counts are stored in aggregate. All k-mer counts are stored in the header metadata, per-file.
 
 ```bash
-usage: kmerdb profile [-h] [-v] -pg POSTGRES_CONNECTION [-p {1,2,3...}] [-pq PARALLEL_FASTQ] [--batch-size BATCH_SIZE] [-b FASTQ_BLOCK_SIZE] [-n N] [--strand-specific] [--all-metadata]
+usage: kmerdb profile [-h] [-v] [-p {1,2,3...}] [-pq PARALLEL_FASTQ] [--batch-size BATCH_SIZE] [-b FASTQ_BLOCK_SIZE] [-n N] [--strand-specific] [--all-metadata]
                       [--sparse] [-k K]
                       <.fasta|.fastq> [<.fasta|.fastq> ...] kdb
 
@@ -131,8 +131,6 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         Prints warnings to the console by default
-  -pg POSTGRES_CONNECTION, --postgres-connection POSTGRES_CONNECTION
-                        A postgresql connection string, of the format postgres://user:password@host:port/dbname
   -p {1,2,3...}, --parallel {1,2,3...}
                         Shred k-mers from reads in parallel
   -pq PARALLEL_FASTQ, --parallel-fastq PARALLEL_FASTQ
@@ -233,29 +231,37 @@ The kmerdb matrix command generates the count matrix either un-normalized, norma
 
 ```bash
 >kmerdb matrix -h
-usage: kmerdb matrix [-h] [-v] [-k K] [-n N] [-d DELIMITER]
-                  [--perplexity PERPLEXITY]
-                  {PCA,tSNE,Normalized,Unnormalized} <.kdb> [<.kdb> ...]
+usage: kmerdb matrix [-h] [-v] [--with-index] [-d DELIMITER] [--output-delimiter OUTPUT_DELIMITER] [--no-normalized-ints] [-k K] [-n N] [--perplexity PERPLEXITY] {PCA,tSNE,Normalized,Unnormalized} [<kdbfile1 kdbfile2 ...|input.tsv|STDIN> ...]
 
 positional arguments:
   {PCA,tSNE,Normalized,Unnormalized}
                         Choice of distance metric between two profiles
-  <.kdb>                Two or more .kdb files
+  <kdbfile1 kdbfile2 ...|input.tsv|STDIN>
+                        Two or more .kdb files, or another count matrix in tsv/csv
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v, --verbose         Prints warnings to the console by default
-  -k K                  The k-dimension that the files have in common
-  -n N                  The number of dimensions to reduce with PCA or t-SNE.
-                        DEFAULT: an elbow graph will be generated if -n is not
-                        provided to help the user choose -n
+  --with-index          Print the row indices as well
   -d DELIMITER, --delimiter DELIMITER
-                        The choice of delimiter to parse the DataFrame with
+                        The choice of delimiter to parse the input .tsv with. DEFAULT: ' '
+  --output-delimiter OUTPUT_DELIMITER
+                        The output delimiter of the final csv/tsv to write. DEFAULT: ' '
+  --no-normalized-ints  Don't round normalized counts to the nearest integer
+  -k K                  The k-dimension that the files have in common
+  -n N                  The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n
   --perplexity PERPLEXITY
-                        The choice of the perplexity for t-SNE based
-                        dimensionality reduction
+                        The choice of the perplexity for t-SNE based dimensionality reduction
+
+################################
+
+# E x a m p l e s
+
+################################
+
 
 >kmerdb matrix -n 3 PCA test/data/*.$K.kdb
+>kmerdb matrix Normalized test/data/*.$k.kdb
 ```
 
 

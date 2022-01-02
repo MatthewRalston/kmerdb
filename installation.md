@@ -18,6 +18,20 @@ image: assets/images/installation-symbol.png
 [RTD]: https://kdb.readthedocs.io/en/latest/
 
 
+
+## Optional R dependency
+
+DESeq2 is required for rpy2-mediated normalization `kmerdb matrix Normalized *.kdb`
+
+```r
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("DESeq2")
+```
+
+# Install
+
 Install the latest version from PyPI
 
 ```bash
