@@ -69,7 +69,7 @@ CLI Usage
 ```bash
 kmerdb --help
 # Build a [composite] profile to a new or existing .kdb file
-kmerdb profile example1.fq.gz example2.fq.gz profile.kdb
+kmerdb profile -k 8 example1.fq.gz example2.fq.gz profile.8.kdb
 # Calculate similarity between two (or more) profiles
 kmerdb distance correlation profile1.kdb profile2.kdb (...)
 ```
