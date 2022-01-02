@@ -42,4 +42,14 @@ def represent_ordereddict(dumper, data):
     return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
 
+def merge_metadata_lists(k, metadata_across_all_files, new_kmer_metadata):
+    """
+    Merge two 4**k metadata lists
+    """
+    if 4**k != len(new_kmer_metadata):
+        raise TypeError("kmerdb.util.merge_metadata_lists() expects a new_kmer_metadata list to have 4^{0} elements. Got {1}".format(k, len(new_kmer_metadata)))
 
+    for i, metadata in enumerate(new_kmer_metadata):
+        metadata_across_all_files[i] = metadata_across_all_files[i] + metadata
+
+    return metadata_across_all_files

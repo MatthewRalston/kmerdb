@@ -111,11 +111,12 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
         else:
             logger.debug("Skipping the block size assertion for fasta files")
         logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
-
+        all_kmer_metadata = list([] for x in range(total_kmers))
         while len(recs): # While the seqprsr continues to produce blocks of reads
             # Run each read through the shred method
             num_recs = len(recs)
-
+            # Initialize an all_kmer_metadata list
+            kmer_metadata = []
             if fasta:
                 list_of_dicts = list(map(Kmer.shred, recs))
             else:
@@ -126,6 +127,7 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
             #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
             
             # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
+            logger.debug("\n\nAcquiring linked-list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
             kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
             #logger.debug(kmer_ids)
             logger.debug("Initial k-mers as a dictionary from each of {0} sequences".format(num_recs))
@@ -203,24 +205,9 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
             # Assert that all list lengths are equal before adding metadata to k-mers
             if all_metadata is True and len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses):
                 N = len(starts)
-
-
                 
                 kmer_metadata = list(zip(kmer_ids, reads, starts, reverses))
                 # Everything is in the right order
-                # logger.debug("num k-mer ids: {0}".format(len(kmer_ids)))
-                # logger.debug("K-mer id types: {0}".format(type(kmer_ids[0])))
-                # logger.debug("Example: {0}".format(kmer_ids[0]))
-                # logger.debug("Num reads: {0}".format(len(reads)))
-                # logger.debug("reads type: {0}".format(type(reads[0])))
-                # logger.debug("Example: {0}".format(reads[0]))
-                # logger.debug("Num reverses: {0}".format(len(reverses)))
-                # logger.debug("reverse type: {0}".format(type(reverses[0])))
-                # logger.debug("Example: {0}".format(reverses[0]))
-                # raise RuntimeError("Deciding whether to set a dictionary, or a 4x? array")
-                logger.debug("Appended {0} records to rows".format(N))
-
-
                 logger.warning("Dumping all metadata into the .kdb file eventually. This could be expensive...")
 
             elif not all_metadata and len(reads) == 0 and len(starts) == 0 and len(reverses) == 0:
@@ -239,27 +226,25 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
             # On disk k-mer counting
             # Thank you, this was brilliant
             # https://stackoverflow.com/a/9294062/12855110
+            # 01-01-2022 This has been removed in favor of in-memory counting
             num_kmers = len(kmer_ids)
 
             if num_kmers == 0:
                 raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
             else:
-
+                sys.stderr.write("Accumulating all k-mers from this set of records...")
                 for kmer in kmer_ids:
                     counts[kmer] += 1
-                
-                    
-            
+            # all_kmer_metadata
+            if all_metadata:
+                for single_kmer_id, read, start, reverse in kmer_metadata:
+                    all_kmer_metadata[single_kmer_id].append((read, start, reverse))
+
+
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
             # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
             #sys.stderr("\n")
             logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
-        if all_metadata:
-            logger.error("NOT IMPLEMENTED WITH IN MEMORY COUNTING")
-            sys.exit(1)
-            sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the PostgreSQL database...\n")
-
-
         # Get nullomers
         # only nullomer counts
         unique_kmers = int(np.count_nonzero(counts))
@@ -277,70 +262,8 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
     finally:
         sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
 
-    return counts, seqprsr.header_dict(), nullomers
+    return counts, seqprsr.header_dict(), nullomers, all_kmer_metadata
 
-
-# class MetadataAppender:
-#     def __init__(self, ids:list, reads:list, starts:list, reverses:list, data:dict={}):
-#         if type(ids) is not list or not all(type(i) is int for i in ids):
-#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of ints as its first positional argument")
-#         elif type(reads) is not list or not all(type(r) is str for r in reads):
-#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of strings as its second positional argument")
-#         elif type(starts) is not list or not all(type(s) is int for s in starts):
-#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of ints as its third positional argument")
-#         elif type(reverses) is not list or not all(type(r) is bool for r in reverses):
-#             raise TypeError("kmerdb.parse.MetadataAppender.__init__() expects a list of bools as its fourth positional argument")
-#         elif type(data) is not dict:
-#             raise TypeError("kmerdb.parse.MetadataAppender.__init__{} expects a data dictionary as its fifth positional argument")
-
-#         self.data = data
-#         self.ids = ids
-#         self.reads = reads
-#         self.starts = starts
-#         self.reverses = reverses
-
-#     def appendRow(self, i):
-#         """
-#         :param i: 
-#         :type i: int
-#         :returns: 
-#         :rtype: tuple
-
-#         """
-#         if type(i) is not int:
-#             raise TypeError("kmerdb.MetadataAppender.appendRow expects an int as its first positional argument")
-#         logger.info("Processing the {0} k-mer by appending read relations, start offsets, and reverse 3-tuples to the metadata column".format(i))
-#         row = (self.ids[i], self.reads[i], self.starts[i], self.reverses[i])
-#         def helper(row, data, j):
-#             data = yaml.safe_load(data)
-#             if type(data) is str:
-#                 logger.error(data)
-#                 raise ValueError("data: '{0}' with j={1} parsed as a string".format(data, j))
-#             elif type(data) is list:
-#                 data.append(row[j])
-#             else:
-#                 logger.debug(data)
-#                 raise RuntimeError("data cannot parse as something other than list...")
-#             return data
-        
-#         # with self.conn.begin():
-#         #     seqids_data = self.conn.execute("SELECT seqids FROM kmers WHERE id = ?", self.ids[i])
-#         #     seqids = helper(row, seqids_data, 1)
-#         #     self.conn.execute("UPDATE kmers SET seqids = ? WHERE id = ?", json.dumps(seqids), self.ids[i])
-
-
-#         # with self.conn.begin():
-#         #     starts_data = self.conn.execute("SELECT starts FROM kmers WHERE id = ?", self.ids[i])
-#         #     starts = helper(row, starts_data, 2)
-#         #     self.conn.execute("UPDATE kmers SET starts = ? WHERE id = ?", json.dumps(starts), self.ids[i])
-
-
-#         # with self.conn.begin():
-#         #     reverses_data = self.conn.execute("SELECT reverses FROM kmers WHERE id = ?", self.ids[i])
-#         #     reverses = helper(row, reverses_data, 3)
-#         #     self.conn.execute("UPDATE kmers SET reverses = ? WHERE id = ?", json.dumps(reverses), self.ids[i])
-
-#         return row
 
 
 
