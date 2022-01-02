@@ -872,7 +872,8 @@ def profile(arguments):
     from multiprocessing import Pool
     import json
     import time
-    from kmerdb import parse, fileutil, kmer, database
+    import numpy as np
+    from kmerdb import parse, fileutil, kmer
     from kmerdb.config import VERSION
 
     logger.debug(arguments)
@@ -883,7 +884,9 @@ def profile(arguments):
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
     
     file_metadata = []
-    tempdbs = []
+    total_kmers = 4**arguments.k
+    final_counts = np.zeros(total_kmers, dtype='uint')
+    
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
     pool = Pool(processes=arguments.parallel)
@@ -893,153 +896,141 @@ def profile(arguments):
         #logger.info("Processing fastas in parallel")
         logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
         logger.debug("In other words, running the kmerdb.parse.parsefile() method many times on each file multiply specified via the CLI")
-        list_of_dbs = pool.map(infile.parsefile, arguments.seqfile)
+        data = pool.map(infile.parsefile, arguments.seqfile)
+
     else:
         logger.info("Processing (some) fastqs with alternate parallelization schema. WARNING: UNTESTED")
         logger.warning("WARNING: UNTESTED")
         logger.debug("Mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
-        list_of_dbs = list(map(infile.parsefile, arguments.seqfile))
-    logger.info("Generating list of temporary database handles")
+        data = list(map(infile.parsefile, arguments.seqfile))
     # list_of_dbs is a list of tuples returned from the mapping (either via pool.map or via regular Pythonic map) of the .parsefile() method
     # each tuple is a triple of the database handle, the metadata, and the set/list of nullomer ids
-    for db, m, n in list_of_dbs:
-        logger.debug("Appending metadata...")
-        file_metadata.append(m)
-        db = database.PostgresKdb(arguments.k, arguments.postgres_connection, tablename=db, filename=m["filename"])
-        tempdbs.append(db)
 
-        # Calculating nullomer additions
-        lenBefore = len(nullomers)
-        nullomers = nullomers.union(n)
-        lenAfter = len(nullomers)
-        newNullomers = lenAfter - lenBefore
-        logger.info("{0} contributed {1} unique nullomers to the profile".format(m["filename"], len(n)))
-        logger.info("Completed transfer of k-mers from {0} into PostgreSQL database.".format(m["filename"]))
+
+    # Complete collating of counts across files
+    for d in data:
+        final_counts = final_counts + d[0] # Add the counts to the zeroes array
+    unique_kmers = int(np.count_nonzero(final_counts))
+    total_nullomers = total_kmers - unique_kmers
+    all_observed_kmers = int(np.sum(final_counts))
+    
+
     logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
     logger.info("Formatting master metadata dictionary...")
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
         "k": arguments.k,
-        "total_kmers": sum(list(map(lambda x: x["total_kmers"], file_metadata))),
-        "unique_kmers": 4**arguments.k - len(nullomers),
+        "total_kmers": all_observed_kmers,
+        "unique_kmers": unique_kmers,
         "metadata": False,
         "tags": [],
-        "files": file_metadata
+        "files": [d[1] for d in data]
     })
         
 
 
     
-    metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
-    # The number of metadata blocks is the number of bytes of the header block(s) / the number of bytes per block in the BGZF specification
-    metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # First estimate
-    metadata_bytes = bgzf._as_bytes(yaml.dump(metadata))
-    metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
 
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
-        x = 0
-        iterating = True
-        while iterating:
-            try:
-                logger.debug("Collating counts across all files for the {0} k-mer".format(x))
-                kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
+        for i, count in enumerate(final_counts):
+            seq = kmer.id_to_kmer(i, arguments.k)
+            kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+            kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))            
+        # x = 0
+        # iterating = True
+        # while iterating:
+        #     try:
+        #         logger.debug("Collating counts across all files for the {0} k-mer".format(x))
+        #         kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
 
-                # Unstable code
-                #print(kmer_dbrecs_per_file)
+        #         # Unstable code
+        #         #print(kmer_dbrecs_per_file)
 
-                # raise RuntimeError("HOW DOES THIS HAVE NONE")
-                if len(kmer_dbrecs_per_file):
-                    i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
-                    count = sum([x[1] for x in kmer_dbrecs_per_file]) # The 1th element is the k-mer count, the 0th is the id
-                    if arguments.verbose == 2:
-                        sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_dbrecs_per_file)), count))
-                    if count == 0 and arguments.sparse is True:
-                        pass
-                    else:
-                        seq = kmer.id_to_kmer(i, arguments.k)
-                        kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                        # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
-                        if arguments.all_metadata:
-
-
-                            seqids = [x[4] for x in kmer_dbrecs_per_file]
-                            starts = [x[2] for x in kmer_dbrecs_per_file]
-                            reverses = [x[3] for x in kmer_dbrecs_per_file]
+        #         # raise RuntimeError("HOW DOES THIS HAVE NONE")
+        #         if len(kmer_dbrecs_per_file):
+        #             i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
+        #             count = sum([x[1] for x in kmer_dbrecs_per_file]) # The 1th element is the k-mer count, the 0th is the id
+        #             if arguments.verbose == 2:
+        #                 sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_dbrecs_per_file)), count))
+        #             if count == 0 and arguments.sparse is True:
+        #                 pass
+        #             else:
 
 
-                            if len(reverses) == 0:
-                                logger.error("REVERSES: {0}".format(reverses[0]))
-                                raise RuntimeError("reverses: IS THIS INCORRECT?")
-                            elif len(starts) == 0:
-                                logger.error("STARTS: {0}".format(starts[0]))
-                                raise RuntimeError("starts: IS THIS INCORRECT?")
-                            elif len(seqids) == 0:
-                                logger.error("SEQIDS: {0}".format(seqids[0]))
-                                raise RuntimeError("seqids: IS THIS INCORRECT?")
-                            elif len(seqids) == 1 and type(seqids) is list and type(seqids[0]) is list:
-                                seqids = seqids[0]
-                            elif len(starts) == 1 and type(starts) is list and type(starts[0]) is list:
-                                starts = starts[0]
-                            elif len(reverses) == 1 and type(reverses) is list and type(reverses[0]) is list:
-                                reverses = reverses[0]
+        #                 # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
+        #                 if arguments.all_metadata:
+
+
+        #                     seqids = [x[4] for x in kmer_dbrecs_per_file]
+        #                     starts = [x[2] for x in kmer_dbrecs_per_file]
+        #                     reverses = [x[3] for x in kmer_dbrecs_per_file]
+
+
+        #                     if len(reverses) == 0:
+        #                         logger.error("REVERSES: {0}".format(reverses[0]))
+        #                         raise RuntimeError("reverses: IS THIS INCORRECT?")
+        #                     elif len(starts) == 0:
+        #                         logger.error("STARTS: {0}".format(starts[0]))
+        #                         raise RuntimeError("starts: IS THIS INCORRECT?")
+        #                     elif len(seqids) == 0:
+        #                         logger.error("SEQIDS: {0}".format(seqids[0]))
+        #                         raise RuntimeError("seqids: IS THIS INCORRECT?")
+        #                     elif len(seqids) == 1 and type(seqids) is list and type(seqids[0]) is list:
+        #                         seqids = seqids[0]
+        #                     elif len(starts) == 1 and type(starts) is list and type(starts[0]) is list:
+        #                         starts = starts[0]
+        #                     elif len(reverses) == 1 and type(reverses) is list and type(reverses[0]) is list:
+        #                         reverses = reverses[0]
                             
-                            if "seqids" in kmer_metadata.keys():
-                                kmer_metadata["seqids"] += seqids
-                            else:
-                                kmer_metadata["seqids"] = seqids
-                            if "starts" in kmer_metadata.keys():
-                                kmer_metadata["starts"] += starts
-                            else:
-                                kmer_metadata["starts"] = starts
-                            if "reverses" in kmer_metadata.keys():
-                                kmer_metadata["reverses"] += reverses
-                            else:
-                                kmer_metadata["reverses"] = reverses
-                        else:
-                            kmer_metadata["seqids"]   = []
-                            kmer_metadata["starts"]   = []
-                            kmer_metadata["reverses"] = []
-                        if type(kmer_metadata["starts"]) is str:
-                            raise TypeError("kmerdb profile could not decode start sites from its preQLite3 database.")
-                        elif type(kmer_metadata["starts"]) is list and all(type(x) is int for x in kmer_metadata["starts"]):
-                            if arguments.verbose == 2:
-                                sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
-                        elif type(kmer_metadata["starts"]) is dict:
-                            logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-                        elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
-                            if arguments.verbose == 2:
-                                sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
-                        elif type(kmer_metadata["seqids"]) is dict:
-                            logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-                        elif type(kmer_metadata["reverses"]) is str:
-                            raise TypeError("kmerdb profile could not decode strand information from its PostgreSQL database.")
-                        elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
-                            if arguments.verbose == 2:
-                                sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
-                        elif type(kmer_metadata["reverses"]) is dict:
-                            logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
-                            raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-                        elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
-                            logger.error("kmer metadata: {0}".format(kmer_metadata))
-                            logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
-                            logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
-                            raise TypeError("Not all reverse bools were boolean")
-                        elif count == 0:
-                            n += 1
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
-                    x += 1
-                else:
-                    iterating = False
-            except StopIteration as e:
-                logger.warn("Shouldn't have encountered StopIteration error...")
-                logger.warn("Continuing anyways...")
-                iterating = False
-        logger.info("Completed the transfer of data from the {0} temporary SQLite3 databases to the kdb file '{1}'".format(len(tempdbs), arguments.kdb))
+        #                     if "seqids" in kmer_metadata.keys():
+        #                         kmer_metadata["seqids"] += seqids
+        #                     else:
+        #                         kmer_metadata["seqids"] = seqids
+        #                     if "starts" in kmer_metadata.keys():
+        #                         kmer_metadata["starts"] += starts
+        #                     else:
+        #                         kmer_metadata["starts"] = starts
+        #                     if "reverses" in kmer_metadata.keys():
+        #                         kmer_metadata["reverses"] += reverses
+        #                     else:
+        #                         kmer_metadata["reverses"] = reverses
+        #                 else:
+        #                     kmer_metadata["seqids"]   = []
+        #                     kmer_metadata["starts"]   = []
+        #                     kmer_metadata["reverses"] = []
+        #                 if type(kmer_metadata["starts"]) is str:
+        #                     raise TypeError("kmerdb profile could not decode start sites from its preQLite3 database.")
+        #                 elif type(kmer_metadata["starts"]) is list and all(type(x) is int for x in kmer_metadata["starts"]):
+        #                     if arguments.verbose == 2:
+        #                         sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
+        #                 elif type(kmer_metadata["starts"]) is dict:
+        #                     logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
+        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+        #                 elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
+        #                     if arguments.verbose == 2:
+        #                         sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
+        #                 elif type(kmer_metadata["seqids"]) is dict:
+        #                     logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
+        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+        #                 elif type(kmer_metadata["reverses"]) is str:
+        #                     raise TypeError("kmerdb profile could not decode strand information from its PostgreSQL database.")
+        #                 elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
+        #                     if arguments.verbose == 2:
+        #                         sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
+        #                 elif type(kmer_metadata["reverses"]) is dict:
+        #                     logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
+        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
+        #                 elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
+        #                     logger.error("kmer metadata: {0}".format(kmer_metadata))
+        #                     logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
+        #                     logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
+        #                     raise TypeError("Not all reverse bools were boolean")
+        #                 elif count == 0:
+        #                     n += 1
+
         logger.info("Done")
     finally:
         import shutil
@@ -1047,21 +1038,6 @@ def profile(arguments):
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
-        for db in tempdbs:
-            if not arguments.keep_db:
-                #os.unlink(db.filepath)
-                with db.conn.begin():
-                    db.conn.execute("DROP TABLE {}".format(db._tablename))
-                # else:
-            #     kdbfile = arguments.kdb
-            #     kdbbasename = arguments.kdb.rstrip(".kdb")
-            #     kdbsqlite = kdbbasename + ".sqlite3"
-            #     shutil.move(db.filepath, kdbsqlite)
-            #     sys.stderr.write("    Database file retained as    '{0}'".format(kdbsqlite))
-
-            if db.conn is not None:
-                db.conn.close()
-            db._engine.dispose()
 
     
 # def gen_hist(arguments):
@@ -1137,7 +1113,6 @@ def cli():
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    profile_parser.add_argument("-pg", "--postgres-connection", type=str, help="A postgresql connection string, of the format postgres://user:password@host:port/dbname", required=True)
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
     profile_parser.add_argument("-pq", "--parallel-fastq", type=int, default=1, help="The number of blocks to read in parallel for reading fastqs")
     profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")

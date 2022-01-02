@@ -26,19 +26,21 @@ from math import ceil
 from itertools import chain, repeat
 from concurrent.futures import ThreadPoolExecutor
 
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Sequence, JSON, Boolean
+# from sqlalchemy.orm import sessionmaker
+# from sqlalchemy.orm.attributes import flag_modified
+# from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Sequence, JSON, Boolean
 
-from psycopg2 import sql
+#from psycopg2 import sql
 import tempfile
+import numpy as np
+
 
 #import threading
 from multiprocessing import Pool
 
 
-from kmerdb import seqparser, database, kmer
+from kmerdb import seqparser, kmer
 
 import logging
 logger = logging.getLogger(__file__)
@@ -46,12 +48,8 @@ logger = logging.getLogger(__file__)
 
 
 
-Base = declarative_base()
 
-
-
-
-def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -64,8 +62,8 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
     :type b: int
     :param stranded: Strand specificity argument for k-mer shredding process
     :type stranded: bool
-    :returns: (db, header_dictionary) header_dictionary is the file's metadata for the header block
-    :rtype: (kdb.database.SqliteKdb, dict)
+    :returns: (counts, header_dictionary, nullomers) header_dictionary is the file's metadata for the header block
+    :rtype: (numpy.ndarray, dict, list)
 
     """
     if type(filepath) is not str:
@@ -74,8 +72,6 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
         raise OSError("kmerdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
     elif type(k) is not int:
         raise TypeError("kmerdb.parse.parsefile expects an int as its second positional argument")
-    elif type(connection_string) is not str:
-        raise TypeError("kmerdb.parse.parsefile expects a str as its third positional argument")
     elif type(p) is not int:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'p' to be an int")
     elif type(b) is not int:
@@ -84,13 +80,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'n' to be an int")
     elif type(stranded) is not bool:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
-    # Create temporary SQLite3 database file for on-disk k-mer counting
-    # temp = tempfile.NamedTemporaryFile(mode="w+", suffix=".sqlite3", delete=False)
-    # logger.debug("Creating temporary database to tally k-mers: '{0}'".format(temp.name))
-    # temp.close()
 
-    logger.debug("Creating empty database table to store the k-mers counts.")
-    db = database.PostgresKdb(k, connection_string, filename=filepath)
     from kmerdb import kmer
 
 
@@ -98,6 +88,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []
+    total_kmers = 4**k
     nullomers = set()
     try:
         # Build fasta/fastq parser object to stream reads into memory
@@ -108,7 +99,8 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
         if not fasta: # Cannot process fast files in parallel due to spawning issue.
             pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
 
-
+        # Initialize the kmer array
+        counts = np.zeros(total_kmers, dtype='uint')
         # Instantiate the kmer class
         Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
@@ -214,7 +206,7 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
 
 
                 
-                data = list(zip(kmer_ids, reads, starts, reverses))
+                kmer_metadata = list(zip(kmer_ids, reads, starts, reverses))
                 # Everything is in the right order
                 # logger.debug("num k-mer ids: {0}".format(len(kmer_ids)))
                 # logger.debug("K-mer id types: {0}".format(type(kmer_ids[0])))
@@ -228,7 +220,6 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
                 # raise RuntimeError("Deciding whether to set a dictionary, or a 4x? array")
                 logger.debug("Appended {0} records to rows".format(N))
 
-                rows += data 
 
                 logger.warning("Dumping all metadata into the .kdb file eventually. This could be expensive...")
 
@@ -253,28 +244,10 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             if num_kmers == 0:
                 raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
             else:
-                # for kmer_id in kmer_ids:
-                #     db.conn.execute("UPDATE {0} SET count = count + 1 WHERE id = $1".format(db._tablename),
-                inserts = list(map(lambda x: (x+1,), kmer_ids))
 
-                batches = ceil(num_kmers/rows_per_batch)
-                t0 = datetime.now()
-                for i in range(batches):
-
-                    try:
-                        with db.conn.begin():
-
-                            db.conn.execute("UPDATE {0} SET count = count + 1 WHERE id IN (%s)".format(db._tablename), inserts[i*rows_per_batch:(i*rows_per_batch+rows_per_batch)])
-
-                    except Exception as e:
-                        logger.error(db.conn)
-                        raise e
-
-                    t1 = datetime.now()
-                    d = (t1 - t0).seconds
-                    logger.info("\n\nLoaded {0} k-mers in batch {1} transaction ({2} rows/second)".format(rows_per_batch, i, rows_per_batch/(d+0.1)))
-                    t0 = t1
-                    t1 = None
+                for kmer in kmer_ids:
+                    counts[kmer] += 1
+                
                     
             
             recs = [r for r in seqprsr] # The next block of exactly 'b' reads
@@ -282,87 +255,29 @@ def parsefile(filepath:str, k:int, connection_string:str, p:int=1, rows_per_batc
             #sys.stderr("\n")
             logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
         if all_metadata:
-            sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the SQLite3 database...\n")
-
-            unique_kmer_ids = list(set(list(map(lambda x: x[0], rows))))
-
-
-
-            # If we round up to the nearest page, we should have 'pages' number of pages
-            # and we'd read n on each page.
-            kid = 0
-            Session = sessionmaker(bind=db._engine)
-            session = Session()
-            class Kmer(Base):
-                __tablename__ = db._tablename
-
-                id = Column(Integer, primary_key=True)
-                count = Column(Integer)
-                starts = Column(JSON)
-                reverses = Column(JSON)
-                seqids = Column(JSON)
-
-            for i in range(len(unique_kmer_ids)):
-                kid = kmer_ids[i] # FOr SQLlite 1-based indexing
-                logger.debug("Beginning to commit {0} to the database".format(kid))
-                sys.stderr.write("\n")
-                kmers = [x for x in rows if x[0] == kid]
-                logger.debug("Located {0} relationships involving k-mer {1}".format(len(kmers), kid))
-                logger.debug("        === M E S S A G E ===")
-                logger.debug("=====================================")
-                logger.debug("beginning to process all records of the {0} k-mer".format(kid))
+            logger.error("NOT IMPLEMENTED WITH IN MEMORY COUNTING")
+            sys.exit(1)
+            sys.stderr.write("Writing all metadata keys for each k-mer's relationships to reads into the PostgreSQL database...\n")
 
 
-                row = session.query(Kmer).filter_by(id=kid).first()
-                if row is None:
-                    logger.error(kid)
-                    raise RuntimeError("Could not locate k-mer with id {0} in the Postgres table".format(kid))
+        # Get nullomers
+        # only nullomer counts
+        unique_kmers = int(np.count_nonzero(counts))
+        num_nullomers = total_kmers - unique_kmers
+        is_nullomer = np.where(counts == 0)
+        nullomers = []
+        for i, j in enumerate(is_nullomer):
+            if j is True:
+                nullomers.append(i)
+        seqprsr.total_kmers = int(np.sum(counts))
+        seqprsr.unique_kmers = unique_kmers
+        seqprsr.nullomers = num_nullomers
 
-
-                logger.debug("Before: {0}".format(len(row.reverses)))
-                row.seqids = list(map(lambda y: y[1], kmers))
-                row.starts = list(map(lambda y: y[2], kmers))
-                row.reverses = list(map(lambda y: y[3], kmers))
-                #flag_modified(Kmer, 'seqids')
-                #flag_modified(Kmer, 'starts')
-                #flag_modified(Kmer, 'reverses')
-
-
-                logger.debug("After: {0}".format(len(row.reverses)))
-                session.add(row)
-
-                if i % rows_per_batch == 0:
-                    session.commit()
-                    logger.info("Transaction completed for the {0} kmer.".format(kid+1))
-            session.commit()
-            logger.debug("Sleeping...")
-            time.sleep(200)
-            session.commit()
-
-            logger.debug("===================================")
-            logger.debug("Example record with metadata:")
-            result = session.query(Kmer).filter_by(id=kid+1).first()
-            logger.debug(result.__dict__)
-            logger.debug("===================================")
-            session.close()
-        seqprsr.nullomers = db._get_nullomers() # Calculate nullomers at the end
-        seqprsr.total_kmers = db._get_sum_counts() # The total number of k-mers processed
-        # Get nullomer ids
-        res = list(db.conn.execute("SELECT id FROM {0} WHERE count = 0".format(db._tablename)).fetchall())
-        if type(res) is not list or not all(type(x[0]) is int for x in res):
-            logger.error("{0}\nSELECT id FROM kmers WHERE count = 0".format(res))
-            logger.error("Type of res: {0}".format(type(res)))
-            logger.error("Types of values: {0}".format([type(x[0]) for x in res]))
-            logger.error("The result of the query was not a list of singleton tuples of ints")
-            raise ValueError("PostgreSQL database query returned unexpected data types")
-        nullomers = list(map(lambda x: x[0], res))
-
+        
     finally:
-        sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}' into the database...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
-        if db.conn is not None:
-            db.conn.close()
+        sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
 
-    return db._tablename, seqprsr.header_dict(), nullomers
+    return counts, seqprsr.header_dict(), nullomers
 
 
 # class MetadataAppender:
@@ -441,6 +356,6 @@ class Parseable:
         :type data: dict
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, self.arguments.postgres_connection, p=self.arguments.parallel_fastq, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
+        return parsefile(filename, self.arguments.k, p=self.arguments.parallel_fastq, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
 
 
