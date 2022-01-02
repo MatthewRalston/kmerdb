@@ -410,8 +410,8 @@ Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM,
 ```bash
 function getmetagenome(){
   col=$1
-  # metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
-  metagenome=($(sed -n "${col}p" microbes.txt | sed 's/.*/&.fna/'))
+  metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  #metagenome=($(sed -n "${col}p" microbes.txt | sed 's/.*/&.fna/g'))
   echo "${metagenome[@]}"
 }
 export -f getmetagenome
