@@ -34,7 +34,7 @@ from builtins import open as _open
 
 import jsonschema
 from Bio import SeqIO, bgzf
-#import boto3
+
 #sys.path.append('..')
 
 from kmerdb import kmer, database, util, config
@@ -43,10 +43,7 @@ from kmerdb import kmer, database, util, config
 import logging
 logger = logging.getLogger(__file__)
 # S3 configuration
-s3 = boto3.resource('s3')
-s3client = boto3.client('s3')
 s3prefix = "s3://"
-
 
 
 def is_all_fasta(filenames):
@@ -73,6 +70,12 @@ def _s3_file_download(self, seqpath, temporary=True):
     :returns: The location of a downloaded gennomic Fasta file
     :rtype: str
     """
+    import boto3
+    s3 = boto3.resource('s3')
+    s3client = boto3.client('s3')
+
+
+
     if type(seqpath) is not str:
         raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects a str 'seqpath' as its first positional argument")
     elif seqpath[0:5] != s3prefix:
