@@ -450,6 +450,8 @@ class KDBWriter(bgzf.BgzfWriter):
         logger.debug(self.metadata)
         logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
 
+        # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
+        # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
         #self.write(bytes(yaml.dump(metadata, sort_keys=False), 'utf-8'))
         
         for i in range(self.metadata["metadata_blocks"]):
@@ -460,43 +462,4 @@ class KDBWriter(bgzf.BgzfWriter):
         #self._write_block
         self._buffer = b""
         self._handle.flush()
-        
-    # def write(self, data):
-    #     if not isinstance(data, str):
-    #         raise TypeError("kdb.fileutil.KDBWriter.write() expects a str as its first positional argument")
-    #     else:
-    #         data = data.encode('latin-1')
-
-    #     data_len = len(data)
-    #     if len(self._buffer) + data_len < 65536:
-    #         self._buffer += data
-    #     else:
-    #         self._buffer += data
-    #         while len(self._buffer) >= 65536:
-    #             self._write_block(self._buffer[:65536])
-    #             self._buffer = self._buffer[65536:]
-    #         self.flush()
-
-    # def write_block(self, recs):
-    #     if type(recs) is not list:
-    #         raise TypeError("kdb.fileutil.KDBWriter.write_block() expects a list as its first positional argument")
-
-    #     self._block_size = bgzf._as_bytes(self._buffer).__sizeof__()
-    #     while len(recs):
-        
-    #         while self._block_size < 65530:
-    #             newline = "\t".join(recs.pop()) + "\n"
-
-    #             if self._block_size + bgzf.as_bytes(newline).__sizeof__() < 65530:
-    #                 self._buffer += newline
-    #                 self._block_size += bgzf._as_bytes(newline).__sizeof__()
-    #             else:
-    #                 self._write_block(bgzf._as_bytes(self._buffer))
-    #                 self._buffer = b""
-    #                 self._handle.flush()
-    #                 self._buffer = newline
-    #                 self._block_size = bgzf._as_bytes(newline).__sizeof__()
-    #     self._write_block(bgzf._as_bytes(self._buffer))
-    #     self._buffer = b""
-    #     self._handle.flush()
         
