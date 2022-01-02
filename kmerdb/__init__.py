@@ -873,7 +873,7 @@ def profile(arguments):
     import json
     import time
     import numpy as np
-    from kmerdb import parse, fileutil, kmer
+    from kmerdb import parse, fileutil, kmer, util
     from kmerdb.config import VERSION
 
     logger.debug(arguments)
@@ -886,7 +886,7 @@ def profile(arguments):
     file_metadata = []
     total_kmers = 4**arguments.k
     final_counts = np.zeros(total_kmers, dtype='uint')
-    
+    all_kmer_metadata = list([] for x in range(total_kmers))
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
     pool = Pool(processes=arguments.parallel)
@@ -910,6 +910,9 @@ def profile(arguments):
     # Complete collating of counts across files
     for d in data:
         final_counts = final_counts + d[0] # Add the counts to the zeroes array
+        if arguments.all_metadata:
+            
+            all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
     unique_kmers = int(np.count_nonzero(final_counts))
     total_nullomers = total_kmers - unique_kmers
     all_observed_kmers = int(np.sum(final_counts))
@@ -935,106 +938,27 @@ def profile(arguments):
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
+        x=0
         for i, count in enumerate(final_counts):
             seq = kmer.id_to_kmer(i, arguments.k)
             kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-            kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))            
-        # x = 0
-        # iterating = True
-        # while iterating:
-        #     try:
-        #         logger.debug("Collating counts across all files for the {0} k-mer".format(x))
-        #         kmer_dbrecs_per_file = list(map(next, tempdbs)) # Need to rename this variable
-
-        #         # Unstable code
-        #         #print(kmer_dbrecs_per_file)
-
-        #         # raise RuntimeError("HOW DOES THIS HAVE NONE")
-        #         if len(kmer_dbrecs_per_file):
-        #             i = kmer_dbrecs_per_file[0][0] - 1 # Remove 1 for the Sqlite zero-based indexing
-        #             count = sum([x[1] for x in kmer_dbrecs_per_file]) # The 1th element is the k-mer count, the 0th is the id
-        #             if arguments.verbose == 2:
-        #                 sys.stderr.write("K-mer counts: {0} = {1}\n".format(list(map(lambda x: x[1], kmer_dbrecs_per_file)), count))
-        #             if count == 0 and arguments.sparse is True:
-        #                 pass
-        #             else:
-
-
-        #                 # metadata now has three additional properties, based on the total number of times this k-mer occurred. Eventually the dimension of these new properties should match the count.
-        #                 if arguments.all_metadata:
-
-
-        #                     seqids = [x[4] for x in kmer_dbrecs_per_file]
-        #                     starts = [x[2] for x in kmer_dbrecs_per_file]
-        #                     reverses = [x[3] for x in kmer_dbrecs_per_file]
-
-
-        #                     if len(reverses) == 0:
-        #                         logger.error("REVERSES: {0}".format(reverses[0]))
-        #                         raise RuntimeError("reverses: IS THIS INCORRECT?")
-        #                     elif len(starts) == 0:
-        #                         logger.error("STARTS: {0}".format(starts[0]))
-        #                         raise RuntimeError("starts: IS THIS INCORRECT?")
-        #                     elif len(seqids) == 0:
-        #                         logger.error("SEQIDS: {0}".format(seqids[0]))
-        #                         raise RuntimeError("seqids: IS THIS INCORRECT?")
-        #                     elif len(seqids) == 1 and type(seqids) is list and type(seqids[0]) is list:
-        #                         seqids = seqids[0]
-        #                     elif len(starts) == 1 and type(starts) is list and type(starts[0]) is list:
-        #                         starts = starts[0]
-        #                     elif len(reverses) == 1 and type(reverses) is list and type(reverses[0]) is list:
-        #                         reverses = reverses[0]
-                            
-        #                     if "seqids" in kmer_metadata.keys():
-        #                         kmer_metadata["seqids"] += seqids
-        #                     else:
-        #                         kmer_metadata["seqids"] = seqids
-        #                     if "starts" in kmer_metadata.keys():
-        #                         kmer_metadata["starts"] += starts
-        #                     else:
-        #                         kmer_metadata["starts"] = starts
-        #                     if "reverses" in kmer_metadata.keys():
-        #                         kmer_metadata["reverses"] += reverses
-        #                     else:
-        #                         kmer_metadata["reverses"] = reverses
-        #                 else:
-        #                     kmer_metadata["seqids"]   = []
-        #                     kmer_metadata["starts"]   = []
-        #                     kmer_metadata["reverses"] = []
-        #                 if type(kmer_metadata["starts"]) is str:
-        #                     raise TypeError("kmerdb profile could not decode start sites from its preQLite3 database.")
-        #                 elif type(kmer_metadata["starts"]) is list and all(type(x) is int for x in kmer_metadata["starts"]):
-        #                     if arguments.verbose == 2:
-        #                         sys.stderr.write("Parsed {0} k-mer start sites from this sequence.".format(len(kmer_metadata["starts"])))
-        #                 elif type(kmer_metadata["starts"]) is dict:
-        #                     logger.debug("Don't know how starts became a dictionary, but this will not parse correctly. RuntimeError")
-        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-        #                 elif type(kmer_metadata["seqids"]) is list and all(type(x) is str for x in kmer_metadata["seqids"]):
-        #                     if arguments.verbose == 2:
-        #                         sys.stderr.write("Parsed {0} sequence ids associated with this k-mer.".format(len(kmer_metadata["seqids"])))
-        #                 elif type(kmer_metadata["seqids"]) is dict:
-        #                     logger.debug("Don't know how seqids became a dictionary, but this will not parse correctly. RuntimeError")
-        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-        #                 elif type(kmer_metadata["reverses"]) is str:
-        #                     raise TypeError("kmerdb profile could not decode strand information from its PostgreSQL database.")
-        #                 elif type(kmer_metadata["reverses"]) is list and all(type(x) is bool for x in kmer_metadata["reverses"]):
-        #                     if arguments.verbose == 2:
-        #                         sys.stderr.write("Parsed {0} reverse? bools associated with this k-mer.".format(len(kmer_metadata["seqids"])))
-        #                 elif type(kmer_metadata["reverses"]) is dict:
-        #                     logger.debug("Don't know how reverses became a dictionary, but this will not parse correctly. RuntimeError")
-        #                     raise RuntimeError("The implicit type of the Text blob in the Postgres database has changed, and will not parse correctly in kmerdb, rerun with verbose")
-        #                 elif not all(type(x) is bool for x in kmer_metadata["reverses"]):
-        #                     logger.error("kmer metadata: {0}".format(kmer_metadata))
-        #                     logger.error("number of k-mer elements: {0}".format(len(kmer_metadata.values())))
-        #                     logger.error(list(set(type(x) for x in kmer_metadata["reverses"])))
-        #                     raise TypeError("Not all reverse bools were boolean")
-        #                 elif count == 0:
-        #                     n += 1
+            if arguments.all_metadata:
+                reads = []
+                starts = []
+                reverses = []
+                for read, start, reverse in all_kmer_metadata[i]:
+                    reads.append(read)
+                    starts.append(start)
+                    reverses.append(reverse)
+                kmer_metadata["reads"] = reads
+                kmer_metadata["starts"] = starts
+                kmer_metadata["reverses"] = reverses
+            kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+            x = i
+        logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(x))
 
         logger.info("Done")
     finally:
-        import shutil
-        from psycopg2 import sql
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
