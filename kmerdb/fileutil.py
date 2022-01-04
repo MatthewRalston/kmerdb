@@ -425,7 +425,7 @@ class KDBWriter(bgzf.BgzfWriter):
                 handle = _open(filename, "wb")
         self._text = "b" not in mode.lower()
         self._handle = handle
-        self._buffer = b""
+        self._buffer = b"" if "b" in mode.lower() else ""
         self.compresslevel = compresslevel
 
         """
@@ -437,29 +437,35 @@ class KDBWriter(bgzf.BgzfWriter):
         
         logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
         yaml.add_representer(OrderedDict, util.represent_ordereddict)
+        if "b" in mode.lower():
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_plus_delimiter_in_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
+            logger.debug(self.metadata)
+            logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
 
-        metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
-        metadata_plus_delimiter_in_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
-        self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
-        metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
-        metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
-        self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
-        metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
-        metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
-        logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
-        logger.debug(self.metadata)
-        logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
-
-        # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
-        # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
-        #self.write(bytes(yaml.dump(metadata, sort_keys=False), 'utf-8'))
+            # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
+            # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
+            #self.write(bytes(yaml.dump(metadata, sort_keys=False), 'utf-8'))
         
-        for i in range(self.metadata["metadata_blocks"]):
-            metadata_slice = metadata_bytes[:65536]
-            metadata_bytes = metadata_bytes[65536:]
-            self._write_block(metadata_slice)
+            for i in range(self.metadata["metadata_blocks"]):
+                metadata_slice = metadata_bytes[:65536]
+                metadata_bytes = metadata_bytes[65536:]
+                self._write_block(metadata_slice)
 
-        #self._write_block
-        self._buffer = b""
-        self._handle.flush()
-        
+                #self._write_block
+                self._buffer = b""
+                self._handle.flush()
+        elif "w" == mode.lower() or "x" == mode.lower():
+            self.write(yaml.dump(metadata, sort_keys=False))
+            self._buffer = ""
+            self._handle.flush()
+        else:
+            logger.error("Mode: {}".format(mode.lower()))
+            raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
