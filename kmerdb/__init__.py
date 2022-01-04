@@ -841,7 +841,7 @@ def view(arguments):
     elif not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
     else:
-        with fileutil.open(arguments.kdb_out, metadata=metadata, mode='wb') as kdb_out:
+        with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
             try:
                 line = None
                 if kdb_in is None:
@@ -867,8 +867,6 @@ def view(arguments):
 
             
 def profile(arguments):
-    import math
-    from itertools import chain, repeat
     from multiprocessing import Pool
     import json
     import time
@@ -897,7 +895,6 @@ def profile(arguments):
         logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
         logger.debug("In other words, running the kmerdb.parse.parsefile() method many times on each file multiply specified via the CLI")
         data = pool.map(infile.parsefile, arguments.seqfile)
-
     else:
         logger.info("Processing (some) fastqs with alternate parallelization schema. WARNING: UNTESTED")
         logger.warning("WARNING: UNTESTED")
@@ -1038,7 +1035,7 @@ def cli():
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
-    profile_parser.add_argument("-pq", "--parallel-fastq", type=int, default=1, help="The number of blocks to read in parallel for reading fastqs")
+
     profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
     profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")

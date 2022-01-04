@@ -24,7 +24,7 @@ import time
 from datetime import datetime
 from math import ceil
 from itertools import chain, repeat
-from concurrent.futures import ThreadPoolExecutor
+
 
 # from sqlalchemy.orm import sessionmaker
 # from sqlalchemy.orm.attributes import flag_modified
@@ -36,10 +36,6 @@ import tempfile
 import numpy as np
 
 
-#import threading
-from multiprocessing import Pool
-
-
 from kmerdb import seqparser, kmer
 
 import logging
@@ -49,15 +45,13 @@ logger = logging.getLogger(__file__)
 
 
 
-def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
     :type filepath: str
     :param k: Choice of k to shred k-mers with
     :type k: int
-    :param p: Number of processes
-    :type p: int
     :param b: Number of reads (per block) to process in parallel
     :type b: int
     :param stranded: Strand specificity argument for k-mer shredding process
@@ -72,8 +66,6 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
         raise OSError("kmerdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
     elif type(k) is not int:
         raise TypeError("kmerdb.parse.parsefile expects an int as its second positional argument")
-    elif type(p) is not int:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'p' to be an int")
     elif type(b) is not int:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
     elif type(n) is not int:
@@ -95,12 +87,10 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
         logger.debug("Initializing parser...")
         seqprsr = seqparser.SeqParser(filepath, b, k)
         fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
-        logger.info("Constructing multiprocessing pool with {0} processors".format(p))
-        if not fasta: # Cannot process fast files in parallel due to spawning issue.
-            pool = Pool(processes=p) # A multiprocessing pool of depth 'p'
 
         # Initialize the kmer array
         counts = np.zeros(total_kmers, dtype='uint')
+        logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(total_kmers, counts.nbytes))
         # Instantiate the kmer class
         Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
@@ -113,24 +103,18 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
         logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
         all_kmer_metadata = list([] for x in range(total_kmers))
         while len(recs): # While the seqprsr continues to produce blocks of reads
-            # Run each read through the shred method
+
             num_recs = len(recs)
+            logger.info("Processing a block of {0} reads/sequences".format(num_recs))
+
             # Initialize an all_kmer_metadata list
             kmer_metadata = []
-            if fasta:
-                list_of_dicts = list(map(Kmer.shred, recs))
-            else:
-                list_of_dicts = list(map(Kmer.shred, recs))
+            list_of_dicts = list(map(Kmer.shred, recs))
 
-
-            logger.info("Shredded up {0} sequences over {1} parallel cores, like a cheesesteak".format(len(list_of_dicts), p))
-            #logger.debug("Everything in list_of_dicts is perfect, everything past here is garbage")
-            
             # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
             logger.debug("\n\nAcquiring linked-list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
             kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
-            #logger.debug(kmer_ids)
-            logger.debug("Initial k-mers as a dictionary from each of {0} sequences".format(num_recs))
+            logger.debug("Successfully allocated linked-list for all k-mer ids read.")
             sus = set()
             logger.info("Removing any eroneous k-mers without an id, cause by 'N' content, creating new gaps in the k-mer profile...")
             logger.info("Will substitute IUPAC residues with their respective residues, adding one count for each")
@@ -211,6 +195,7 @@ def parsefile(filepath:str, k:int, p:int=1, rows_per_batch:int=100000, b:int=500
                 logger.warning("Dumping all metadata into the .kdb file eventually. This could be expensive...")
 
             elif not all_metadata and len(reads) == 0 and len(starts) == 0 and len(reverses) == 0:
+                logger.debug("Skipping metadata allocation")
                 pass # If we're not doing metadata, don't do it
             else: # Raise an error if the numbers of items per list are not equal
                 logger.error("{0} kmer ids".format(len(kmer_ids)))
@@ -275,10 +260,10 @@ class Parseable:
     def parsefile(self, filename):
         """Wrapper function for parse.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
             
-        :param data: { 'filename': ..., 'args': { argparse } }
-        :type data: dict
+        :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with parsefile -> seqparser
+        :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, p=self.arguments.parallel_fastq, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
+        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
 
 
