@@ -5,6 +5,8 @@ NOTE: This project is in alpha stage. Development is ongoing. But feel free to c
 
 ## Development Status
 
+
+![PyPI - Downloads](https://img.shields.io/pypi/dm/kmerdb)
 [![GitHub Downloads](https://img.shields.io/github/downloads/MatthewRalston/kdb/total.svg?style=social&logo=github&label=Download)](https://github.com/MatthewRalston/kmerdb/releases)
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
