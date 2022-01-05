@@ -874,46 +874,67 @@ def profile(arguments):
     from kmerdb import parse, fileutil, kmer, util
     from kmerdb.config import VERSION
 
+    logger.debug("Printing entire CLI argparse option Namespace...")
     logger.debug(arguments)
 
+    # The number of specified processors should be available
+    logger.debug("Validating processor count for parallelization...")
     if arguments.parallel <= 0 or arguments.parallel > cpu_count()+1:
         raise argparse.ArgumentError("-p, --parallel must be a valid processor count.")
+
+    # The extension should be .kdb because I said so.
+    logger.info("Checking extension of output file...")
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
     
     file_metadata = []
-    total_kmers = 4**arguments.k
+    total_kmers = 4**arguments.k # Dimensionality of k-mer profile
+    
+    # Construct a final_counts array for the composite profile across all inputs
+    logger.debug("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers))
     final_counts = np.zeros(total_kmers, dtype='uint')
+    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(final_counts.nbytes))
+
+    
     all_kmer_metadata = list([] for x in range(total_kmers))
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
     pool = Pool(processes=arguments.parallel)
-    infile = parse.Parseable(arguments) # 
+    infile = parse.Parseable(arguments) #
+
+    # Check if all files 
     if fileutil.is_all_fasta(list(arguments.seqfile)):
-        logger.info("Processing {0} fasta files...".format(len(list(arguments.seqfile))))
-        #logger.info("Processing fastas in parallel")
+        logger.info("Processing {0} fasta files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
         logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
-        logger.debug("In other words, running the kmerdb.parse.parsefile() method many times on each file multiply specified via the CLI")
+        logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
         data = pool.map(infile.parsefile, arguments.seqfile)
     else:
-        logger.info("Processing (some) fastqs with alternate parallelization schema. WARNING: UNTESTED")
-        logger.warning("WARNING: UNTESTED")
+        logger.info("Processing fasta/fastq files without parallelization.")
         logger.debug("Mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
         data = list(map(infile.parsefile, arguments.seqfile))
-    # list_of_dbs is a list of tuples returned from the mapping (either via pool.map or via regular Pythonic map) of the .parsefile() method
-    # each tuple is a triple of the database handle, the metadata, and the set/list of nullomer ids
+
+    # 'data' is now a list of 4-tuples
+    # Each 4-tuple represents a single file
+    # (counts<numpy.array>, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
 
     # Complete collating of counts across files
+    logger.info("Summing counts from individual fasta/fastq files into a composite profile...")
     for d in data:
         final_counts = final_counts + d[0] # Add the counts to the zeroes array
         if arguments.all_metadata:
-            
+            logger.info("\n\nMerging metadata from all files...\n\n")
             all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
+
+    sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
+
     unique_kmers = int(np.count_nonzero(final_counts))
     total_nullomers = total_kmers - unique_kmers
     all_observed_kmers = int(np.sum(final_counts))
-    
+    sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+    sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
+    sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+    sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
 
     logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
     logger.info("Formatting master metadata dictionary...")
@@ -923,7 +944,7 @@ def profile(arguments):
         "k": arguments.k,
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
-        "metadata": False,
+        "metadata": arguments.all_metadata,
         "tags": [],
         "files": [d[1] for d in data]
     })
@@ -950,7 +971,13 @@ def profile(arguments):
                 kmer_metadata["reads"] = reads
                 kmer_metadata["starts"] = starts
                 kmer_metadata["reverses"] = reverses
-            kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+            if arguments.all_metadata and len(kmer_metadata["reverses"]) == count:
+                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+            elif not arguments.all_metadata:
+                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+            else:
+                logger.error("Count: {0}\nReads: {1}\nStart sites: {2}\n Strand booleans: {3}\n".format(count, len(kmer_metadata["reads"]), len(kmer_metadata["starts"], len(kmer_metadata["reverses"]))))
+                raise TypeError("One or more metadata elements were missing...")
             x = i
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(x))
 
@@ -961,28 +988,6 @@ def profile(arguments):
         kdb_out._handle.close()
 
     
-# def gen_hist(arguments):
-#     from kdb import fileutil
-
-
-#     hist = {}
-
-#     with fileutil.open(arguments.kdb, mode='r') as ifile:
-#         i = 0
-#         for line in ifile:
-#             kmer_id, count = (int(x) for x in line.rstrip().split("\t"))
-#             if "\t" in line:
-#                 try:
-#                     hist[count] += 1
-#                 except KeyError as e:
-#                     hist[count] = 1
-#             else:
-#                 print(line)
-#                 print(i)
-#             i +=1
-
-#     for k, v in hist.items():
-#         print(k, v)
         
 def get_root_logger(level):
     levels=[logging.WARNING, logging.INFO, logging.DEBUG]
@@ -1007,7 +1012,7 @@ def citation_info():
         else:
             sys.stderr.write("Printing citation notice to stderr. This will not interfere with the execution of the program in any way. Please see CITATION_FAQ.md for any questions.\n")
             sys.stderr.write(citation + "\n\n\n")
-            sys.stderr.write("'kmerdb citation' to silence.\n")
+            sys.stderr.write("Run 'kmerdb citation' to silence.\n")
     else:
         raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
