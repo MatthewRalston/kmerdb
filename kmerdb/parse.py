@@ -60,6 +60,8 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     :rtype: (numpy.ndarray, dict, list)
 
     """
+
+    from kmerdb import kmer
     if type(filepath) is not str:
         raise TypeError("kmerdb.parse.parsefile expects a str as its first positional argument")
     elif not os.path.exists(filepath):
@@ -73,10 +75,6 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     elif type(stranded) is not bool:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
 
-    from kmerdb import kmer
-
-
-    
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []

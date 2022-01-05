@@ -1,189 +1,203 @@
-# Kmer DB
+#+TITLE: KmerDB (.kdb)
+#+SUBTITLE: A simple bgzf-based k-mer database format
+#+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
 
 # .kdb files should be debrujin graph databases
-# The initial prototype would be plaintext
 # The final prototype would be .bgzf format from biopython
 
 
+* Code maintenance
+** TODO COMMENTS
+** TODO Logging
+** TODO Revisit Sphinx documentation
+** Unit tests
+** Acceptance tests
+** Variable naming
+* Essential features
+** Genome size estimation
+** UMAP
+** RDF : AWS Neptune / Neo4J / rdflib / Berkley DB / MongoDB supp
+*** Graph database layer
+**** TODO Export to RDF
+**** TODO SemanticWeb
+***** Semantic web is a W3C standard for organizing datasets in the 'web of data' as opposed to the 'web of documents'
+***** TODO [[
+**** TODO Neptune for active app deployment
+**** TODO Development layer - alternate to Neptune for local development. 
+***** TODO RDF to Neo4J
+***** TODO AllegroGraph - RDF/SPARQL compliant
+*** Visualization layer (VR)
+**** Need an eventual custom client layer and/or query language
+**** VIS.js and/or D3.js
+**** WebXR
+***** [[https://immersiveweb.dev][ImmersiveWeb]]
+***** [[https://w3.org/TR/webxr][WebXR device API]]
+**** Topology of DNA/RNA space datasets
+**** Valve Index ($1000)
+
+
+* Report questions
+** DONE What is the appropriate distribution for k-mer counts
+CLOSED: [2022-01-04 Tue 16:31]
+** TODO Do k-mer profiles produce useful clustering information?
+** TODO How does profile sparseness scale (in bacterial genomes) with k?
+** TODO Vanila (no-metadata) Profile generation time
+*** Runtime vs reads (fasta, fastq)
+*** Runtime vs filesize 
+*** Compare slopes from regression to determine if profiles can be generated from fasta files faster
+** How do profiles from WGS, simulated Illumina reads, and the assembled genome differ?
+** Is there good separation Markov-chain probabilities of sequences from different species against a profile?
+
 * Bugfix
-** DONE don't create an array of strings
-   CLOSED: [2021-01-26 Tue 18:35]
-
-
-
-
-* Outbox
-** DONE Sparse .kdb
+* OLD TODO.org
+** Outbox
+*** DONE Sparse .kdb
    CLOSED: [2021-01-07 Thu 21:37]
-*** modify slurp
-*** modify profile
-** DONE Nearest neighbor profile
+**** modify slurp
+**** modify profile
+*** DONE Nearest neighbor profile
    CLOSED: [2021-01-07 Thu 21:37]
-** DONE index class
+*** DONE index class
    CLOSED: [2021-01-13 Wed 19:13]
-** DONE Probability function
+*** DONE Probability function
    CLOSED: [2021-01-13 Wed 19:13]
 
-** DONE kmerdb shuf
+*** DONE kmerdb shuf
    CLOSED: [2021-01-18 Mon 13:53]
-*** shuffled profiles
-*** Use kdb header
-*** Use shuf on lines printed to temporary file
-*** Hardcode the alternative method to readline:
-**** def KDBReader.readline():
-****     kmer_id, count, metadata = parse_line(self.readline())
-****     assert type(kmer_id) is int, "kmer_id wasn't an integer when passed in from parse_line"
-****     assert type(count) is int, "count wasn't an integer when passed in from parse_line"
-****     assert type(metadata) is dict, "metadata wasn't a dict when passed in from parse_line
-****     return kmer_id, count, metadata
-**** THEN DO THE ACTUAL HARDCODING OF THE ALTERNATIVE WHICH IS AS FOLLOWS
-**** use readline to parse the counts, the count is all you need, populate that into a list
-**** then convert that list into an nd.array and write it plus the index (enumerate) to disk
-**** like you would do in profile
-** DONE store fasta/fastq offsets in the database
+**** shuffled profiles
+**** Use kdb header
+**** Use shuf on lines printed to temporary file
+**** Hardcode the alternative method to readline:
+***** def KDBReader.readline():
+*****     kmer_id, count, metadata = parse_line(self.readline())
+*****     assert type(kmer_id) is int, "kmer_id wasn't an integer when passed in from parse_line"
+*****     assert type(count) is int, "count wasn't an integer when passed in from parse_line"
+*****     assert type(metadata) is dict, "metadata wasn't a dict when passed in from parse_line
+*****     return kmer_id, count, metadata
+***** THEN DO THE ACTUAL HARDCODING OF THE ALTERNATIVE WHICH IS AS FOLLOWS
+***** use readline to parse the counts, the count is all you need, populate that into a list
+***** then convert that list into an nd.array and write it plus the index (enumerate) to disk
+***** like you would do in profile
+*** DONE store fasta/fastq offsets in the database
    CLOSED: [2021-01-26 Tue 18:33]
-* Assessment of probability function
-** sequence length, starting position, strand
-** The length of the parameter space theta is 3
-** I gave the probability function the a MLE estimate of a sequence,
-** a subsequence for the genome the profile was made of
-** and then if we vary these parameters while calculating LoRs from same and other species
-** we can generate a pdf/distribution of the LoRs for other species
-** 
-* Calculate more log-odds ratios
-** For known sequences against different lengths
-** For sequences simulated by ideal fasta (through what? we have frequencies, not distributions for the frequencies
-** We need an error model
-**`2 The error to minimize
-** Well we have the probability of any k-mer
-** so we can walk from here to there
-** and we can compare the likelihood to a better null model.
-** An exact error model is to formal at this point. We need a better null model.
-** But if I don't and we do the probability of the k-mer than it would be a random walk through k-mer space..
-** and it would eventually produce the correct sequence through brute force.
-** The brute force method is to try random walks with the same initialized k-mer.
-** Then we do 
-
-* Release 0.0.7
-* Do report 1:
-* Rmd report1
-** Introduction
+** Assessment of probability function
+*** sequence length, starting position, strand
+*** The length of the parameter space theta is 3
+*** I gave the probability function the a MLE estimate of a sequence,
+*** a subsequence for the genome the profile was made of
+*** and then if we vary these parameters while calculating LoRs from same and other species
+*** we can generate a pdf/distribution of the LoRs for other species
 *** 
-** Methodology
-** Results
-*** Distribution fitting / model selection
-*** PCA
-*** kmerdb shuf on 3 of 30 metagenomes for k=1:12 + kPAL figure 
-*** Median "distance" between profiles of pairwise comparison
-** Distribution analysis
-** Accurately describe kdb counting algorithm
-*** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
-*** First, a selection of sequences is shredded into k-mers in memory
-*** Second, the counts are tallied on-disk using SQLite3.
-*** Third, the SQLite3 database iterator is used to pull row from row out and print line by line into the kdb datastructure.
-*** Fourth, at this point, an index may be created.
-** Distribution fitting
-*** Cullen-Frey
-*** Negative binomial fit
-*** Poissonian imitation (average, geom. mean, median, mode) [each] vs negative binomial fit to the data
-** Count normalization
-*** Next, we want to judge the effect of DESeq2 normalization on the counts values.
-*** We use a boxplot to address the null-hypothesis that DESeq2 normalization does not meaningfully harmonize each samples quartiles with one another.
-*** We must check this often when addressing our normalized data because failure to normalize properly
-*** due to an issue that is not library size or total counts, 
-*** suggests another issue with the distribution of that sample.
-*** State why we refuse to standardize the data at this point.
+** Calculate more log-odds ratios
+*** For known sequences against different lengths
+*** For sequences simulated by ideal fasta (through what? we have frequencies, not distributions for the frequencies
+*** We need an error model
+*** The error to minimize
+*** Well we have the probability of any k-mer
+*** so we can walk from here to there
+*** and we can compare the likelihood to a better null model.
+*** An exact error model is to formal at this point. We need a better null model.
+*** But if I don't and we do the probability of the k-mer than it would be a random walk through k-mer space..
+*** and it would eventually produce the correct sequence through brute force.
+*** The brute force method is to try random walks with the same initialized k-mer.
+*** Then we do 
 
-* TODO kmerdb transitions
-** transition probabilities of the primary sequence
-** [kmerdb.probability.transition(kdb, i, j) for i in range(N) for j in range(N)]
-*** def transition(kdbrdr, kdbidx, i, j):
-***   # type check
-***   total = kdb.header["total_kmer_counts"]
-***   kmer_id_i, count_i, neighbors_i = index.read_line(kdbrdr, kdbidx, i)
-***   kmer_id_j, count_j, neighbors_j = index.read_line(kdbrdr, kdbidx, j)
-***   # now check that i and j are neighbors (i.e. that their transition makes sense)
-***   if kmer_id_j not in neighbors_i["suffixes"].values():
-***     return 0.0
-***   else:
-***     qj = count_j/total
-***     sum_qix = 0
-***     for char, idx in neighbors_i["suffixes"].items():
-***       kmer_id, count, _ = index.read_line(kdbrdr, kdbidx, idx)
-***       if kmer_id is None or count is None:
-***         kmer_id = idx
-***         count   = 0
-***       sum_qix += count/float(total)
-***     if sum_qix == 0.0:
-***       return 0.0
-***     else:
-***       return qj / sum_qix
-* TODO kmerdb simulate
-** generate x fasta sequences of length L
-** write them to temporary file
-** read them into kdb file
-** prefix, suffix = os.path.splitext(filename)
-** assert suffix == ".kdb", "provided filename did not end in .kdb"
-** shutil.move(fasta, prefix + ".fa")
-** write kdb file (prefix + ".kdb")
-* Do report 2
-* Rmd report2
-** algorithm profiling
-** kdb profile k x time x cpu (z)
-*** we need to choose a range of k that is meaningful and explain why.
-*** the choice of k of 8 - 12 is convenient because it means
-*** we don't have to pay for extra memory. This will be managable on any number of cores
-*** with at least 32 Gb of memory for about 20 samples.
-*** According to the following graph, the uncompressed value of the sparse matrix in n x 4^k
-*** may take gigabytes per profile in the low double digits.
-*** but the value of these profiles grows exponentially with the increased cost as well.
-*** so when we look at these genomes with this degree of sensitivity, which has been substantial in the literature in the neighborhood of k=10-12,
-*** then suddenly we agree that more characterizations are possible and this places more value on the expected scaling behavior of this program.
-*** The goal is most likely not to reinvent the wheel. Since this is an academic package at this point, we feel that it is necessary and important to couple this with a graph database
-*** We have selected the RDF format going forward and expect that long term use of Amazon Neptune might be an important source of understanding that we can get from users uploading their graphs, sparse or otherwise, to a giant Neptune repository.
-*** It could be an entirely new sequence database format.
-** kdb distance correlation <fasta|fastq>
-* TODO profile reads sam/bam
-** use pysam to iterate over reads, creating a profile in the process.
-* Genome size estimation 
-* Likelihood of dataset given prior k-mer profiles
-* Calculate graph properties indicative of de Bruijn graph collapse
-* 
+** Release 0.0.7
+** Rmd report1
+*** Results
+**** Distribution fitting / model selection
+**** PCA
+**** kmerdb shuf on 3 of 30 metagenomes for k=1:12 + kPAL figure 
+**** Median "distance" between profiles of pairwise comparison
+*** Distribution analysis
+*** Accurately describe kdb counting algorithm
+**** althought the algorithm differs in its approach to fastq k-mer counting from fasta k-mer counting,
+**** First, a selection of sequences is shredded into k-mers in memory
+**** Second, the counts are tallied on-disk using SQLite3.
+**** Third, the SQLite3 database iterator is used to pull row from row out and print line by line into the kdb datastructure.
+**** Fourth, at this point, an index may be created.
+*** Distribution fitting
+**** Cullen-Frey
+**** Negative binomial fit
+**** Poissonian imitation (average, geom. mean, median, mode) [each] vs negative binomial fit to the data
+*** Count normalization
+**** Next, we want to judge the effect of DESeq2 normalization on the counts values.
+**** We use a boxplot to address the null-hypothesis that DESeq2 normalization does not meaningfully harmonize each samples quartiles with one another.
+**** We must check this often when addressing our normalized data because failure to normalize properly
+**** due to an issue that is not library size or total counts, 
+**** suggests another issue with the distribution of that sample.
+**** State why we refuse to standardize the data at this point.
 
-* 'kmerdb random' sequence simulator
-** given a certain length of sequence N, suggest a sequence that best solves the k-mer abundance graph
+** TODO kmerdb transitions
+*** transition probabilities of the primary sequence
+*** [kmerdb.probability.transition(kdb, i, j) for i in range(N) for j in range(N)]
+**** def transition(kdbrdr, kdbidx, i, j):
+****   # type check
+****   total = kdb.header["total_kmer_counts"]
+****   kmer_id_i, count_i, neighbors_i = index.read_line(kdbrdr, kdbidx, i)
+****   kmer_id_j, count_j, neighbors_j = index.read_line(kdbrdr, kdbidx, j)
+****   # now check that i and j are neighbors (i.e. that their transition makes sense)
+****   if kmer_id_j not in neighbors_i["suffixes"].values():
+****     return 0.0
+****   else:
+****     qj = count_j/total
+****     sum_qix = 0
+****     for char, idx in neighbors_i["suffixes"].items():
+****       kmer_id, count, _ = index.read_line(kdbrdr, kdbidx, idx)
+****       if kmer_id is None or count is None:
+****         kmer_id = idx
+****         count   = 0
+****       sum_qix += count/float(total)
+****     if sum_qix == 0.0:
+****       return 0.0
+****     else:
+****       return qj / sum_qix
+** TODO kmerdb simulate
+*** generate x fasta sequences of length L
+*** write them to temporary file
+*** read them into kdb file
+*** prefix, suffix = os.path.splitext(filename)
+*** assert suffix == ".kdb", "provided filename did not end in .kdb"
+*** shutil.move(fasta, prefix + ".fa")
+*** write kdb file (prefix + ".kdb")
+** Rmd report2
+*** algorithm profiling
+*** kdb profile k x time x cpu (z)
+**** we need to choose a range of k that is meaningful and explain why.
+**** the choice of k of 8 - 12 is convenient because it means
+**** we don't have to pay for extra memory. This will be managable on any number of cores
+**** with at least 32 Gb of memory for about 20 samples.
+**** According to the following graph, the uncompressed value of the sparse matrix in n x 4^k
+**** may take gigabytes per profile in the low double digits.
+**** but the value of these profiles grows exponentially with the increased cost as well.
+**** so when we look at these genomes with this degree of sensitivity, which has been substantial in the literature in the neighborhood of k=10-12,
+**** then suddenly we agree that more characterizations are possible and this places more value on the expected scaling behavior of this program.
+**** The goal is most likely not to reinvent the wheel. Since this is an academic package at this point, we feel that it is necessary and important to couple this with a graph database
+**** We have selected the RDF format going forward and expect that long term use of Amazon Neptune might be an important source of understanding that we can get from users uploading their graphs, sparse or otherwise, to a giant Neptune repository.
+**** It could be an entirely new sequence database format.
+*** kdb distance correlation <fasta|fastq>
+** TODO profile reads sam/bam
+*** use pysam to iterate over reads, creating a profile in the process.
 
-* Priorities
-** Connect this to meme suite
-** Hypotheses:
-*** Suppose that k-mer spectra have a positive and negative saturation direction.
-*** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
-*** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
-** Graph database layer
-*** TODO Export to RDF
-*** TODO SemanticWeb
-**** Semantic web is a W3C standard for organizing datasets in the 'web of data' as opposed to the 'web of documents'
-**** TODO [[
-*** TODO Neptune for active app deployment
-*** TODO Development layer - alternate to Neptune for local development. 
-**** TODO RDF to Neo4J
-**** TODO AllegroGraph - RDF/SPARQL compliant
-** Visualization layer (VR)
-*** Need an eventual custom client layer and/or query language
-*** VIS.js and/or D3.js
-*** WebXR
-**** [[https://immersiveweb.dev][ImmersiveWeb]]
-**** [[https://w3.org/TR/webxr][WebXR device API]]
-*** Topology of DNA/RNA space datasets
-*** Valve Index ($1000)
-*** OpenXR
-* kmerize
-** to use bed/gff features to select reads from bam/bai using pysam
-** and then creating sparse profiles for each feature
-** to split a bam according to gff/bed features, and putting that in an output directory
-* AWS Nepture / rdflib / Berkley DB / MongoDB support
-** Learn the RDF spec
-** Think of a specification for each node.
+** Likelihood of dataset given prior k-mer profiles
+** Calculate graph properties indicative of de Bruijn graph collapse
+
+
+
+** 'kmerdb random' sequence simulator
+*** given a certain length of sequence N, suggest a sequence that best solves the k-mer abundance graph
+
+*** Connect this to meme suite
+*** Hypotheses:
+**** Suppose that k-mer spectra have a positive and negative saturation direction.
+**** In this way, more specific signals and antisignals could be surmissed from samples with enough resolution, temporal or otherwise resolved by covariates. 
+**** Think of what could happen if the signals and antisignals were resolved on the order of genes, you could detect gene expression levels with it.
+** kmerize
+*** to use bed/gff features to select reads from bam/bai using pysam
+*** and then creating sparse profiles for each feature
+*** to split a bam according to gff/bed features, and putting that in an output directory
+*** Learn the RDF spec
+*** Think of a specification for each node.
 * Manifold learning
 ** Isomap (derived from multidimensional scaling (MDS) or Kernel PCA)
 *** Lower dimensional projectsion of the data preserving geodesic distances between all points
@@ -348,12 +362,3 @@ comments:
 *** Leaving the count fields at 0 is okay, should recompute anyway
 *** If the count fields are non-zero, then assume the values are correct
 
-* Report
-** How does sparseness scale linearly with the choice of k
-** What is the appropriate distribution for k-mer counts
-** Vanila (no-metadata) Profile generation time
-*** Runtime vs reads (fasta, fastq)
-*** Runtime vs filesize 
-*** Compare slopes from regression to determine if profiles can be generated from fasta files faster
-** How do profiles from WGS, simulated Illumina reads, and the assembled genome differ?
-** Is there good separation Markov-chain probabilities of sequences from different species against a profile?
