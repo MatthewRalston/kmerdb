@@ -41,6 +41,7 @@
                 labelsep=period,%
                 justification=raggedright]{caption}
                 
+% \bibliographystyle{oxyear}
 
 %
 % writeLaTeX logo
@@ -62,7 +63,7 @@
 % Footers
 \lfoot{}%
 \cfoot{}%
-\rfoot{\small\sffamily\bfseries\thepage/\pageref{LastPage}}%
+\rfoot{\small\sffamily\bfseries\thepage}%/\pageref{LastPage}}%
 \renewcommand{\headrulewidth}{0pt}% % No header rule
 \renewcommand{\footrulewidth}{0pt}% % No footer rule
 
@@ -211,11 +212,4 @@ THE ABSTRACT\vskip12pt}\let\go\relax\fi
 \setlength\tocsep{1.5pc} % Sets the indentation of the sections in the table of contents
 \setcounter{tocdepth}{3} % Show only three levels in the table of contents section: sections, subsections and subsubsections
 
-\usepackage{lipsum} % Required to insert dummy text
 %-----------------------------------------------
-\let\oldbibliography\thebibliography
-\renewcommand{\thebibliography}[1]{%
-\addcontentsline{toc}{section}{\hspace*{-\tocsep}\refname}%
-\oldbibliography{#1}%
-\setlength\itemsep{0pt}%
-}
