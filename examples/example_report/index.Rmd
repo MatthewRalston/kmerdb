@@ -8,7 +8,7 @@ author:
   thanks: "Unaffiliated independent researcher and corresponding author"
 biblatex: true
 biblio-title: Bibliography
-biblio-style: oxyear
+biblio-style: numeric # oxyear
 bibliography:
 - bibliography.bib
 abstract: |
@@ -32,7 +32,6 @@ output:
     fig_width: 6.5
     keep_tex: yes
     template: peerj.tex
-    latex_engine: xelatex
     highlight: espresso
   html_document:
     df_print: paged
@@ -89,17 +88,17 @@ getmode <- function(v) {
 
 # Introduction
 
-Sequence alignment (\parencite{fonseca2012tools, eddy2004did, }) is the dominant approach in the genomics space, rapidly matching new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies (\parencite{zielezinski2017alignment, luczak2019survey}). Specifically, the concept of seed databases, k-mer databases (\parencite{marccais2011fast, anvar2014determining, }), and the related alignment concept of minimizers (\parencite{roberts2004reducing}) are topics of great research interest for programmatic access to the substrings.
+Sequence alignment\autocite{fonseca2012tools, eddy2004did, } is the dominant approach in the genomics space, rapidly matching new data to existing linear DNA sequence formats, namely genomic or transcriptomic FASTA files. However, alignment requires quadratic time complexity of the conventional seed-extension strategies\autocite{zielezinski2017alignment, luczak2019survey}. Specifically, the concept of seed databases, k-mer databases\autocite{marccais2011fast, anvar2014determining, }, and the related alignment concept of minimizers\autocite{roberts2004reducing} are topics of great research interest for programmatic access to the substrings.
 
 We have seen a rise in the number of alternative, alignment free methods being investigated, providing a methodological contrast against the dominant paradigm for high-throughput sequencing, database searching, and phylogenetic sequence comparison. The interest in alignment free methods came first from necessity regarding the availability of reference sequences in certain areas of biology like microbiology, environmental ecology, phylogenomics, and now metagenomics. The k-mer spectra/profiles, or whatever you would refer to them as, have become useful not only as a component of algorithms for rapid, direct access to subsequence spaces, but is also useful in the understanding of microbial diversity (\parencite{marccais2011fast, zhang2014these, anvar2014determining}).
 
 For a list of programs that use k-mers in the seed-alignment strategy as well as further detail on modern alignment-free methods I refer the reader to \parencite{zielezinski2017alignment}. Zielezinski asserts that collinearity, the assumption alignment is designed to test, is a rule that often has exceptions in more profound mutational or homology-related inquiries, adding again the quadratic nature of alignment and additional complications regarding the computational complexity of multiple-sequence alignment (MSA). The computational complexity of a problem or the inability to provide a tractable version of the problem requires assumptions and thorough understanding of the mutational models and probabilities to devise the correct heuristic shortcuts.
 
-Researchers are interested in k-mers and alignment-free methods because sequence identity, in-del behavior, rearrangements, and recombination are less likely to have large effects on scores in a context-less subspace of the sequences. I look to previous k-mer database formats(\{marccais2011fast, anvar2014determining, zhang2014these}) for guidance regarding the best approaches to exploring this k-mer space with our methodologies.
+Researchers are interested in k-mers and alignment-free methods because sequence identity, in-del behavior, rearrangements, and recombination are less likely to have large effects on scores in a context-less subspace of the sequences. I look to previous k-mer database formats(\parencite{marccais2011fast, anvar2014determining, zhang2014these}) for guidance regarding the best approaches to exploring this k-mer space with our methodologies.
 
 First, there was Jellyfish (\parencite{marccais2011fast}), designed to keep k-mer count histograms in a specialized file with remarkable language bindings and profiling of the algorithm. At the center of its innovation to the number of data structures used to store k-mer counts was a lock-free hash table used for concurrent access to the k-mer profile. To my knowledge, this is the origin of the convention of encoding each k-mer as an integer, which saves on memory and file size. The only downside to the paper was the extreme focus on performance, for the rather narrow group of bioinformaticians who want to explore the subject through the lens of real-world datasets and biological insights. That said, I enjoyed the implementation, it's attention to language bindings, and the excellent focus.
 
-Next we have the k-mer Profile Analysis Library (\{anvar2014determining}), where Anvar points out that software is an analytical tool that we use can use on real world and simulated data. The authors note the primary questions involved in exploration of these subsequence spaces are the modalities of certain spectra, and the characteristic curve i.e. the over-representation and underrepresentation along the spectrum for any particular input. The authors note that a choice of k of 10 seemed to be optimal for them to establish maximal separation between simulated metagenomes and their randomly permuted counterparts. I look to confirm these findings, as perhaps there are general patterns for microbial genome complexity and they could be specified better with model criterion in k-mer space.
+Next we have the k-mer Profile Analysis Library (\parencite{anvar2014determining}), where Anvar points out that software is an analytical tool that we use can use on real world and simulated data. The authors note the primary questions involved in exploration of these subsequence spaces are the modalities of certain spectra, and the characteristic curve i.e. the over-representation and underrepresentation along the spectrum for any particular input. The authors note that a choice of k of 10 seemed to be optimal for them to establish maximal separation between simulated metagenomes and their randomly permuted counterparts. I look to confirm these findings, as perhaps there are general patterns for microbial genome complexity and they could be specified better with model criterion in k-mer space.
 
 
 
@@ -252,10 +251,10 @@ ggplot(data2) + geom_histogram(aes(x=Count), stat="count") + ylab("K-mers") + xl
 ```
 
 
-We begin with the k-mer count distribution. In this graphical analysis we are looking to understand if the $4^{k}$ k-mers' count distribution is in agreement with existing k-mer distributions in the literature, such as the classical discrete Poissonian distribution or the negative binomial, which has use in RNA-Seq differential gene expression literature (@love2014moderated, @anders2010differential). This ELN does not claim to address the question of "which distribution is most suitable to model k-mer counts" but instead offers the distribution to illustrate what background model might be appropriate for modeling efforts based on individual k-mer counts taken from k-mer spectra, like those generated by this software and accessible via the index. The k-mers table consists of all $4^{k}$ k-mer counts for each of the 11 species listed above and is the basis for the histogram (Fig 1.).
+We begin with the k-mer count distribution. In this graphical analysis we are looking to understand if the $4^{k}$ k-mers' count distribution is in agreement with existing k-mer distributions in the literature, such as the classical discrete Poissonian distribution or the negative binomial, which has use in RNA-Seq differential gene expression literature (\parencite{@love2014moderated, @anders2010differential}). This ELN does not claim to address the question of "which distribution is most suitable to model k-mer counts" but instead offers the distribution to illustrate what background model might be appropriate for modeling efforts based on individual k-mer counts taken from k-mer spectra, like those generated by this software and accessible via the index. The k-mers table consists of all $4^{k}$ k-mer counts for each of the 11 species listed above and is the basis for the histogram (Fig 1.).
 
 
-By generating the histogram and associated skewness-kurtosis analysis (@cullen1999probabilistic, Fig 3.), we can ask ourselves whether a Poisson model is appropriate, or if alternatives are more appropriate for modeling probabilities of counts of specific k-mer features associated with a genome. As we will see, although the negative-binomial(NB) seems more appropriate as suggested by the R package `fitdistrplus`, the kurtosis is still more extreme than would be required for an ideal fit in the NB model (@delignette2015fitdistrplus).
+By generating the histogram and associated skewness-kurtosis analysis (\parencite{@cullen1999probabilistic}, Fig 3.), we can ask ourselves whether a Poisson model is appropriate, or if alternatives are more appropriate for modeling probabilities of counts of specific k-mer features associated with a genome. As we will see, although the negative-binomial(NB) seems more appropriate as suggested by the R package `fitdistrplus`, the kurtosis is still more extreme than would be required for an ideal fit in the NB model (\parencite{@delignette2015fitdistrplus}).
 
 
 ```{r fig.cap="Skewness-kurtosis analysis for distribution fitting of the count model across all 11 species.", echo=FALSE}
@@ -265,7 +264,7 @@ descdist(data2$Count, discrete=TRUE, boot=50)
 
 ```
 
-To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (@anders2010differential, @daley2013predicting) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
+To illustrate this further, Fig 4. shows us the two competing discrete distributions suggested by `fitdistrplus`. In green, a Poisson model is shown to be a poor fit of the existing count data on the histogram from Fig 1, separated here by species. New models (poissonian and negative-binomial) are created for each slice of the data (species). In contrast, a negative-binomial fit (red) provides reasonable fits for each dataset, with excellent fits on *B. subtilis* 168 and *E. coli* K12 MG1655. The negative binomial model is a canonical discrete model often used in the RNA-Seq and k-mer literature to model count data like those obtained through second-generation sequencing experiments (\parencite{@anders2010differential, @daley2013predicting}) and we see here it is superior in all cases to the Poissonian approximation and is better suited to model k-mer counts.
 
 
 ```{r fig.cap="Alternate distribution showing Poisson model (green) and Negative binomial fit (red)", fig.width=8.41, fig.height=6.5, out.extra='angle=90', echo=FALSE, eval=TRUE}

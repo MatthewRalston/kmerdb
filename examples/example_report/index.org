@@ -1,0 +1,36 @@
+#+TITLE: KmerDB (.kdb) example report
+#+SUBTITLE: A simple bgzf-based k-mer database format
+#+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
+
+* Methodology
+** Present a new tool 'kmerdb' to create efficient files for non-sparse k-mer profile storage
+** unsupervised ML techniques for dimensionality reduction, visualization, and clustering
+** TODO Produce a Neo4J graph database for assembly visualization
+** Compare with kPAL and khmer, similar Python based applications for k-mer profiles
+* Results
+** The program has extra features compared to other k-mer programs
+*** Composite profiles out-of-the-box
+*** genome size estimation
+**** k-mer coverage / avg coverage of simulated fastq (from genomic fasta)
+*** metadata header
+*** distance matrix generation
+*** profile nonrmalization
+*** dimensionality reduction
+*** clustering
+*** graph db output
+*** excellent documentation
+**** How to use your own normalization methods
+**** How to use your own distance metrics
+**** How to use your own dimensionality reduction / parameters
+**** How to use your own clustering algorithms
+** The program is sufficiently performant and low-memory
+*** k vs runtime
+**** kmerdb vs kPAL vs khmer
+*** k vs memory
+**** kmerdb vs kPAL vs khmer
+** The index allows for fast random access to k-mers and metadata
+*** How fast can the RDF/Neo4J graph be constructed from an --all-metadata .kdb file?
+* Discussion
+* Conclusion
+* Abstract
+* Introduction
