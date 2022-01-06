@@ -6,6 +6,9 @@
 # The final prototype would be .bgzf format from biopython
 
 
+
+
+
 * Code maintenance
 ** TODO COMMENTS
 ** TODO Logging
@@ -17,6 +20,8 @@
 ** Genome size estimation
 ** UMAP
 ** RDF : AWS Neptune / Neo4J / rdflib / Berkley DB / MongoDB supp
+*** First, visualize a single read from pos-1 to pos-L
+**** For each first position (pos-1 of each read), locate the pos-2 out of the 4 possible neighbors
 *** Graph database layer
 **** TODO Export to RDF
 **** TODO SemanticWeb

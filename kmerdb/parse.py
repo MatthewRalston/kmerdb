@@ -45,7 +45,7 @@ logger = logging.getLogger(__file__)
 
 
 
-def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, stranded:bool=True, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -72,8 +72,8 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
     elif type(n) is not int:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'n' to be an int")
-    elif type(stranded) is not bool:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'stranded' to be a bool")
+    elif type(both_strands) is not bool:
+        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'both_strands' to be a bool")
 
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
@@ -90,7 +90,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
         counts = np.zeros(total_kmers, dtype='uint')
         logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(total_kmers, counts.nbytes))
         # Instantiate the kmer class
-        Kmer = kmer.Kmers(k, strand_specific=stranded, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
+        Kmer = kmer.Kmers(k, strand_specific=not both_strands, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
         recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
         if not fasta:
@@ -262,6 +262,6 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, stranded=self.arguments.strand_specific, all_metadata=self.arguments.all_metadata)
+        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, both_strands=self.arguments.both_strands, all_metadata=self.arguments.all_metadata)
 
 

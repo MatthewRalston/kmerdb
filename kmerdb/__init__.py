@@ -1046,7 +1046,7 @@ def cli():
     profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
     profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
-    profile_parser.add_argument("--strand-specific", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
