@@ -94,8 +94,8 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
 
         recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
         if not fasta:
-            logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
-            assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
+            logger.debug("Read exactly {0} records from the seqparser object".format(len(recs)))
+            assert len(recs) <= b, "The seqparser should return exactly {0} records at a time".format(b)
         else:
             logger.debug("Skipping the block size assertion for fasta files")
         logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
@@ -215,7 +215,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
             if num_kmers == 0:
                 raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
             else:
-                sys.stderr.write("Accumulating all k-mers from this set of records...")
+                sys.stderr.write("\nAccumulating all k-mers from this set of records...")
                 for kmer in kmer_ids:
                     counts[kmer] += 1
             # all_kmer_metadata
