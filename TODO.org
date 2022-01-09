@@ -26,7 +26,6 @@
 **** TODO Export to RDF
 **** TODO SemanticWeb
 ***** Semantic web is a W3C standard for organizing datasets in the 'web of data' as opposed to the 'web of documents'
-***** TODO [[
 **** TODO Neptune for active app deployment
 **** TODO Development layer - alternate to Neptune for local development. 
 ***** TODO RDF to Neo4J
