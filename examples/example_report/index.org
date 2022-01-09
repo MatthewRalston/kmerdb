@@ -3,10 +3,20 @@
 #+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
 
 * Methodology
-** Present a new tool 'kmerdb' to create efficient files for non-sparse k-mer profile storage
-** unsupervised ML techniques for dimensionality reduction, visualization, and clustering
+** DONE Present a new tool 'kmerdb' to create efficient files for non-sparse k-mer profile storage
+CLOSED: [2022-01-07 Fri 09:17]
+** DONE unsupervised ML techniques for dimensionality reduction, visualization, and clustering
+CLOSED: [2022-01-07 Fri 09:17]
 ** TODO Produce a Neo4J graph database for assembly visualization
-** Compare with kPAL and khmer, similar Python based applications for k-mer profiles
+*** Consult [[../../TODO.org][kmerdb TODO.org]] for more details
+** TODO Compare with kPAL and khmer
+*** runtime(y) vs # of simulated fastq reads (x)
+*** runtime(y) vs k
+*** memory(y) vs k
+*** filesize vs k
+** Genome size estimation
+*** k-mer count / NB mean (or median) coverage
+
 * Results
 ** The program has extra features compared to other k-mer programs
 *** Composite profiles out-of-the-box
@@ -26,8 +36,9 @@
 ** The program is sufficiently performant and low-memory
 *** k vs runtime
 **** kmerdb vs kPAL vs khmer
-*** k vs memory
+*** k vs peak memory
 **** kmerdb vs kPAL vs khmer
+*** filesize vs runtime
 ** The index allows for fast random access to k-mers and metadata
 *** How fast can the RDF/Neo4J graph be constructed from an --all-metadata .kdb file?
 * Discussion
