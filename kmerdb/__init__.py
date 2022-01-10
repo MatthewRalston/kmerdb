@@ -890,35 +890,40 @@ def profile(arguments):
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
     
-    # Construct a final_counts array for the composite profile across all inputs
-    logger.debug("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers))
-    final_counts = np.zeros(total_kmers, dtype='uint')
-    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(final_counts.nbytes))
 
     
-    all_kmer_metadata = list([] for x in range(total_kmers))
+
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
-    pool = Pool(processes=arguments.parallel)
+
     infile = parse.Parseable(arguments) #
 
-    # Check if all files 
-    if fileutil.is_all_fasta(list(arguments.seqfile)):
-        logger.info("Processing {0} fasta files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
-        logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
-        logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
-        data = pool.map(infile.parsefile, arguments.seqfile)
+    logger.info("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
+    logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
+    logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
+    if arguments.parallel > 1:
+        with Pool(processes=arguments.parallel) as pool:
+            data = pool.map(infile.parsefile, arguments.seqfile)
     else:
-        logger.info("Processing fasta/fastq files without parallelization.")
-        logger.debug("Mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
         data = list(map(infile.parsefile, arguments.seqfile))
 
     # 'data' is now a list of 4-tuples
     # Each 4-tuple represents a single file
     # (counts<numpy.array>, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
+    # Construct a final_counts array for the composite profile across all inputs
+    logger.debug("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers))
+    try:
+        final_counts = np.zeros(total_kmers, dtype=arguments.dtype)
+    except TypeError as e:
+        logger.error("Invalid dtype for final array instantiation")
+        logger.error(e)
+        raise e
+    all_kmer_metadata = list([] for x in range(total_kmers)) if arguments.all_metadata else None
+    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(final_counts.nbytes))
 
     # Complete collating of counts across files
+    # This technically uses 1 more arrray than necessary 'final_counts' but its okay
     logger.info("Summing counts from individual fasta/fastq files into a composite profile...")
     for d in data:
         final_counts = final_counts + d[0] # Add the counts to the zeroes array
@@ -956,11 +961,11 @@ def profile(arguments):
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
-        x=0
-        for i, count in enumerate(final_counts):
-            seq = kmer.id_to_kmer(i, arguments.k)
-            kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-            if arguments.all_metadata:
+        sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(arguments.kdb))
+        if arguments.all_metadata:
+            for i, count in enumerate(final_counts):
+                seq = kmer.id_to_kmer(i, arguments.k)
+                kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                 reads = []
                 starts = []
                 reverses = []
@@ -971,22 +976,20 @@ def profile(arguments):
                 kmer_metadata["reads"] = reads
                 kmer_metadata["starts"] = starts
                 kmer_metadata["reverses"] = reverses
-            if arguments.all_metadata and len(kmer_metadata["reverses"]) == count:
                 kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
-            elif not arguments.all_metadata:
+        else:
+            for i, count in enumerate(final_counts):
+                seq = kmer.id_to_kmer(i, arguments.k)
+                kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                 kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
-            else:
-                logger.error("Count: {0}\nReads: {1}\nStart sites: {2}\n Strand booleans: {3}\n".format(count, len(kmer_metadata["reads"]), len(kmer_metadata["starts"], len(kmer_metadata["reverses"]))))
-                raise TypeError("One or more metadata elements were missing...")
-            x = i
-        logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(x))
+        logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
     finally:
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
-
+        sys.stderr.write("\nDone\n")
     
         
 def get_root_logger(level):
@@ -1039,6 +1042,9 @@ def cli():
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    profile_parser.add_argument("-d", "--dtype", type=str, default="uint32", help="dtype for k-mer profile NumPy arrays (Default: uint32)")
+    profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
 
     profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
@@ -1048,9 +1054,8 @@ def cli():
     profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
-    profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
-    profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
-    #profile_parser.add_argument("--random-seed", default=sys.)
+    #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
+
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)

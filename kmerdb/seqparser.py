@@ -165,8 +165,8 @@ class SeqParser:
             raise StopIteration
         else:
             self.total_reads += 1
-            sys.stderr.write("\r")
-            sys.stderr.write("Read {0} reads from '{1}'...".format(self.total_reads, self.filepath))
+            #sys.stderr.write("\r")
+            #sys.stderr.write("Read {0} reads from '{1}'...".format(self.total_reads, self.filepath))
             read = self.reads.pop()
             self.mononucleotides["A"] += read.seq.count('A')
             self.mononucleotides["T"] += read.seq.count('T')
