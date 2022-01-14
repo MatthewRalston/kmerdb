@@ -76,7 +76,51 @@ metadata_schema = {
 
 
 
-
+counted_kmer_schema = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "number"},
+        "count": {"type": "number"}
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "suffixes": {
+                    "type":"object",
+                    "properties": {
+                        "A": {"type": "number"},
+                        "C": {"type": "number"},
+                        "G": {"type": "number"},
+                        "T": {"type": "number"}
+                        
+                    }
+                },
+                "prefixes": {
+                    "type":"object",
+                    "properties": {
+                        "A": {"type": "number"},
+                        "C": {"type": "number"},
+                        "G": {"type": "number"},
+                        "T": {"type": "number"}
+                        
+                    }
+                },
+                "reads": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                },
+                "starts": {
+                    "type": "array",
+                    "items": {"type": "number"}
+                },
+                "reverses": {
+                    "type": "array",
+                    "items": {"type": "bool"}
+                }
+            }
+        }
+    },
+    "required": ["suffixes", "prefixes"]
+}
 
 
 

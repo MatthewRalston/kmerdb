@@ -2,6 +2,11 @@
 #+SUBTITLE: A simple bgzf-based k-mer database format
 #+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
 
+* Introduction
+** The environment consists of many k-mer counters and not enough graph diagnostics
+** Graph diagnostics capabilities are very high in Neo4J
+** RDF is a data exchange method that facilitates ontological exchange.
+
 * Methodology
 ** DONE Present a new tool 'kmerdb' to create efficient files for non-sparse k-mer profile storage
 CLOSED: [2022-01-07 Fri 09:17]
