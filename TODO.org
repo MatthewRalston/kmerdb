@@ -5,9 +5,72 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* Proecedural plan
+** Convert kdb metadata to .tsv (kmer nodes)
+** Convert kdb metadata to .tsv (kmer-kmer relationships)
+** Convert kdb metadata to .tsv (paths)
+* Structural types
+** Nodes (:nodeLabel)
+*** Objects or entities
+**** kmers
+***** count
+***** observed k-mers:
+****** kmer_id
+****** kmer_seq
+****** seq_id (fastq read-id or Fasta sequence id)
+****** start
+****** reverse
+*** Can be labeled
+**** Seed (Path property)
+**** IUPAC (k-mer node property)
+**** Forward/reverse (a kmer-kmer relationship)
+*** May have properties
+**** kmer_id
+**** kmer_seq
+**** seq_id (fastq read-id or Fasta sequence id)
+**** start
+**** reverse
+** Relationships (:EXAMPLE_RELATIONSHIP)
+*** id
+*** type
+*** map (of properties)
+*** id of start node
+*** id of end node
+** Path
+*** An alternating sequence of nodes and relationships
+* Fastq/fasta
+** seq_id
+** seq
+** length
+* Kmer
+** start
+** seq_id
+** reverse
+* Match (relationship: kmer-kmer)
+** seq1, seq2
+** types:
+*** external (a self referential k-mer relationship)
+**** seq1 != seq2
+**** seq1[start:start+k] == seq2[start:start+k]
+*** internal (relating to a neighboring k-mer)
+**** seq1 == seq2
+**** seq1[start:start+k] <=> seq1[start+1:start+k+1]
 
+     
 
-
+** Relationship properties
+*** Must have a type
+**** Start
+**** Preceeds
+**** Succeeds
+**** End
+*** Must have a direction
+**** Forward (suffixes)
+**** Reverse (prefixes)
+*** May have properties
+**** read_id
+**** start
+**** reverse
 
 * Code maintenance
 ** TODO COMMENTS

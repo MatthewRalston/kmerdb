@@ -990,7 +990,102 @@ def profile(arguments):
         kdb_out._handle.flush()
         kdb_out._handle.close()
         sys.stderr.write("\nDone\n")
+
+
+def to_rdf(arguments):
+    """
+    Convert a .kdb file to RDF
+    """
+
     
+    def get_header(line, header):
+        """
+        A little helper recurrence function for grabbing the additions to the header.
+        """
+        
+
+        if line.rstrip() != config.end_header_line:
+            header += line
+            return header
+        else:
+            header_dict = yaml.safe_load(header)
+            if type(header_dict) is not dict:
+                logger.debug("Tried to parse:\n{0}\n".format(header))
+                raise ValueError("Could not parse YAML formatted header")
+            else:
+                return header_dict
+    from neo4j import GraphDatabase
+
+    class Neo4jConnection:
+        """
+        Neo4jConnection class from CJ Sullivan
+        https://towardsdatascience.com/create-a-graph-database-in-neo4j-using-python-4172d40f89c4
+        """
+        def __init__(self, uri, user, pwd):
+            self.__uri = uri
+            self.__user = user
+            self.__pwd = pwd
+            self.__driver = None
+            try:
+                self.__driver = GraphDatabase.driver(self.__uri, auth=(self.__user, self.__pwd))
+            except Exception as e:
+                raise e
+
+        def close(self, query, db=None):
+            assert self.__driver is not None, "Driver not intialized"
+            session = None
+            response = None
+            try:
+                session = self.__driver.session(database=db) if db if not None else self.__driver.session()
+                response = list(session.run(query))
+            except Exception as e:
+                raise e
+            finally:
+                if session is not None:
+                    session.close()
+            return response
+
+    KMER_TEMPLATE = "http://argo.io/kmer/"
+
+    if not os.exists(arguments.input):
+        raise argparse.ArgumentError("input .kdb file {0} does not exist on the filesystem...".format(arguments.input))
+
+
+
+    from kmerdb import fileutil, kmer
+
+    kmers = None
+    with Neo4jConnection(uri=arguments.uri, user="kmerdb", pwd="kmerdb") as conn:
+        conn.query("CREATE OR REPLACE DATABASE kmerdb")
+
+        with fileutil.open(arguments.input) as kdb_in:
+            if kdb_in.metadata["metadata"] is False:
+                raise argparse.ArgumentError("input kdb file did not have extended metadata")
+            elif kdb_in.metadata["metadata"] is True:
+                for line in kdb_in:
+                    (i, count, kmer_metadata) = line.rstip().split("\t")
+                    counted_kmer = kmer.id_to_kmer(int(i))
+                    count = int(count)
+                    kmer_metadata =json.loads(kmer_metadata)
+                    jsonschema.validate(instance=kmer_metadata, schema=config.counted_kmer_schema)
+                    for i in range(len(reverses)):
+                        read = reads[i]
+                        start = starts[i]
+                        reverse = reverses[i]
+                        entry = {"kmer_id": i, "kmer": counted_kmer, "seq_id": read, "start": start, "reverse": reverse}
+                        #kmers.append(entry)
+                        cqlCreate = "MERGE ({0}:kmer {name: '{1}', seq_id: '{2}, start: {3}, reverse: {4}}) RETURN {0}, labels({0})".format(i, counted_kmer, read, start, reverse)
+                        conn.query(cqlCreate)
+                        cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name,x.seq_id,x.start,y.seq_id,y.start".format(i, counted_kmer) # Query corresponds to shortest path
+                        #cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name".format(i, counted_kmer, read, start, reverse)
+                        conn.query(cqlEdgeQuery)
+            else:
+                #raise argparse.ArgumentError("kmerdb: metadata schema has already been validated...")
+                logger.error("Metadata incorrectly determined...")
+                sys.exit(1)
+
+
+        
         
 def get_root_logger(level):
     levels=[logging.WARNING, logging.INFO, logging.DEBUG]
@@ -1060,6 +1155,11 @@ def cli():
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
+    to_rdf_parser = subparsers.add_parser("to_rdf", help="Convert the .kdb graph database to RDF")
+    to_rdf_parser.add_argument("-v", "--verbose", help="Print warnings to the console by default", default=0, action="count")
+    to_rdf_parser.add_argument("input", type=str, help="A k-mer database file(.kdb)")
+    
+    
     header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb file and exit")
     header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
