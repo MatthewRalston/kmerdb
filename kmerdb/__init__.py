@@ -976,12 +976,12 @@ def profile(arguments):
                 kmer_metadata["reads"] = reads
                 kmer_metadata["starts"] = starts
                 kmer_metadata["reverses"] = reverses
-                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, json.dumps(kmer_metadata)))
         else:
             for i, count in enumerate(final_counts):
                 seq = kmer.id_to_kmer(i, arguments.k)
                 kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
@@ -1014,75 +1014,57 @@ def to_rdf(arguments):
                 raise ValueError("Could not parse YAML formatted header")
             else:
                 return header_dict
+
+    from getpass import getpass
+    import yaml
+    import jsonschema
     from neo4j import GraphDatabase
 
-    class Neo4jConnection:
-        """
-        Neo4jConnection class from CJ Sullivan
-        https://towardsdatascience.com/create-a-graph-database-in-neo4j-using-python-4172d40f89c4
-        """
-        def __init__(self, uri, user, pwd):
-            self.__uri = uri
-            self.__user = user
-            self.__pwd = pwd
-            self.__driver = None
-            try:
-                self.__driver = GraphDatabase.driver(self.__uri, auth=(self.__user, self.__pwd))
-            except Exception as e:
-                raise e
-
-        def close(self, query, db=None):
-            assert self.__driver is not None, "Driver not intialized"
-            session = None
-            response = None
-            try:
-                session = self.__driver.session(database=db) if db if not None else self.__driver.session()
-                response = list(session.run(query))
-            except Exception as e:
-                raise e
-            finally:
-                if session is not None:
-                    session.close()
-            return response
 
     KMER_TEMPLATE = "http://argo.io/kmer/"
 
-    if not os.exists(arguments.input):
+    if not os.path.exists(arguments.input):
         raise argparse.ArgumentError("input .kdb file {0} does not exist on the filesystem...".format(arguments.input))
 
 
 
     from kmerdb import fileutil, kmer
-
+    db = input("Connect to which Neo4J database?")
+    pwd = getpass("Connecting to neo4j, input password")
     kmers = None
-    with Neo4jConnection(uri=arguments.uri, user="kmerdb", pwd="kmerdb") as conn:
-        conn.query("CREATE OR REPLACE DATABASE kmerdb")
+    with GraphDatabase.driver(arguments.uri, auth=(arguments.username, pwd)) as driver:
+        with driver.session(database=db) as graphDB_Session:
+            graphDB_Session.run("CREATE OR REPLACE DATABASE kmerdb")
 
-        with fileutil.open(arguments.input) as kdb_in:
-            if kdb_in.metadata["metadata"] is False:
-                raise argparse.ArgumentError("input kdb file did not have extended metadata")
-            elif kdb_in.metadata["metadata"] is True:
-                for line in kdb_in:
-                    (i, count, kmer_metadata) = line.rstip().split("\t")
-                    counted_kmer = kmer.id_to_kmer(int(i))
-                    count = int(count)
-                    kmer_metadata =json.loads(kmer_metadata)
-                    jsonschema.validate(instance=kmer_metadata, schema=config.counted_kmer_schema)
-                    for i in range(len(reverses)):
-                        read = reads[i]
-                        start = starts[i]
-                        reverse = reverses[i]
-                        entry = {"kmer_id": i, "kmer": counted_kmer, "seq_id": read, "start": start, "reverse": reverse}
-                        #kmers.append(entry)
-                        cqlCreate = "MERGE ({0}:kmer {name: '{1}', seq_id: '{2}, start: {3}, reverse: {4}}) RETURN {0}, labels({0})".format(i, counted_kmer, read, start, reverse)
-                        conn.query(cqlCreate)
-                        cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name,x.seq_id,x.start,y.seq_id,y.start".format(i, counted_kmer) # Query corresponds to shortest path
-                        #cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name".format(i, counted_kmer, read, start, reverse)
-                        conn.query(cqlEdgeQuery)
-            else:
-                #raise argparse.ArgumentError("kmerdb: metadata schema has already been validated...")
-                logger.error("Metadata incorrectly determined...")
-                sys.exit(1)
+            with fileutil.open(arguments.input) as kdb_in:
+                if kdb_in.metadata["metadata"] is False:
+                    raise argparse.ArgumentError("input kdb file did not have extended metadata")
+                elif kdb_in.metadata["metadata"] is True:
+                    for line in kdb_in:
+                        (i, count, kmer_metadata) = line.rstrip().split("\t")
+                        counted_kmer = kmer.id_to_kmer(int(i), kdb_in.metadata["k"])
+                        count = int(count)
+                        kmer_metadata =yaml.safe_load(kmer_metadata)
+                        line_data = {"id": int(i), "count": count, "metadata": kmer_metadata}
+                        jsonschema.validate(instance=line_data, schema=config.counted_kmer_schema)
+                        for i in range(len(kmer_metadata["reverses"])):
+                            read = kmer_metadata["reads"][i]
+                            start = kmer_metadata["starts"][i]
+                            reverse = kmer_metadata["reverses"][i]
+                            entry = {"kmer_id": i, "kmer": counted_kmer, "seq_id": read, "start": start, "reverse": reverse}
+                            print(entry)
+                            #kmers.append(entry)
+                            #graphDB_Session.run("CREATE (n:NodeExample { name: $name }) RETURN ID(n) as node_id", name=entry["kmer"])
+                            graphDB_Session.run("CREATE (k:Kmer {kmer_id: $kmer_id, name: $name, seq_id: $seq_id, start: $start, reverse: $reverse}) ", kmer_id=entry["kmer_id"], name=entry["kmer"], seq_id=entry["seq_id"], start=entry["start"], reverse=entry["reverse"])
+                            #graphDBSession.run(cqlCreate)
+                            # Another day
+                            #cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name,x.seq_id,x.start,y.seq_id,y.start".format(i, counted_kmer) # Query corresponds to shortest path
+                            #cqlEdgeQuery = "MATCH (x:kmer {id: {0}, name: '{1}'})-[r]->(y:kmer) RETURN x.id,y.id,y.name".format(i, counted_kmer, read, start, reverse)
+                            #graphDB_Session.run(cqlEdgeQuery)
+                else:
+                    #raise argparse.ArgumentError("kmerdb: metadata schema has already been validated...")
+                    logger.error("Metadata incorrectly determined...")
+                    sys.exit(1)
 
 
         
@@ -1158,7 +1140,9 @@ def cli():
     to_rdf_parser = subparsers.add_parser("to_rdf", help="Convert the .kdb graph database to RDF")
     to_rdf_parser.add_argument("-v", "--verbose", help="Print warnings to the console by default", default=0, action="count")
     to_rdf_parser.add_argument("input", type=str, help="A k-mer database file(.kdb)")
-    
+    to_rdf_parser.add_argument("--username", help="The username for the Neo4j graph database.")
+    to_rdf_parser.add_argument("--uri", help="The URI for the Neo4j endpoint.")
+    to_rdf_parser.set_defaults(func=to_rdf)
     
     header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb file and exit")
     header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
