@@ -80,7 +80,7 @@ counted_kmer_schema = {
     "type": "object",
     "properties": {
         "id": {"type": "number"},
-        "count": {"type": "number"}
+        "count": {"type": "number"},
         "metadata": {
             "type": "object",
             "properties": {
@@ -91,7 +91,6 @@ counted_kmer_schema = {
                         "C": {"type": "number"},
                         "G": {"type": "number"},
                         "T": {"type": "number"}
-                        
                     }
                 },
                 "prefixes": {
@@ -114,12 +113,13 @@ counted_kmer_schema = {
                 },
                 "reverses": {
                     "type": "array",
-                    "items": {"type": "bool"}
+                    "items": {"type": "boolean"}
                 }
-            }
+            },
+            "required": ["suffixes", "prefixes"]
         }
     },
-    "required": ["suffixes", "prefixes"]
+    "required": ["id", "count", "metadata"]
 }
 
 

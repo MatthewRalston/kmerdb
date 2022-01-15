@@ -6,7 +6,7 @@
 # The final prototype would be .bgzf format from biopython
 
 * Proecedural plan
-** Convert kdb metadata to .tsv (kmer nodes)
+** Convert kdb metadata to .tsv (kmer nodes, total_kmers)
 ** Convert kdb metadata to .tsv (kmer-kmer relationships)
 ** Convert kdb metadata to .tsv (paths)
 * Structural types
