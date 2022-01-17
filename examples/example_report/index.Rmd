@@ -365,23 +365,23 @@ Now that we have normalized our data successfully, we can use PCA to reduce dime
 
 So we perform a dimensionality reduction in euclidean space by exploring the tangent to the hyperplane specified by the rotations, the direction vectors. And the dimension vectors that we get in PCA can be optimized by selecting an optimal number of components to use via the elbow graph. But then you can also select the use of less than that for simple operations that you want to perform rapidly. In this case we wanted to use different PCA dimensions. From figure 7. You can see that 3, 6, and 8 are the best dimensions to sum up the variances of the entire modelable space. And so lets say that we transform into the first space, the first 3 dimensions of the singular value decomposition, which account for 94% of all variance, and just use a simple k-means clustering to explore the data.
 
-![The PCA elbow graph on Normalized Counts](PCA_variance_accumulation.png)
+![The PCA elbow graph on Normalized Counts](img/PCA_variance_accumulation.png)
 
 
 In figure 8, we see a k-means elbow graph with the Within-cluster Sum of Squared-residuals (WCSS) error plotted on the Y-axis, and the choice of k on the x-axis. We can see that the most appropriate choices for exploratory data analysis are the groupings we see from choices of k ranging from 2-4, this seems appropriate because of the small number of samples and the admittedly limited amount of knowledge of this genus. Let's consider a k of 3 to begin, because I did dope the series of Clostridia with a known neighbor gram-positive bacterium *B. subtilis* 168 and a known **distant** relative gram-negative *E. coli* K12 MG1655. We consider these because of their importance in the history of sequencing of bacterial species is as well. But the distinguishing feature of this selection of bacteria for study is the three central *acetobutylicum* strains: ATCC824, DSM1731, and EA2018. We will see in a later clustering that this emerges as a completely separate acute cluster.
 
-![The K-means elbow graph for Normalized PCA3](kmeans_k3_elbow_graph_on_pca3.png)
+![The K-means elbow graph for Normalized PCA3](img/kmeans_k3_elbow_graph_on_pca3.png)
 The k-means clustering does indeed show E.coli separated from the primary group, as well as the appropriate distance between *B. subtilis* and the *Clostridia* strains. However, we are looking at this artifact through their k-mer spaces at the moment, not by virtue of direct sequence similarity. If a one dimensional sequence is like a harmonized constant, with minor drifts and mutations at play drifting in and out with differing rate constants, then it is all resolvable, but the harmonization that we get is very much the product of a lot of labor of love to make the original assemblies, and we must be patient with the conclusions they have made during sequencing. Because the k-mer spaces are similar in some regards to the alignment space, there are uncertainties, there are deviations, but there are also signals to be be compared, frequencies. Essentially k-mer are a type of genomic spectrum in the 4-bit space at certain substring frequencies. Ideally we could analyze all frequencies simultaneously, but we are restricted to certain dimensions. And in my space we are restricted to analyzing 8 at a time commonly, and these are called 8-mers. An 8-mer can fit into memory very easily, with enough RAM to essentially perform all distance matrix operations without issue. At my level of hardware availability and budget, I am restricted to certain ranges where I can make comparisons. And in the 8-mer space only, the reduced dimensionality snapshot of the picture looks like the following, summarizing a Nxn matrix K, with each element $K_{ij}$ equal to the k-mer count of the ith species, and the "jth k-mer"(\texttrademark, \copyright Matthew Ralston). When we reduce this to 3 dimensions for visualization in 2, with the k-means clustering result of k=3, then we see separation of *B. subtilis* and *E. coli* into a separate cluster, away in sense and in direction from the primary *Clostridia* cluster, centered on the *acetobutylicum* triplet.
 
 Interestingly enough, *C. tetani* and *C. perfringens* have a much different spatial dynamic with the rest of the *Clostridia* compared to *C. difficile*, which seems much closer than I would expect to *acetobutylicum*. They form their own cluster in this subspace, interestingly enough.
 
 
-![The K-means clustering for Normalized PCA3](kmeans_k3_clustering_on_pca3.png)
+![The K-means clustering for Normalized PCA3](img/kmeans_k3_clustering_on_pca3.png)
 
 
 This graph is similar but accomplished two things. The first is that by using k=4 in the k-means clustering, we are able to identify the acute cluster of the *C. acetobutylicum* strains. The second thing accomplished is that the first and second principal components of a '-n 6' PCA produces the sample values for each species via the PCA dimensionality reduction. However, the clustering outcome is slightly more colorful, with the identification of the 4th cluster as the *C. acetobutylicum* triplet.
 
-![The K-means clustering for Normalized PCA6](kmeans_k4_clustering_on_normalized_pca6.png)
+![The K-means clustering for Normalized PCA6](img/kmeans_k4_clustering_on_normalized_pca6.png)
 
 
 ## t-SNE
@@ -389,17 +389,17 @@ This graph is similar but accomplished two things. The first is that by using k=
 We do not restrict our attention to the 1st or 2nd dimension only of PCA, but instead we can expand our perspective on the separability of the *Clostridia* from the *B. subtilis* and *E. coli* strains further with the addition of another dimensionality reduction technique: t-Stochastic Neighbor Embedding (t-SNE), a dimensionality reduction technique also used for visualizing highly complex and high-dimensional datasets. The outcome is usually a t-SNE down to two dimensions of results for visualization purposes, and we can see that the main Clostridia cluster between -400 to 200 on the first dimension and between -100 and 150 on the second dimension represents the primary *Clostridia* centroid. The *E. coli* and *B. subtilis* are ejected from the centroid to an obvious extent in this reduced dimension. and they have been thoroughly named as their own cluster, while *C. acetobutylicum* strains are also observed as their own centroid.
 
 
-![The K-means clustering for t-SNE in $R^{2}$](kmeans_k4_clustering_on_tsne2.png)
+![The K-means clustering for t-SNE in $R^{2}$](img/kmeans_k4_clustering_on_tsne2.png)
 
 
 ## K-means clustering of correlation distance metrics
 
 
-![The K-means clustering for a spearman distance matrix](kmeans_k3_clustering_on_spearman_dist.png)
+![The K-means clustering for a spearman distance matrix](img/kmeans_k3_clustering_on_spearman_dist.png)
 
 ## Hierarchical clustering
 
-![Hierarchical clustering on spearman distance matrix derived from normalized count data](dendrogram.png)
+![Hierarchical clustering on spearman distance matrix derived from normalized count data](img/dendrogram.png)
 
 ## Sufficient values of k for genomic separation
 
@@ -425,11 +425,27 @@ parallel -j 30 'kmerdb profile -k {2} $(getmetagenome {1})  metagenome_{1}.{2}.k
 
 The list of supporting files can be seen here.
 
-![The K-means elbow graph for Normalized PCA6](kmeans_k4_elbow_graph_on_normalized_pca6.png)}
+![The K-means elbow graph for Normalized PCA6](img/kmeans_k4_elbow_graph_on_normalized_pca6.png)}
 
-![The K-means elbow graph for a t-SNE in $R^{2}$](kmeans_k4_elbow_graph_on_tsne2.png)
+![The K-means elbow graph for a t-SNE in $R^{2}$](img/kmeans_k4_elbow_graph_on_tsne2.png)
 
-![The K-means elbow graph for a spearman distance matrix](kmeans_k3_elbow_graph_on_spearman_dist.png)
+![The K-means elbow graph for a spearman distance matrix](img/kmeans_k3_elbow_graph_on_spearman_dist.png)
+
+
+```bash
+cd /ffast2/simulated_Cdiff
+# Simulate the desired depths
+parallel 'art_illumina -ss HS25 -i Cdifficile.R3.fasta -l 150 -f {} -m 200 -s 10' ::: $(seq 5 5 50)
+# Remove the .aln files, 
+kmerdb profile -k 8 $file1 $file2 ${file1.#}.8.kdb
+kmerdb matrix *.8.kdb  | kmerdb distance correlation STDIN > Cdiff_fidelity_Pearson_dist.8.tsv
+```
+
+
+
+![The kmeans (k=3) of a Pearson fidelity distance matrix](img/kmeans_k3_pearson_dist.8.png)
+
+![The kmeans (k=3) of a Spearman fiedlity distance matrix](img/kmeans_k3_spearman_dist.8.png)
 
 
 # Acknowledgements
