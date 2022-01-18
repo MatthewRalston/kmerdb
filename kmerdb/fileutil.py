@@ -279,8 +279,10 @@ class KDBReader(bgzf.BgzfReader):
             self.metadata = initial_header_data
             self.k = self.metadata['k']
             self.dtype = self.metadata["dtype"]
-            print(self.dtype)
-            sys.exit(1)
+            #logger.info("Squash target my nuts...")
+            logger.info("Self assigning dtype to uint32")
+            #print(self.dtype)
+            #sys.exit(1)
 
             
         except jsonschema.ValidationError as e:
