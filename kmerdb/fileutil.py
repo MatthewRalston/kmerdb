@@ -412,6 +412,8 @@ class KDBReader(bgzf.BgzfReader):
         # First calculate the amount of memory required by the array
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
         num_bytes = 4 * N
+        logger.info("Approximately {0} bytes".format(num_bytes))
+        logger.info("Fly.")
         vmem = psutil.virtual_memory()
         if vmem.available > num_bytes:
             if self.profile is None:
@@ -454,6 +456,7 @@ class KDBReader(bgzf.BgzfReader):
                         logger.debug("Profile must have been sparse...")
                         raise e
             else:
+                logger.warning("Profile, dickhead, it's already in memory. Dont rerun.")
                 logger.warning("Profile is already loaded in memory! Did you remember to deallocate it when you were done?")
                 return self.profile
         else:
