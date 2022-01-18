@@ -438,7 +438,14 @@ cd /ffast2/simulated_Cdiff
 parallel 'art_illumina -ss HS25 -i Cdifficile.R3.fasta -l 150 -f {} -m 200 -s 10' ::: $(seq 5 5 50)
 # Remove the .aln files, 
 kmerdb profile -k 8 $file1 $file2 ${file1.#}.8.kdb
-kmerdb matrix *.8.kdb  | kmerdb distance correlation STDIN > Cdiff_fidelity_Pearson_dist.8.tsv
+kmerdb matrix Normalized *.8.kdb  | kmerdb distance correlation STDIN > Cdiff_fidelity_Pearson_dist.8.tsv
+kmerdb matrix Normalized *.8.kdb  | kmerdb distance spearman STDIN > Cdiff_fidelity_Spearman_dist.8.tsv
+kmerdb matrix Normalized *.8.kdb  | kmerdb distance correlation STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_Pearson_dist_PCA_n3.8.tsv
+kmerdb matrix Normalized *.8.kdb  | kmerdb distance spearman    STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_Spearman_dist_PCA_n3.8.tsv
+kmerdb matrix Normalized *.8.kdb  | kmerdb distance euclidean   STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_euclidean_dist_PCA_n3.8.tsv
+
+kmerdb matrix Normalized *.8.kdb | kmerdb distance correlation STDIN | kmerdb distance euclidean STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_Euclidean_dist_of_pearson_then_PCA_n3.8.tsv
+kmerdb matrix Normalized *.8.kdb | kmerdb distance spearman STDIN | kmerdb distance euclidean STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_Euclidean_dist_of_Spearman_then_PCA_n3.8.tsv
 ```
 
 
