@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.3.1"
+VERSION="0.5.0"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -30,6 +30,7 @@ metadata_schema = {
         "unique_kmers": {"type": "number"},
         "unique_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
+        "sorted": {"type": "boolean"},
         "dtype": {"type": "string"},
         "tags": {
             "type": "array",
