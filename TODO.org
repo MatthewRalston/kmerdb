@@ -5,7 +5,10 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-
+* Code questions today
+** IndexErrors
+** TypeErrors
+** dtype coercion errors
 
 
 
