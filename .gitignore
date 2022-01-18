@@ -7,4 +7,5 @@ __pycache__
 kdb/__pycache__
 **.kdb
 examples/example_report/*.png
+examples/example_report
 test/data
