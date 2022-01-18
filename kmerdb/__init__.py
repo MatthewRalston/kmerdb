@@ -621,7 +621,7 @@ def get_matrix(arguments):
         suggested_dtype = dtypes[0]
         if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
-        data = [kdbrdr.slurp(dtype=suggested_dtype) for kdbrdr in files]
+        data = [kdbrdr.profile for kdbrdr in files]
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
         # The following does *not* transpose a matrix defined as n x N=4**k
