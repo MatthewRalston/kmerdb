@@ -61,6 +61,18 @@ def is_all_fasta(filenames):
     return all((f.endswith('.fa') or f.endswith('.fasta') or f.endswith('.fa.gz') or f.endswith('.fasta.gz') or f.endswith('.fna') or f.endswith('.fna.gz')) for f in filenames)
 
 
+def isfloat(num):
+    """
+    Thanks to the author of:
+    https://www.programiz.com/python-programming/examples/check-string-number
+    """
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
+
 def _s3_file_download(self, seqpath, temporary=True):
     """
     Note: the file will be downloaded into a temporary file that needs to be deleted afterwards
@@ -121,7 +133,10 @@ def parse_line(line):
             raise ValueError("kmerdb.fileutil.parse_line() encountered a .kdb line without 3 columns, a violation of the format")
         else:
             kmer_id, count, kmer_metadata = linesplit
-            kmer_id, count = int(kmer_id), int(count)
+            if isfloat(count):
+                kmer_id, count = int(kmer_id), float(count)
+            else:
+                kmer_id, count = int(kmer_id), int(count)
             kmer_metadata = yaml.safe_load(kmer_metadata)
             if type(kmer_metadata) is dict:
                 return kmer_id, count, kmer_metadata
@@ -180,11 +195,19 @@ def open(filepath, mode="r", metadata=None):
 
 
 class KDBReader(bgzf.BgzfReader):
-    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100):
+    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, dtype:str="uint32"):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'filename' to be a str")
+        elif type(dtype) is not str:
+            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'dtype' to be a str")
+
+        try:
+            np.dtype(dtype)
+        except TypeError as e:
+            raise TypeError("kmerdb.fileutil.KDBReader expects a valid NumPy data type as an optional argument")
+        
         if fileobj:
             assert filename is None
             handle = fileobj
@@ -214,22 +237,26 @@ class KDBReader(bgzf.BgzfReader):
         self._load_block(self._handle.tell())
 
         self._buffer = self._buffer.rstrip(config.header_delimiter)
-        header_data = OrderedDict(yaml.safe_load(self._buffer))
+        
+        initial_header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
-        if type(header_data) is str:
+        if type(initial_header_data) is str:
             raise TypeError("kmerdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
-        elif type(header_data) is OrderedDict:
+        elif type(initial_header_data) is OrderedDict:
             logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
-            if "version" not in header_data.keys():
+            if "version" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
-            elif "metadata_blocks" not in header_data.keys():
+            elif "metadata_blocks" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
+            elif "dtype" not in initial_header_data.keys() or initial_header_data["dtype"] not in ["uint32", "uint64", "float32", "float64"]:
+                logger.error(initial_header_data)
+                raise TypeError("kmerdb.fileutil.KDBReader couldn't determine the type of count/frequency stored in the file.")
             else:
-                logger.debug(header_data)
-                if header_data["metadata_blocks"] == 1:
+                logger.debug(initial_header_data)
+                if initial_header_data["metadata_blocks"] == 1:
                     logger.info("1 metadata block: Not loading any additional blocks")
                 else:
-                    for i in range(header_data["metadata_blocks"] - 1):
+                    for i in range(initial_header_data["metadata_blocks"] - 1):
                         self._load_block(self._handle.tell())
                         addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
                         if type(addtl_header_data) is str:
@@ -238,7 +265,7 @@ class KDBReader(bgzf.BgzfReader):
                         elif type(addtl_header_data) is dict:
                             sys.stderr.write("\r")
                             sys.stderr.write("Successfully parsed {0} blocks of YAML formatted metadata".format(i))
-                            header_data.update(addtl_header_data)
+                            initial_header_data.update(addtl_header_data)
                             num_header_blocks = i
                         else:
                             logger.error(addtl_header_data)
@@ -248,9 +275,14 @@ class KDBReader(bgzf.BgzfReader):
         sys.stderr.write("\n")
         logger.info("Validating the header data against the schema...")
         try:
-            jsonschema.validate(instance=header_data, schema=config.metadata_schema)
-            self.metadata = header_data
+            jsonschema.validate(instance=initial_header_data, schema=config.metadata_schema)
+            self.metadata = initial_header_data
             self.k = self.metadata['k']
+            self.dtype = self.metadata["dtype"]
+            print(self.dtype)
+            sys.exit(1)
+
+            
         except jsonschema.ValidationError as e:
             logger.debug(e)
             logger.error("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks))
@@ -271,6 +303,14 @@ class KDBReader(bgzf.BgzfReader):
         # self._load_block()
         # print(self._buffer) # 2
         # print(self.readline())
+
+        if dtype != self.dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be equal to the dtype in the file. Got {0} was {1}".format(dtype, self.dtype))
+
+        self.slurp(dtype=dtype)
+        self.is_int = False
+        self.dtype = dtype
+        
 
         #
     def read_line(self):
@@ -341,20 +381,20 @@ class KDBReader(bgzf.BgzfReader):
     #         raise StopIteration
     #     return self._buffer
 
-    def slurp(self, dtype:str="int32"):
+    def _slurp(self, dtype:str="uint32"):
         """
         A function to read an entire .kdb file into memory
         """
         if type(dtype) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a str")
-
         try:
             np.dtype(dtype)
         except TypeError as e:
             logger.error(e)
             logger.error("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
-            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the dtype keyword argument to be a valid numpy data type")
-        
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be a valid numpy data type")
+        if dtype != self.dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be equal to the dtype in the file. Got {0} was {1}".format(dtype, self.dtype))
         # First calculate the amount of memory required by the array
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
         num_bytes = 4 * N
@@ -374,7 +414,17 @@ class KDBReader(bgzf.BgzfReader):
                             sys.exit(1)
                             break
                         # Don't forget to not parse the metadata column [:-1]
-                        kmer_id, count = (int(_count) for _count in line.rstrip().split("\t")[:-1])
+
+                        kmer_id, _count, metadata = line.rstrip().split("\t")
+                        kmer_id = int(kmer_id)
+                        if isfloat(_count):
+                            count = float(_count)
+                            self.is_int32 = False
+                            self.is_float32 = True
+                        else:
+                            count = int(_count)
+                            self.is_int32 = True
+                            self.is_float32 = False
                         #logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
                         self.profile[kmer_id] = count
@@ -384,18 +434,25 @@ class KDBReader(bgzf.BgzfReader):
                     if i == N:
                         logger.debug("Read {0} lines from the file...".format(i))
                         logger.warning("StopIteration was raised!!!")
-                        return self.profile
+                        raise e
                     else:
                         logger.debug("Read only {0} lines from the file...".format(i))
                         logger.debug("Profile must have been sparse...")
-                        return self.profile
+                        raise e
             else:
                 logger.warning("Profile is already loaded in memory! Did you remember to deallocate it when you were done?")
                 return self.profile
         else:
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
+        if self.profile.dtype != dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be the inferred numpy data type")
+        self.dtype = dtype
         return self.profile
 
+    def slurp(self, dtype:str="uint32"):
+        self._slurp(dtype=dtype)
+
+    
     
 class KDBWriter(bgzf.BgzfWriter):
     def __init__(self, metadata:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
@@ -469,3 +526,4 @@ class KDBWriter(bgzf.BgzfWriter):
         else:
             logger.error("Mode: {}".format(mode.lower()))
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
+
