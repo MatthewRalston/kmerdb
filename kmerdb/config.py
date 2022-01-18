@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.1.2"
+VERSION="0.2.0"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -28,7 +28,9 @@ metadata_schema = {
         "k": {"type": "number"},
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
+        "unique_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
+        "dtype": {"type": "string"},
         "tags": {
             "type": "array",
             "items": {"type": "string"}
@@ -71,7 +73,7 @@ metadata_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "k", "tags", "files"]
+    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "dtype"]
 }
 
 
