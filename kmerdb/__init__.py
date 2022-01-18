@@ -1197,64 +1197,65 @@ def view(arguments):
             raise IOError("Viewable .kdb filepath does not end in '.kdb'")
         elif not os.path.exists(arguments.kdb_in):
             raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-        kdb_in = fileutil.open(arguments.kdb_in, mode='r')
+    with fileutil.open(arguments.kdb_in, mode='r') as kdb_in:
         metadata = kdb_in.metadata
-    if metadata["version"] != config.VERSION:
-        logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-    if arguments.kdb_out is None or arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT": # Write to stdout, uncompressed
-        if arguments.header:
-            yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(metadata, sort_keys=False))
-            print(config.header_delimiter)
-        if kdb_in is None: # Read from STDIN, since there was no kdb_in file.
-            logger.info("Reading from STDIN...")
-            try:
-                for line in sys.stdin:
-                    print(line.rstrip())
-            except BrokenPipeError as e:
-                logger.error(e)
-                raise e
-        else: # Read from the kdb_in file, and not STDIN
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+            if arguments.header:
+                yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                print(yaml.dump(metadata, sort_keys=False))
+                print(config.header_delimiter)
             logger.info("Reading from file...")
             try:
                 for line in kdb_in:
-                    print(line.rstrip())
+                    print(line)
+                    logger.error("Unexceptable")
+                    raise ValueError("Unexceptable.")
+                    sys.exit(-241)
+                print("foo")
+                line = kdb_in.read_line()
+                kmer_id, count, kmer_metadata = line
+                while kmer_id is not None:
+                    line = kdb_in.read_line()
+                    if line is not None:
+                        kmer_id, count, kmer_metadata = line
+                        print("{0}\t{1}\t{2}".format(kmer_id, count, kmer_metadata))
+                    elif line is None:
+                        kmer_id = None
+                    else:
+                        raise ValueError("First line is unknown type")
+
             except BrokenPipeError as e:
                 logger.error(e)
                 raise e
-    elif arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+    if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
         logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
         sys.exit(1)
-    elif type(arguments.kdb_out) is not str:
+    elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
         raise ValueError("Cannot write a file to an argument that isn't a string")
-    elif os.path.exists(arguments.kdb_out):
+    elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
         logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
-    elif not os.path.exists(arguments.kdb_out):
+    elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
-    else:
-        with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
-            try:
-                line = None
-                if kdb_in is None:
-                    while line is None:
-                        line = sys.stdin.readline().rstrip()
-                        kmer_id, count, kmer_metadata = fileutil.parse_line(line)
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, kmer_metadata))
-                        line = None
-                else:
+    if arguments.kdb_out is not None:
+        with fileutil.open(arguments.kdb_in, 'r') as kdb_in:
+            with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                try:
+                    line = None
                     for line in kdb_in:
                         line = line.rstrip()
                         kmer_id, count, kmer_metadata = fileutil.parse_line(line)
                         kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, kmer_metadata))
                     
-            except StopIteration as e:
-                logger.error(e)
-                raise e
-            finally:
-                #kdb_out._write_block(kdb_out._buffer)
-                #kdb_out._handle.flush()
-                #kdb_out._handle.close()
-                sys.stderr.write(config.DONE)
+                except StopIteration as e:
+                    logger.error(e)
+                    raise e
+                finally:
+                    #kdb_out._write_block(kdb_out._buffer)
+                    #kdb_out._handle.flush()
+                    #kdb_out._handle.close()
+                    sys.stderr.write(config.DONE)
 
             
 def profile(arguments):
@@ -1347,6 +1348,7 @@ def profile(arguments):
         "unique_kmers": unique_kmers,
         "unique_nullomers": total_nullomers,
         "metadata": arguments.all_metadata,
+        "sorted": arguments.sorted,
         "dtype": arguments.dtype,
         "tags": [],
         "files": [d[1] for d in data]
@@ -1360,6 +1362,10 @@ def profile(arguments):
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
         sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(arguments.kdb))
+
+        ids = np.zeros(total_kmers, dtype="uint64")
+        counts = np.zeros(total_kmers, dtype="uint64")
+        metadata = []
         if arguments.all_metadata:
             for i, count in enumerate(final_counts):
                 seq = kmer.id_to_kmer(i, arguments.k)
@@ -1374,15 +1380,34 @@ def profile(arguments):
                 kmer_metadata["reads"] = reads
                 kmer_metadata["starts"] = starts
                 kmer_metadata["reverses"] = reverses
-                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+
+                if arguments.sorted:
+                    ids[i] = i
+                    counts[i] = count
+                    metadata.append(kmer_metadata)
+                else:
+                    kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
         else:
             for i, count in enumerate(final_counts):
                 seq = kmer.id_to_kmer(i, arguments.k)
                 kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+
+                if arguments.sorted:
+                    ids[i] = i
+                    counts[i] = count
+                    metadata.append(kmer_metadata)
+                else:
+                    kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
+        if arguments.sorted:
+            ids = np.array(ids, dtype=arguments.dtype)
+            counts = np.array(counts, dtype=arguments.dtype)
+            
+            indices = np.lexsort((ids, counts))
+            for i in indices:
+                kdb_out.write("{0}\t{1}\t{2}\n".format(ids[i], counts[i], metadata[i]))
     finally:
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
@@ -1440,7 +1465,7 @@ def cli():
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    profile_parser.add_argument("-d", "--dtype", type=str, default="uint32", help="dtype for k-mer profile NumPy arrays (Default: uint32)")
+    profile_parser.add_argument("-d", "--dtype", type=str, default="uint64", help="dtype for k-mer profile NumPy arrays (Default: uint64)")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
 
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
@@ -1452,6 +1477,7 @@ def cli():
     profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
     profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
+    profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
 
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
