@@ -143,46 +143,32 @@ def distances(arguments):
     if len(arguments.input) > 1:
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
         logger.debug("Files: {0}".format(files))
-        if arguments.k is None:
-            arguments.k = files[0].k
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
-        if not all(kdbrdr.k == arguments.k for kdbrdr in files):
+        ks = [kdbrdr.k for kdbrdr in files]
+        suggested_k = ks[0]
+        if not all(kdbrdr.k == suggested_k for kdbrdr in files):
             logger.error("Files: {0}".format(files))
-            logger.error("Choices of k: {0}".format([kdbrdr.k for kdbrdr in files]))
-            logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k))
+            logger.error("Choices of k: {0}".format(ks))
+            logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(suggested_k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
         logger.debug("Files: {0}".format(files))
-        data = [kdbrdr.slurp() for kdbrdr in files]
-        logger.debug(data)
-        profiles = np.transpose(np.array(data, dtype="int32"))
+        dtypes = [kdbrdr.dtype for kdbrdr in files]
+        suggested_dtype = dtypes[0]
+
+        print(suggested_dtype)
+        sys.exit(1)
+        
+        if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
+            raise TypeError("One or more files did not have dtype = {0}".format(suggested_dtype))
+        data = [kdbrdr.slurp(dtype=suggested_dtype) for kdbrdr in files]
+        profiles = np.transpose(np.array(data, dtype=suggested_dtype))
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
 
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
-
-        column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
-        if len(column_names) != len(files):
-            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(column_names), len(files)))
-        logger.debug("Shape: {0}".format(profiles.shape))
-        expected = (4**arguments.k, len(column_names))
-        if profiles.shape != expected:
-            logger.error("Expected shape: {0}".format(expected))
-            logger.error("Actual shape: {0}".format(profiles.shape))
-            raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
-
-        df = pd.DataFrame(profiles, columns=column_names)
-    elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
-        logger.info("Reading input as tsv/csv from STDIN")
-        try:
-            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
-        except pd.errors.EmptyDataError as e:
-            logger.error(e)
-            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
-            sys.exit(1)
-        profiles = np.array(df)
         column_names = list(df.columns)
         n = len(column_names)
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
@@ -196,9 +182,172 @@ def distances(arguments):
         profiles = np.array(df)
         column_names = list(df.columns)
         n = len(column_names)
-    elif len(arguments.input) == 1 and os.path.splitext(arguments.input)[-1] == ".kdb":
+    elif len(arguments.input) == 1 and os.path.splitext(arguments.input[0])[-1] == ".kdb":
         logger.error("kdb distance requires more than one .kdb file as positional inputs")
         sys.exit(1)
+    elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
+        logger.info("Reading input as tsv/csv from STDIN")
+        try:
+            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
+        except pd.errors.EmptyDataError as e:
+            logger.error(e)
+            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
+            sys.exit(1)
+        profiles = np.array(df)
+        columns = list(df.columns)
+        n = len(columns)
+    else:
+        logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)))
+        sys.exit(1)
+
+    # Masthead stuff
+    sys.stderr.write(config.DEFAULT_MASTHEAD)
+    if logger.level == logging.DEBUG or logger.level == logging.INFO:
+        sys.stderr.write(config.DEBUG_MASTHEAD)
+    sys.stderr.write(config.DISTANCE_MASTHEAD)
+
+    logger.info("Calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
+    
+    if arguments.metric in ["spearman", "EMD", "d2s"]:
+        data = [['' for x in range(n)] for y in range(n)]
+        for i in range(n):
+            for j in range(n):
+                logger.info("Calculating {0} distance between {1} and {2}...".format(arguments.metric, column_names[i], column_names[j]))
+                if i == j:
+                    data[i][j] = distance.identity[arguments.metric]
+                elif i > j:
+                    data[i][j] = None
+                elif i < j:
+                    if arguments.metric == "correlation":
+                        data[i][j] = distance.correlation(arguments.input[i], arguments.input[j])
+                        # data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+                    elif arguments.metric == "euclidean":
+                        data[i][j] = distance.euclidean(arguments.input[i], arguments.input[j])
+                    elif arguments.metric == "spearman":
+                        cor, pval = distance.spearman(profiles[i], profiles[j])
+                        # FIXME! also print pval matrices
+                        data[i][j] = cor
+                    elif arguments.metric == "EMD":
+                        data[i][j] = distance.EMD(profiles[i], profiles[j])
+                    elif arguments.metric == "d2s":
+                        data[i][j] = distance.d2s(profiles[i], profiles[j])
+                    else:
+                        logger.error("Other distances are not implemented yet")
+                        sys.exit(1)
+                # This double loop quickly identifies empty cells and sets the data correctly from the permutation above
+        for i in range(n):
+            for j in range(n):
+                if data[i][j] is None:
+                    data[i][j] = data[j][i]
+        logger.info("Printing distance matrix...")
+        logger.info(data)
+        dist = np.array(data)
+    else:
+        dist = pdist(np.transpose(profiles), metric=arguments.metric)
+        dist = squareform(dist)
+        # if arguments.metric == "correlation":
+        #     ones = np.ones(dist.shape, dtype="int64")
+        #     dist = np.subtract(ones, dist)
+    if dist.shape == (2,2):
+        print(dist[0][1])
+    else:
+        df = pd.DataFrame(dist, columns=columns)
+
+
+        ## FIXME: CUSTOM sorting code, not commiting to git repo
+        #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
+        #suffixes.sort(key=lambda x: x[0])
+        #sorted_column_names = [column_names[s[1]] for s in suffixes]
+        #df.sort_values(sorted_column_names)
+        
+
+        df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
+
+def get_matrix(arguments):
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+    
+    from kmerdb import fileutil, config
+
+
+    try:
+        np.dtype(arguments.dtype)
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a TypeError, halting.")
+        raise argparse.ArgumentError("Dtype '{0}' is invalid.".format(arguments.dtype))
+    
+    if len(arguments.input) > 1:
+        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+        dtypes = [x.dtype.name for x in files]
+        suggested_dtype = dtypes[0]
+        if arguments.k is None:
+            arguments.k = files[0].k
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
+            raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
+        ks = [kdbrdr.k for kdbrdr in files]
+        suggested_k = ks[0]
+        if not all(k == suggested_k for k in ks):
+            logger.error("Files: {0}".format(files))
+            logger.error("Choices of k: {0}".format(ks))
+            logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k))
+            logger.error("Default choice of k, since not specified at the CLI is {0}".format(arguments.k))
+            logger.error("Proceeding with k set to {0}".format(suggested_k))
+            raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
+        elif not all(kdbrdr.dtype == arguments.dtype and arguments.dtype == kdbrdr.dtype for kdbrdr in files):
+            raise TypeError("One or more files did not have the default dtype or the default dtype did not match one or more files...")
+        profiles = np.transpose(np.array(list(map(lambda kdbrdr: kdbrdr.slurp(dtype=suggested_dtype), files)), dtype=suggested_dtype))
+        # The following does *not* transpose a matrix defined as n x N=4**k
+        # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
+        # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
+
+        # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
+        logger.info("============================================================")
+        logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
+        logger.info("============================================================")
+
+
+
+        if arguments.column_names is None:
+            columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
+        else:
+            with open(arguments.column_names, 'r') as column_names:
+                # Expect column_names.txt to be one column name per line
+                columns = [line.rstrip() for line in column_names]
+        if len(columns) != len(files):
+            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns), len(files)))
+        logger.debug("Shape: {0}".format(profiles.shape))
+        expected = (4**suggested_k, len(columns))
+        if profiles.shape != expected:
+            logger.error("Expected shape: {0}".format(expected))
+            logger.error("Actual shape: {0}".format(profiles.shape))
+            raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
+
+        df = pd.DataFrame(profiles, columns=columns)
+        is_uint32 = all([x.dtype.name == 'uint32' for x in profiles])
+        is_uint64 = all([x.dtype.name == 'uint64' for x in profiles])
+        is_float32 = all([x.dtype.name == 'float32' for x in profiles])
+        is_float64 = all([x.dtype.name == 'float64' for x in profiles])
+        
+        
+    elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
+        logger.info("Reading input as tsv/csv from STDIN")
+        try:
+            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
+        except pd.errors.EmptyDataError as e:
+            logger.error(e)
+            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
+            sys.exit(1)
+        profiles = np.array(df)
+        columns = list(df.columns)
+        n = len(columns)
+        
     else:
         logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)))
         sys.exit(1)
@@ -278,19 +427,34 @@ def get_matrix(arguments):
     
     from kmerdb import fileutil, config
 
+
+    try:
+        np.dtype(arguments.dtype)
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a TypeError, halting.")
+        raise argparse.ArgumentError("Dtype '{0}' is invalid.".format(arguments.dtype))
     
     if len(arguments.input) > 1:
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+        dtypes = [x.dtype.name for x in files]
+        suggested_dtype = dtypes[0]
         if arguments.k is None:
             arguments.k = files[0].k
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
-        if not all(kdbrdr.k == arguments.k for kdbrdr in files):
+        ks = [kdbrdr.k for kdbrdr in files]
+        suggested_k = ks[0]
+        if not all(k == suggested_k for k in ks):
             logger.error("Files: {0}".format(files))
-            logger.error("Choices of k: {0}".format([kdbrdr.k for kdbrdr in files]))
+            logger.error("Choices of k: {0}".format(ks))
             logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k))
+            logger.error("Default choice of k, since not specified at the CLI is {0}".format(arguments.k))
+            logger.error("Proceeding with k set to {0}".format(suggested_k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-        profiles = np.transpose(np.array(list(map(lambda kdbrdr: kdbrdr.slurp(), files)), dtype="int32"))
+        elif not all(kdbrdr.dtype == arguments.dtype and arguments.dtype == kdbrdr.dtype for kdbrdr in files):
+            raise TypeError("One or more files did not have the default dtype or the default dtype did not match one or more files...")
+        profiles = np.transpose(np.array(list(map(lambda kdbrdr: kdbrdr.slurp(dtype=suggested_dtype), files)), dtype=suggested_dtype))
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
@@ -300,8 +464,30 @@ def get_matrix(arguments):
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
         logger.info("============================================================")
 
-        column_names = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
-        df = pd.DataFrame(profiles, columns=column_names)
+
+
+        if arguments.column_names is None:
+            columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
+        else:
+            with open(arguments.column_names, 'r') as column_names:
+                # Expect column_names.txt to be one column name per line
+                columns = [line.rstrip() for line in column_names]
+        if len(columns) != len(files):
+            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns), len(files)))
+        logger.debug("Shape: {0}".format(profiles.shape))
+        expected = (4**suggested_k, len(columns))
+        if profiles.shape != expected:
+            logger.error("Expected shape: {0}".format(expected))
+            logger.error("Actual shape: {0}".format(profiles.shape))
+            raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
+
+        df = pd.DataFrame(profiles, columns=columns)
+        is_uint32 = all([x.dtype.name == 'uint32' for x in profiles])
+        is_uint64 = all([x.dtype.name == 'uint64' for x in profiles])
+        is_float32 = all([x.dtype.name == 'float32' for x in profiles])
+        is_float64 = all([x.dtype.name == 'float64' for x in profiles])
+        
+        
     elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
         logger.info("Reading input as tsv/csv from STDIN")
         try:
@@ -310,7 +496,177 @@ def get_matrix(arguments):
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
-        column_names = list(df.columns)
+        profiles = np.array(df)
+        columns = list(df.columns)
+        n = len(columns)
+    elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
+        logger.info("Hidden: 1 argument. Reading input as tsv")
+        try:
+            df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
+        except pd.errors.EmptyDataError as e:
+            logger.error(e)
+            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
+            sys.exit(1)
+        profiles = np.array(df)
+        columns = list(df.columns)
+        n = len(columns)
+    elif len(arguments.input) == 1 and os.path.splitext(arguments.input)[-1] == ".kdb":
+        logger.error("kdb distance requires more than one .kdb file as positional inputs")
+        sys.exit(1)
+    else:
+        logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)))
+        sys.exit(1)
+
+    # Masthead stuff
+    sys.stderr.write(config.DEFAULT_MASTHEAD)
+    if logger.level == logging.DEBUG or logger.level == logging.INFO:
+        sys.stderr.write(config.DEBUG_MASTHEAD)
+    sys.stderr.write(config.DISTANCE_MASTHEAD)
+
+    logger.info("Calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
+    
+    if arguments.metric in ["spearman", "EMD", "d2s"]:
+        data = [['' for x in range(n)] for y in range(n)]
+        for i in range(n):
+            for j in range(n):
+                logger.info("Calculating {0} distance between {1} and {2}...".format(arguments.metric, columns[i], columns[j]))
+                if i == j:
+                    data[i][j] = distance.identity[arguments.metric]
+                elif i > j:
+                    data[i][j] = None
+                elif i < j:
+                    if arguments.metric == "correlation":
+                        data[i][j] = distance.correlation(arguments.input[i], arguments.input[j])
+                        # data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+                    elif arguments.metric == "euclidean":
+                        data[i][j] = distance.euclidean(arguments.input[i], arguments.input[j])
+                    elif arguments.metric == "spearman":
+                        cor, pval = distance.spearman(profiles[i], profiles[j])
+                        # FIXME! also print pval matrices
+                        data[i][j] = cor
+                    elif arguments.metric == "EMD":
+                        data[i][j] = distance.EMD(profiles[i], profiles[j])
+                    elif arguments.metric == "d2s":
+                        data[i][j] = distance.d2s(profiles[i], profiles[j])
+                    else:
+                        logger.error("Other distances are not implemented yet")
+                        sys.exit(1)
+                # This double loop quickly identifies empty cells and sets the data correctly from the permutation above
+        for i in range(n):
+            for j in range(n):
+                if data[i][j] is None:
+                    data[i][j] = data[j][i]
+        logger.info("Printing distance matrix...")
+        logger.info(data)
+        dist = np.array(data)
+    else:
+        dist = pdist(np.transpose(profiles), metric=arguments.metric)
+        dist = squareform(dist)
+        # if arguments.metric == "correlation":
+        #     ones = np.ones(dist.shape, dtype="int64")
+        #     dist = np.subtract(ones, dist)
+    if dist.shape == (2,2):
+        print(dist[0][1])
+    else:
+        df = pd.DataFrame(dist, columns=columns)
+
+
+        ## FIXME: CUSTOM sorting code, not commiting to git repo
+        #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
+        #suffixes.sort(key=lambda x: x[0])
+        #sorted_column_names = [column_names[s[1]] for s in suffixes]
+        #df.sort_values(sorted_column_names)
+        
+
+        df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
+
+def get_matrix(arguments):
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+    
+    from kmerdb import fileutil, config
+
+
+    try:
+        np.dtype(arguments.dtype)
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a TypeError, halting.")
+        raise argparse.ArgumentError("Dtype '{0}' is invalid.".format(arguments.dtype))
+    
+    if len(arguments.input) > 1:
+        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+        if arguments.k is None:
+            arguments.k = files[0].k
+        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
+            raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
+        ks = [kdbrdr.k for kdbrdr in files]
+        suggested_k = ks[0]
+        if not all(k == suggested_k for k in ks):
+            logger.error("Files: {0}".format(files))
+            logger.error("Choices of k: {0}".format(ks))
+            logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k))
+            logger.error("Default choice of k, since not specified at the CLI is {0}".format(arguments.k))
+            logger.error("Proceeding with k set to {0}".format(suggested_k))
+            raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
+        elif not all(kdbrdr.dtype == arguments.dtype and arguments.dtype == kdbrdr.dtype for kdbrdr in files):
+            raise TypeError("One or more files did not have the default dtype or the default dtype did not match one or more files...")
+        dtypes = [kdbrdr.dtype for kdbrdr in files]
+        suggested_dtype = dtypes[0]
+        if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
+            raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
+        data = [kdbrdr.slurp(dtype=suggested_dtype) for kdbrdr in files]
+        pure_data = np.array(data, dtype=suggested_dtype)
+        profiles = np.transpose(pure_data)
+        # The following does *not* transpose a matrix defined as n x N=4**k
+        # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
+        # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
+
+        # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
+        logger.info("============================================================")
+        logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
+        logger.info("============================================================")
+
+
+
+        if arguments.column_names is None:
+            columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
+        else:
+            with open(arguments.column_names, 'r') as column_names:
+                columns = [line.rstrip() for line in column_names]
+        if len(columns) != len(files):
+            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns), len(files)))
+        suggested_metadata = files[0].metadata
+        expected = (4**suggested_k, len(columns)), 
+        if profiles.shape != expected:
+            logger.error("Expected shape: {0}".format(expected))
+            logger.error("Actual shape: {0}".format(profiles.shape))
+            raise RuntimeError("Raw profile shape (a NumPy array) doesn't match expected dimensions")
+        df = pd.DataFrame(profiles, columns=columns)
+        is_uint32 = False
+        is_uint64 = False
+        is_float32 = False
+        is_float64 = False
+        is_uint32 = all([x.dtype.name == 'uint32' for x in profiles])
+        is_uint64 = all([x.dtype.name == 'uint64' for x in profiles])
+        is_float32 = all([x.dtype.name == 'float32' for x in profiles])
+        is_float64 = all([x.dtype.name == 'float64' for x in profiles])
+
+    elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
+        logger.info("Reading input as tsv/csv from STDIN")
+        try:
+            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
+        except pd.errors.EmptyDataError as e:
+            logger.error(e)
+            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
+            sys.exit(1)
+        columns = list(df.columns)
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
         logger.info("Reading input file as tsv/csv")
         try:
@@ -319,7 +675,7 @@ def get_matrix(arguments):
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
-        column_names = list(df.columns)
+        columns = list(df.columns)
     else:
         logger.error(arguments)
         logger.error("bin/kdb.get_matrix() received {0} arguments as input, and this is not supported.".format(len(arguments.input)))
@@ -340,7 +696,6 @@ def get_matrix(arguments):
         # # Normalizing across the 0th axis will normalize across the row meaning between samples. To arrive at this I checked the column sums of both to be sure I understood what was being normalized.
         # # We don't necessarily need to standardize, and not standardizing will make rationalizations or sensitivity to the real number range more clear.
         # if arguments.normalize_with == "DESeq2":
-        
 
         logger.info("Normalizing the DataFrame with DESeq2 NB-compatible count normalization via rpy2...")
         '''
@@ -356,7 +711,7 @@ def get_matrix(arguments):
             count_matrix = pandas2ri.py2rpy(df)
             ncol = r['ncol']
             seq = r['seq']
-            colData = pd.DataFrame(np.transpose(column_names), columns=["Species"])
+            colData = pd.DataFrame(np.transpose(columns), columns=["Species"])
             logger.info("colData:\n{0}".format(colData))
                 
             dds = r['DESeqDataSetFromMatrix'](count_matrix, colData, Formula('~ Species'))
@@ -366,7 +721,7 @@ def get_matrix(arguments):
             normalized = r['counts'](dds, normalized = True)
             if not arguments.no_normalized_ints:
                 normalized = np.array(np.rint(normalized), dtype="int64")
-            normalized = pd.DataFrame(normalized, columns=column_names)
+            normalized = pd.DataFrame(normalized, columns=columns)
             logger.debug(normalized)
             logger.info("Normalized matrix shape: {0}".format(normalized.shape))
 
@@ -388,6 +743,10 @@ def get_matrix(arguments):
     elif arguments.method == "Unnormalized":
         #df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = df
+    elif arguments.method == "Frequency":
+        k = suggested_metadata['k']
+        total_kmers = suggested_metadata["total_kmers"]
+        final_df = df.div(total_kmers)
     elif arguments.method == "PCA":
         # This method is actually dimensionality reduction via SVD, and this process is used during principal components analysis.
         # We generate the elbow graph in this step if the required dimensionality parameter '-n' is not supplied.
@@ -423,7 +782,7 @@ def get_matrix(arguments):
             #logger.debug("MLE estimate of components for dimensionality reduction produced this shape: {0}".format(pca.components_.shape))
 
             score_matrix = pca.transform(np.transpose(df))
-            score_df = pd.DataFrame(np.transpose(score_matrix), columns=column_names)
+            score_df = pd.DataFrame(np.transpose(score_matrix), columns=columns)
 
             #score_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
             final_df = score_df
@@ -440,7 +799,7 @@ def get_matrix(arguments):
         if arguments.n is None:
             raise TypeError("'kdb matrix tSNE' requires a keyword argument '-n' equal to the number of components of the subspace for tSNE to project the data into. A choice of 2 is recommended")
         tsne = TSNE(n_components=arguments.n, perplexity=arguments.perplexity).fit_transform(np.transpose(df))
-        tsne_df = pd.DataFrame(np.transpose(tsne), columns=column_names)
+        tsne_df = pd.DataFrame(np.transpose(tsne), columns=columns)
         #tsne_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = tsne_df
 
@@ -889,7 +1248,12 @@ def profile(arguments):
     
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
-    
+    try:
+        np.dtype(arguments.dtype)
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a TypeError. Need to halt.")
+        raise TypeError("kmerdb encountered an invalid type string...")
 
     
 
@@ -949,7 +1313,9 @@ def profile(arguments):
         "k": arguments.k,
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
+        "unique_nullomers": total_nullomers,
         "metadata": arguments.all_metadata,
+        "dtype": arguments.dtype,
         "tags": [],
         "files": [d[1] for d in data]
     })
@@ -1079,7 +1445,9 @@ def cli():
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("--with-index", default=False, action="store_true", help="Print the row indices as well")
-    matrix_parser.add_argument("-d", "--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
+    matrix_parser.add_argument("--column-names", default=None, type=argparse.FileType('r'), help="Column name file")
+    matrix_parser.add_argument("--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
+    matrix_parser.add_argument("-d", "--dtype", default="uint32", type=str, choices=["uint32", "uint64", "float32", "float64"], help="Data type to read into memory. DEFAULT: 'uint32'")
     matrix_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. DEFAULT: '\t'")
         
     #matrix_parser.add_argument("--normalize-with", type=str, choices=["ecopy", "DESeq2"], default="DESeq2", help="Normalize with which method? DEFAULT: DESeq2")
@@ -1088,7 +1456,7 @@ def cli():
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
 
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
-    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized"], default=None, help="Choice of distance metric between two profiles")
+    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized", "Frequency"], default=None, help="Choice of distance metric between two profiles")
     matrix_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     matrix_parser.set_defaults(func=get_matrix)
     
@@ -1123,7 +1491,8 @@ def cli():
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     dist_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
-    dist_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when printing the csv.")
+    dist_parser.add_argument("-d", "--dtype", type=str, default="uint32", choices=["uint32", "uint64", "float32", "float64"], help="Choice of data type to read data into memory with. Default: 'uint32'")
+    dist_parser.add_argument("--delimiter", type=str, default="\t", help="The delimiter to use when printing the csv.")
     dist_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
     
     dist_parser.add_argument("metric", choices=[
