@@ -80,7 +80,7 @@ CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.0.4.tar.g
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 # What packages are required for this module to be executed?
 
 REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
