@@ -185,7 +185,7 @@ def distances(arguments):
         logger.debug("Shape: {0}".format(profiles.shape))
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
         df = pd.DataFrame(profiles)
-        columns = list(df.columns) # I hate this language, it's hateful.
+        #columns = list(df.columns) # I hate this language, it's hateful.
         n = len(columns)
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
         try:
