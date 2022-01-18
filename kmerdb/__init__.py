@@ -174,12 +174,20 @@ def distances(arguments):
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
+
+        if arguments.column_names is None:
+            columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
+        else:
+            with open(arguments.column_names, 'r') as column_names:
+                columns = [line.rstrip() for line in column_names]
+        if len(columns) != len(files):
+            raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns, len(files))))
+        logger.debug("Shape: {0}".format(profiles.shape))
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
         df = pd.DataFrame(profiles)
-        columns = list(df.columns)
+        columns = list(df.columns) # I hate this language, it's hateful.
         n = len(columns)
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
-        logger.info("Hidden: 1 argument. Reading input as tsv")
         try:
             df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
@@ -187,7 +195,8 @@ def distances(arguments):
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
         profiles = np.array(df)
-        columns = list(df.columns)
+        columns = list(df.columns) # I'm sorry I ever made this line. Please forgive me.
+        # This is just gratuitous code and language. I'm really really not sure what I want to express here.
         n = len(columns)
     elif len(arguments.input) == 1 and os.path.splitext(arguments.input[0])[-1] == ".kdb":
         logger.error("Not sure why you'd want a singular distance.")
@@ -257,7 +266,7 @@ def distances(arguments):
             for j in range(n):
                 if data[i][j] is None:
                     data[i][j] = data[j][i]
-                    logger.info("\n\n\nSwerve swerve\n\n\n")
+                    #logger.info("\n\n\nSwerve swerve\n\n\n")
         dist = np.array(data)
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
@@ -269,8 +278,7 @@ def distances(arguments):
         print(dist[0][1])
     else:
         df = pd.DataFrame(dist, columns=columns)
-
-
+        
         ## FIXME: CUSTOM sorting code, not commiting to git repo
         #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
         #suffixes.sort(key=lambda x: x[0])
@@ -498,9 +506,9 @@ def get_matrix(arguments):
             logger.error("Actual shape: {0}".format(profiles.shape))
             raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
 
-        print(profiles.shape)
+        #print(profiles.shape)
         logger.info("Created a matrix with the shape {0}".format(profiles.shape))
-        sys.exit(1)
+        #sys.exit(1)
 
         
         df = pd.DataFrame(profiles, columns=columns)
@@ -1469,7 +1477,7 @@ def cli():
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("--with-index", default=False, action="store_true", help="Print the row indices as well")
-    matrix_parser.add_argument("--column-names", default=None, type=argparse.FileType('r'), help="Column name file")
+    matrix_parser.add_argument("--column-names", default=None, type=str, help="A filepath to a plaintext flat file of column names.")
     matrix_parser.add_argument("--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
     matrix_parser.add_argument("-d", "--dtype", default="uint32", type=str, choices=["uint32", "uint64", "float32", "float64"], help="Data type to read into memory. DEFAULT: 'uint32'")
     matrix_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. DEFAULT: '\t'")
@@ -1516,6 +1524,7 @@ def cli():
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     dist_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
     dist_parser.add_argument("-d", "--dtype", type=str, default="uint32", choices=["uint32", "uint64", "float32", "float64"], help="Choice of data type to read data into memory with. Default: 'uint32'")
+    dist_parser.add_argument("--column-names", type=str, default=None, help="A filepath to a plaintext flat file of column names.")
     dist_parser.add_argument("--delimiter", type=str, default="\t", help="The delimiter to use when printing the csv.")
     dist_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
     
