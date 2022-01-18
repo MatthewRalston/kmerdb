@@ -720,7 +720,7 @@ def get_matrix(arguments):
 
 
     final_df = None
-    if arguments.method == "Normalized":
+    if arguments.method == "DESeq2":
         # if arguments.normalize_with == "ecopy":
         #     import ecopy as ep
         #     logger.info("Normalizing the DataFrame for sample size with ecopy...")
@@ -772,7 +772,7 @@ def get_matrix(arguments):
         # logger.debug("final_df should be set as normalized")
         # sys.exit(1)
         final_df = normalized
-    elif arguments.method == "Unnormalized":
+    elif arguments.method == "pass":
         #df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = df
     elif arguments.method == "Frequency":
@@ -1488,7 +1488,7 @@ def cli():
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
 
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
-    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "Normalized", "Unnormalized", "Frequency"], default=None, help="Choice of distance metric between two profiles")
+    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "DESeq2", "pass", "Frequency"], default=None, help="Choice of distance metric between two profiles")
     matrix_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     matrix_parser.set_defaults(func=get_matrix)
     
