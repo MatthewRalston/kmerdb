@@ -643,9 +643,9 @@ def get_matrix(arguments):
         if len(columns) != len(files):
             raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns), len(files)))
         suggested_metadata = files[0].metadata
-        expected = (4**suggested_k, len(columns)), 
-        if profiles.shape != expected:
-            logger.error("Expected shape: {0}".format(expected))
+        expected, num_columns = 4**suggested_k, len(columns)
+        if profiles.shape != (expected, num_columns):
+            logger.error("Expected shape: {0} x {1}".format(expected, num_columns))
             logger.error("Actual shape: {0}".format(profiles.shape))
             raise RuntimeError("Raw profile shape (a NumPy array) doesn't match expected dimensions")
         df = pd.DataFrame(profiles, columns=columns)
