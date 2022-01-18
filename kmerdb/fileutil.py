@@ -126,6 +126,8 @@ def parse_line(line):
     
     if type(line) is not str:
         raise TypeError("kmerdb.fileutil.parse_line expects to a str as its first positional argument")
+    elif type(line) is str and line == "":
+        return None
     else:
         linesplit = line.rstrip().split("\t")
         if len(linesplit) != 3:
@@ -195,7 +197,7 @@ def open(filepath, mode="r", metadata=None):
 
 
 class KDBReader(bgzf.BgzfReader):
-    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, dtype:str="uint32"):
+    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, dtype:str="uint64"):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
@@ -319,7 +321,7 @@ class KDBReader(bgzf.BgzfReader):
         # print(self.readline())
 
         if dtype != self.dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be equal to the dtype in the file. Got {0} was {1}".format(dtype, self.dtype))
+            dtype = self.dtype
 
         self.slurp(dtype=dtype)
         self.is_int = False
@@ -395,7 +397,7 @@ class KDBReader(bgzf.BgzfReader):
     #         raise StopIteration
     #     return self._buffer
 
-    def _slurp(self, dtype:str="uint32"):
+    def _slurp(self, dtype:str="uint64"):
         """
         A function to read an entire .kdb file into memory
         """
@@ -421,7 +423,7 @@ class KDBReader(bgzf.BgzfReader):
                 i = 0
                 try:
                     self.profile = np.zeros(4**self.k, dtype=dtype)
-
+                    self.kmer_ids = np.zeros(4**self.k, dtype="uint64")
                     for j in range(N):
                         #logger.debug("Reading {0}th line...".format(j))
                         line = next(self)
@@ -435,14 +437,19 @@ class KDBReader(bgzf.BgzfReader):
                         kmer_id = int(kmer_id)
                         if isfloat(_count):
                             count = float(_count)
-                            self.is_int32 = False
-                            self.is_float32 = True
+                            self.is_int64   = False
+                            self.is_float64 = True
+                            self.is_float32 = False
+                            self.is_int32   = False
                         else:
                             count = int(_count)
-                            self.is_int32 = True
+                            self.is_int64   = True
+                            self.is_float64 = False
+                            self.is_int32   = False
                             self.is_float32 = False
-                        #logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
+                        logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
+                        self.kmer_ids[j] = kmer_id
                         self.profile[kmer_id] = count
                     logger.info("Read {0} lines from the file...".format(i))
                     return self.profile
@@ -466,7 +473,7 @@ class KDBReader(bgzf.BgzfReader):
         self.dtype = dtype
         return self.profile
 
-    def slurp(self, dtype:str="uint32"):
+    def slurp(self, dtype:str="uint64"):
         self._slurp(dtype=dtype)
 
     
