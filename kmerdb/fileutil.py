@@ -241,9 +241,12 @@ class KDBReader(bgzf.BgzfReader):
         initial_header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
         if type(initial_header_data) is str:
+            logger.info("Inappropriate type for the header data.")
+            #logger.info("Um, what the fuck is this in my metadata block?")
             raise TypeError("kmerdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
         elif type(initial_header_data) is OrderedDict:
             logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
+            logger.info("Assuming YAML blocks until delimiter reached.")
             if "version" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             elif "metadata_blocks" not in initial_header_data.keys():
@@ -257,10 +260,15 @@ class KDBReader(bgzf.BgzfReader):
                     logger.info("1 metadata block: Not loading any additional blocks")
                 else:
                     for i in range(initial_header_data["metadata_blocks"] - 1):
+                        logger.info("Multiple metadata blocks read...")
                         self._load_block(self._handle.tell())
+                        logger.debug("Secondary blocks read")
                         addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
                         if type(addtl_header_data) is str:
                             logger.error(addtl_header_data)
+                            logger.error("Couldn't determine yo' block.::/")
+                            #logger.error("Couldn't at you goldy.")
+                            logger.error("Sorry - Chris Brown.")
                             raise TypeError("kmerdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
                         elif type(addtl_header_data) is dict:
                             sys.stderr.write("\r")
@@ -272,7 +280,10 @@ class KDBReader(bgzf.BgzfReader):
                             raise RuntimeError("kmerdb.fileutil.KDBReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
         else:
             raise RuntimeError("kmerdb.fileutil.KDBReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
+        logger.info("Reading additional blocks as YAML...")
+        logger.debug("Reading additional blocks as YAML...")
         sys.stderr.write("\n")
+        logger.info("\n\n\nFly\n\n\n")
         logger.info("Validating the header data against the schema...")
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.metadata_schema)
@@ -281,6 +292,7 @@ class KDBReader(bgzf.BgzfReader):
             self.dtype = self.metadata["dtype"]
             #logger.info("Squash target my nuts...")
             logger.info("Self assigning dtype to uint32")
+            #logger.debug("Checking for metadata inference...")
             #print(self.dtype)
             #sys.exit(1)
 
