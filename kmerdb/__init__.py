@@ -138,13 +138,21 @@ def distances(arguments):
 
     from kmerdb import fileutil, distance, config
     n = len(arguments.input)
-
+    try:
+        np.dtype(arguments.dtype)
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a TypeError, halting.")
+        raise argparse.ArgumentError("Dtype '{0}' is invalid".format(arguments.dtype))
 
     if len(arguments.input) > 1:
         files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
         logger.debug("Files: {0}".format(files))
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
+        dtypes = [x.profile.dtype.name for x in files]
+        suggested_dtype = dtypes[0]
+        
         ks = [kdbrdr.k for kdbrdr in files]
         suggested_k = ks[0]
         if not all(kdbrdr.k == suggested_k for kdbrdr in files):
@@ -153,24 +161,23 @@ def distances(arguments):
             logger.error("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(suggested_k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
         logger.debug("Files: {0}".format(files))
-        dtypes = [kdbrdr.dtype for kdbrdr in files]
-        suggested_dtype = dtypes[0]
-
-        print(suggested_dtype)
-        sys.exit(1)
         
         if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One or more files did not have dtype = {0}".format(suggested_dtype))
-        data = [kdbrdr.slurp(dtype=suggested_dtype) for kdbrdr in files]
-        profiles = np.transpose(np.array(data, dtype=suggested_dtype))
+        data = [kdbrdr.profile for kdbrdr in files]
+        #profiles = np.transpose(np.array(data, dtype=suggested_dtype))
+        #profiles = np.array(data, dtype=suggested_dtype)
+        profiles = np.transpose(data)
+        logger.debug("Dammit, wrong dimensionality")
+
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
-
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
-        column_names = list(df.columns)
-        n = len(column_names)
+        df = pd.DataFrame(profiles)
+        columns = list(df.columns)
+        n = len(columns)
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
         logger.info("Hidden: 1 argument. Reading input as tsv")
         try:
@@ -180,9 +187,10 @@ def distances(arguments):
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
         profiles = np.array(df)
-        column_names = list(df.columns)
-        n = len(column_names)
+        columns = list(df.columns)
+        n = len(columns)
     elif len(arguments.input) == 1 and os.path.splitext(arguments.input[0])[-1] == ".kdb":
+        logger.error("Not sure why you'd want a singular distance.")
         logger.error("kdb distance requires more than one .kdb file as positional inputs")
         sys.exit(1)
     elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
@@ -206,25 +214,34 @@ def distances(arguments):
         sys.stderr.write(config.DEBUG_MASTHEAD)
     sys.stderr.write(config.DISTANCE_MASTHEAD)
 
-    logger.info("Calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
+    logger.info("Custom calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
     
-    if arguments.metric in ["spearman", "EMD", "d2s"]:
+    if arguments.metric in ["pearson", "correlation", "spearman", "EMD", "d2s"]:
         data = [['' for x in range(n)] for y in range(n)]
         for i in range(n):
             for j in range(n):
-                logger.info("Calculating {0} distance between {1} and {2}...".format(arguments.metric, column_names[i], column_names[j]))
+                logger.debug("Calculating the {0}x{1} cell".format(i, j))
+                logger.info("Calculating {0} distance between {1}:({2}) and {3}:({4}) columns...".format(arguments.metric, columns[i], i, columns[j], j))
+
                 if i == j:
+                    logger.info("Was self, reverting to identity.")
                     data[i][j] = distance.identity[arguments.metric]
                 elif i > j:
                     data[i][j] = None
+                    logger.info("Refusing to recompute custom distance metric for symmetric matrix")
                 elif i < j:
-                    if arguments.metric == "correlation":
-                        data[i][j] = distance.correlation(arguments.input[i], arguments.input[j])
-                        # data[i][j] = distance.correlation(arguments.kdb[i], arguments.kdb[j])
+                    #print("Info: ixj {0}x{1}")
+                    logger.debug("Info: ixj {0}x{1}".format(i, j))
+                    
+                    if arguments.metric == "correlation" or arguments.metric == "pearson":
+                        logger.info("Computing custom correlation coefficient")
+                        data[i][j] = distance.correlation(files[i], files[j], k=suggested_k, dtype=suggested_dtype)
                     elif arguments.metric == "euclidean":
-                        data[i][j] = distance.euclidean(arguments.input[i], arguments.input[j])
+                        logger.info("Computing custom euclidean distance")
+                        data[i][j] = distance.euclidean(profiles[i], profiles[j])
                     elif arguments.metric == "spearman":
                         cor, pval = distance.spearman(profiles[i], profiles[j])
+                        logger.info("Computing SciPy Spearman distance")
                         # FIXME! also print pval matrices
                         data[i][j] = cor
                     elif arguments.metric == "EMD":
@@ -235,12 +252,12 @@ def distances(arguments):
                         logger.error("Other distances are not implemented yet")
                         sys.exit(1)
                 # This double loop quickly identifies empty cells and sets the data correctly from the permutation above
+        logger.info("Filling in symmetrical matrix...")
         for i in range(n):
             for j in range(n):
                 if data[i][j] is None:
                     data[i][j] = data[j][i]
-        logger.info("Printing distance matrix...")
-        logger.info(data)
+                    logger.info("\n\n\nSwerve swerve\n\n\n")
         dist = np.array(data)
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
@@ -302,7 +319,7 @@ def get_matrix(arguments):
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
         elif not all(kdbrdr.dtype == arguments.dtype and arguments.dtype == kdbrdr.dtype for kdbrdr in files):
             raise TypeError("One or more files did not have the default dtype or the default dtype did not match one or more files...")
-        profiles = np.transpose(np.array(list(map(lambda kdbrdr: kdbrdr.slurp(dtype=suggested_dtype), files)), dtype=suggested_dtype))
+        profiles = np.transpose(np.array(list(map(lambda kdbrdr: kdbrdr.profile, files)), dtype=suggested_dtype))
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
@@ -481,6 +498,11 @@ def get_matrix(arguments):
             logger.error("Actual shape: {0}".format(profiles.shape))
             raise RuntimeError("Raw profile shape (a Numpy array) doesn't match expected dimensions")
 
+        print(profiles.shape)
+        logger.info("Created a matrix with the shape {0}".format(profiles.shape))
+        sys.exit(1)
+
+        
         df = pd.DataFrame(profiles, columns=columns)
         is_uint32 = all([x.dtype.name == 'uint32' for x in profiles])
         is_uint64 = all([x.dtype.name == 'uint64' for x in profiles])
@@ -645,6 +667,8 @@ def get_matrix(arguments):
         suggested_metadata = files[0].metadata
         expected, num_columns = 4**suggested_k, len(columns)
         if profiles.shape != (expected, num_columns):
+            #logger.info("Time is money.")
+            logger.error("Check shape self...")
             logger.error("Expected shape: {0} x {1}".format(expected, num_columns))
             logger.error("Actual shape: {0}".format(profiles.shape))
             raise RuntimeError("Raw profile shape (a NumPy array) doesn't match expected dimensions")
@@ -1511,6 +1535,7 @@ def cli():
         "mahalanobis",
         "matching",
         "minkowski",
+        "pearson",
         "rogerstanimoto"
         "russelrao",
         "seuclidean",
