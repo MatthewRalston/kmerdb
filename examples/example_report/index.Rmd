@@ -425,9 +425,23 @@ parallel -j 30 'kmerdb profile -k {2} $(getmetagenome {1})  metagenome_{1}.{2}.k
 
 The list of supporting files can be seen here.
 
+The k-means picture specifies one possible clustering from a set that get explored through time, through different reiterations and refinement to distance metrics and dimensionalit reduction techniqes, to simplify the exploration through space and through rules, often represented as property graphs. I am just beginning to explore a true graph formulation apart from a single significant index. I think it's an interesting project that showcases my ability to design an algorithm from the inside out, and tune a program to desired specifications through software that can do something sophisticated.
+
+Here are a few new images I've been working on that showcase a highlighted view into the data.
+
+Here is a k-means elbow graph, which helps us select the level of dimensionality reduction that is possible while minimizing the rearrangement of data and relationship in a numerical sense. Like a type of normalization. I've been seeking the right data structure to help me specify the normalization. In the file, to have a normalized spectrum but I can't figure out what it is yet...
+
+It's almost like the data structure is stuck inside a weaker machine representation... if I could tease that out with some more statements it would make a world of difference.
+
+
+
+So this is a k-means elbow graph for deciding the primary principal compenents. The same style of visualization is given for t-SNE.
+
 ![The K-means elbow graph for Normalized PCA6](img/kmeans_k4_elbow_graph_on_normalized_pca6.png)}
 
 ![The K-means elbow graph for a t-SNE in $R^{2}$](img/kmeans_k4_elbow_graph_on_tsne2.png)
+
+The spearman distance matrix kmeans elbow graph is given below.
 
 ![The K-means elbow graph for a spearman distance matrix](img/kmeans_k3_elbow_graph_on_spearman_dist.png)
 
@@ -455,6 +469,9 @@ kmerdb matrix Frequency *.8.kdb | kmerdb distance correlation STDIN > Cdiff.Pear
 ![The kmeans (k=3) of a Pearson fidelity distance matrix](img/kmeans_k3_pearson_dist.8.png)
 
 ![The kmeans (k=3) of a Spearman fiedlity distance matrix](img/kmeans_k3_spearman_dist.8.png)
+
+
+
 
 
 # Acknowledgements
