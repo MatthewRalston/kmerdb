@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.5.1"
+VERSION="0.5.2"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -134,6 +134,17 @@ Please cite my repository in your work!
 
 Feel free to e-mail me or reach out!
 
+Reddy47 - Matt Ralston on Spotify
+On top : what she sounds like when she's on top of the logging aesthetics.
+Aston Martin Music : what she sounds like when she's on air in the logging aesthetics.
+Pemex : A dichotomy between a wreckage and it's stubborn bgzf format. Just here for the noise, bass, and the smoke.
+Sipping on Yak: What she sounds like when she's purring along in her new dtype specifications. Where did that come from... this stuff is kind of cool...
+Death by Dishonor: What she sounds like when the fileutil slurps into memory. I have generally no idea how she sounds when things are running right, but this song give me the sense of urgency and mystery to keep listening.
+Bury Me: Generally I feel like Link falling into the dust behind the debugger, the part of the day that slips away. "I don't wanna sleep tonight FontFace DarkandMyterioso." When the logger messages come colliding together to help pinpoint where something was being printed out vs not being shown as the program executes in its path of execution, which doesn't always print messages in order, we get what we can and then make issues from the little we get in to provide directional information about where in the code the issues are locking up or breaking in to.
+Belial | Nit Grit : What she sounds like when she's churning through the lexical sort on the primary index. Distinguishing the count from the k-mer id is difficult to describe. 1:30 on, anyways. Checking in. And when the fileutil is barely dressing up the issues relating to absorption issues.
+Who Dat? - Terror Reid, Getter
+
+
 """
 DONE = """
 
@@ -164,6 +175,13 @@ MATRIX_MASTHEAD = """
 ==========================================
            kmerdb matrix
 ==========================================
+kmerdb matrix <pass> test/data/*.8.kdb
+kmerdb matrix PCA test/data/*.8.kdb
+kmerdb matrix tSNE test/data/*.8.kdb
+kmerdb matrix DESeq2 test/data/*.8.kdb
+kmerdb matrix Frequency test/data/*.8.kdb
+
+pass <==/==> don't normalize, adjust frequencies, perform any modification of k-mers.
 
 Matrix generation beginning!
 

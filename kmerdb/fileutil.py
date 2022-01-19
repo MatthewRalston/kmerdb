@@ -391,7 +391,7 @@ class KDBReader(bgzf.BgzfReader):
     #         raise StopIteration
     #     return self._buffer
 
-    def _slurp(self, dtype:str="uint64"):
+    def _slurp(self, dtype:str="uint64", will_sort:bool=True):
         """
         A function to read an entire .kdb file into memory
         """
@@ -411,6 +411,8 @@ class KDBReader(bgzf.BgzfReader):
         logger.info("Approximately {0} bytes".format(num_bytes))
         logger.info("Fly.")
         vmem = psutil.virtual_memory()
+        counts = []
+        kmer_ids = []
         if vmem.available > num_bytes:
             if self.profile is None:
                 # Do the slurp
@@ -439,20 +441,37 @@ class KDBReader(bgzf.BgzfReader):
                             self.is_float64 = True
                             self.is_float32 = False
                             self.is_int32   = False
+                            counts.append(count)
+                            kmer_ids.append(kmer_id)
+                            print("")
                         else:
                             count = int(_count)
                             self.is_int64   = True
                             self.is_float64 = False
                             self.is_int32   = False
                             self.is_float32 = False
+                            counts.append(count)
+                            kmer_ids.append(kmer_id)
+                            logger.info("~~~.")
+                            logger.debug("kmer_id: {0}, count: {1}".format(kmer_id, count))
+                            print("")
+                            sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
+                        logger.info("Humming along rn...")
                         #self.kmer_ids[j] = kmer_id
-                        self.kmer_ids[j] = kmer_id
+                        self.kmer_ids[kmer_id] = kmer_id
                         self.profile[kmer_id] = count
                     logger.info("Read {0} lines from the file...".format(i))
                     self._handle.seek(0)
                     self._load_block()
+                    logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
+                    if will_sort is True:
+                        indices = np.lexsort((self.kmer_ids, self.profile))
+                        for i in indices:
+                            self.profile[i] = counts[i]
+                            self.kmer_ids[i] = kmer_ids[i]
+                            logger.debug("Just in casey eggs and bakey...")
                     return self.profile
                 except StopIteration as e:
                     if i == N:
