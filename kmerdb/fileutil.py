@@ -230,6 +230,7 @@ class KDBReader(bgzf.BgzfReader):
         self._buffers     = {}
         self._block_start_offset = None
         self._block_raw_length = None
+        self.kmer_ids     = None
         self.profile      = None
         '''
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
@@ -375,13 +376,6 @@ class KDBReader(bgzf.BgzfReader):
     def __iter__(self):
         return self
 
-    def __next__(self):
-        line = self.readline()
-        if len(line):
-            return line
-        else:
-            raise StopIteration
-
     def __exit__(self, type, value, tb):
         self._handle.close()
         self._reader.close()
@@ -426,7 +420,11 @@ class KDBReader(bgzf.BgzfReader):
                     self.kmer_ids = np.zeros(4**self.k, dtype="uint64")
                     for j in range(N):
                         #logger.debug("Reading {0}th line...".format(j))
-                        line = next(self)
+                        try:
+                            line = next(self)
+                        except StopIteration as e:
+                            logger.error("Finished loading initial profile through slurp-on-init")
+                            raise e
                         if line is None:
                             logger.warning("Next was None... profile was sparse, breaking")
                             sys.exit(1)
@@ -449,9 +447,12 @@ class KDBReader(bgzf.BgzfReader):
                             self.is_float32 = False
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
-                        self.kmer_ids[j] = kmer_id
+                        #self.kmer_ids[j] = kmer_id
+                        self.kmer_ids[kmer_id] = kmer_id
                         self.profile[kmer_id] = count
                     logger.info("Read {0} lines from the file...".format(i))
+                    self._handle.seek(0)
+                    self._load_block()
                     return self.profile
                 except StopIteration as e:
                     if i == N:
@@ -471,6 +472,8 @@ class KDBReader(bgzf.BgzfReader):
         if self.profile.dtype != dtype:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be the inferred numpy data type")
         self.dtype = dtype
+        self._handle.seek(0)
+        self._load_block()
         return self.profile
 
     def slurp(self, dtype:str="uint64"):
