@@ -1152,6 +1152,7 @@ def view(arguments):
     def get_header(line, header):
         """
         A little helper recurrence function for grabbing the additions to the header.
+        I don't really know if this is germane... Untested  function.
         """
         
 
@@ -1211,7 +1212,8 @@ def view(arguments):
                 raise ValueError("kdb_in.dtype does not match argument dtype")
             try:
                 for i, kmer_id in enumerate(kdb_in.kmer_ids):
-                    print("{0}\t{1}\t{2}".format(kmer_id, kdb_in.profile[i], {}))
+                    logger.debug("{0} line:".format(i))
+                    print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
 
             except BrokenPipeError as e:
                 logger.error(e)

@@ -80,11 +80,14 @@ def correlation(prof1:fileutil.KDBReader, prof2:fileutil.KDBReader, k=None, dtyp
             x_minus_xbar = x - x_bar
             y_minus_ybar = y - y_bar
             ssxy += x_minus_xbar*y_minus_ybar
-            #logger.warning("Beware custom correlations")
+            logger.warning("Beware custom correlations")
         #x_bar = functools.reduce(lambda a,b: a+b, prof1))
         if ssxx*ssyy == 0:
+            logger.error("Incorrect denominator found, skipping...")
             return 0
         else:
+            logger.info("Acquired")
+            logger.debug("Well done, cap...")
             return ssxy/np.sqrt(ssxx*ssyy)
     else:
         logger.error("Cannot manage to compare a {0}-dim profile with a {1}-dim profile...".format(p1_size, p2_size))
