@@ -1207,24 +1207,11 @@ def view(arguments):
                 print(yaml.dump(metadata, sort_keys=False))
                 print(config.header_delimiter)
             logger.info("Reading from file...")
+            if kdb_in.dtype != arguments.dtype:
+                raise ValueError("kdb_in.dtype does not match argument dtype")
             try:
-                for line in kdb_in:
-                    print(line)
-                    logger.error("Unexceptable")
-                    raise ValueError("Unexceptable.")
-                    sys.exit(-241)
-                print("foo")
-                line = kdb_in.read_line()
-                kmer_id, count, kmer_metadata = line
-                while kmer_id is not None:
-                    line = kdb_in.read_line()
-                    if line is not None:
-                        kmer_id, count, kmer_metadata = line
-                        print("{0}\t{1}\t{2}".format(kmer_id, count, kmer_metadata))
-                    elif line is None:
-                        kmer_id = None
-                    else:
-                        raise ValueError("First line is unknown type")
+                for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                    print("{0}\t{1}\t{2}".format(kmer_id, kdb_in.profile[i], {}))
 
             except BrokenPipeError as e:
                 logger.error(e)
@@ -1493,6 +1480,7 @@ def cli():
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
+    view_parser.add_argument("--dtype", type=str, default="uint64", help="Read in the profiles as unsigned integer 64bit NumPy arrays")
     view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
     view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
     view_parser.add_argument("kdb_in", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be read (Optional)")
