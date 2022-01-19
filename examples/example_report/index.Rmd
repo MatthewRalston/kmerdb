@@ -462,6 +462,7 @@ kmerdb matrix Normalized *.8.kdb  | kmerdb distance euclidean   STDIN | kmerdb m
 
 #kmerdb matrix Normalized *.8.kdb | kmerdb distance spearman STDIN | kmerdb distance euclidean STDIN | kmerdb matrix PCA -n 3 STDIN > Cdiff_fidelity_Euclidean_dist_of_Spearman_then_PCA_n3.8.tsv
 kmerdb matrix Frequency *.8.kdb | kmerdb distance correlation STDIN > Cdiff.Pearson.5-50x.tsv
+kmerdb matrix pass *.8.kdb | kmerdb matrix pass STDIN | kmerdb matrix pass STDIN > kmerdb.matrix.tsv
 ```
 
 
