@@ -416,8 +416,8 @@ class KDBReader(bgzf.BgzfReader):
                 # Do the slurp
                 i = 0
                 try:
-                    self.profile = np.zeros(4**self.k, dtype=dtype)
-                    self.kmer_ids = np.zeros(4**self.k, dtype="uint64")
+                    self.profile = np.zeros(N, dtype=dtype)
+                    self.kmer_ids = np.zeros(N, dtype=dtype)
                     for j in range(N):
                         #logger.debug("Reading {0}th line...".format(j))
                         try:
@@ -448,7 +448,7 @@ class KDBReader(bgzf.BgzfReader):
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
                         #self.kmer_ids[j] = kmer_id
-                        self.kmer_ids[kmer_id] = kmer_id
+                        self.kmer_ids[j] = kmer_id
                         self.profile[kmer_id] = count
                     logger.info("Read {0} lines from the file...".format(i))
                     self._handle.seek(0)
