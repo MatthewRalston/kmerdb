@@ -47,7 +47,10 @@ def citation(arguments):
         citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION')
         with open(citation_fname, 'w') as citation_file:
             citation_file.write("")
-    
+
+
+    sys.stderr.write("On the real, we gotta eat.")
+    sys.stderr.write("Consider a +1 to keep it real...")
 
 def index_file(arguments):
     from kmerdb import fileutil, index
@@ -1193,31 +1196,34 @@ def view(arguments):
                     raise RuntimeError()
             kdb_in = None
     else:
+        suggested_dtype=arguments.dtype
         assert type(arguments.kdb_in) is str, "kdb_in must be a str"
         if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
             raise IOError("Viewable .kdb filepath does not end in '.kdb'")
         elif not os.path.exists(arguments.kdb_in):
             raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r') as kdb_in:
-        metadata = kdb_in.metadata
-        if metadata["version"] != config.VERSION:
-            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
-            if arguments.header:
-                yaml.add_representer(OrderedDict, util.represent_ordereddict)
-                print(yaml.dump(metadata, sort_keys=False))
-                print(config.header_delimiter)
-            logger.info("Reading from file...")
+        with fileutil.open(arguments.kdb_in, mode='r', dtype=arguments.dtype, sort=arguments.sorted) as kdb_in:
+            metadata = kdb_in.metadata
+            if metadata["version"] != config.VERSION:
+                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+                if arguments.header:
+                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    print(yaml.dump(metadata, sort_keys=False))
+                    print(config.header_delimiter)
+                logger.info("Reading from file...")
             if kdb_in.dtype != arguments.dtype:
-                raise ValueError("kdb_in.dtype does not match argument dtype")
-            try:
-                for i, kmer_id in enumerate(kdb_in.kmer_ids):
-                    logger.debug("{0} line:".format(i))
-                    print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
+                raise ValueError("File dtype does not match argument dtype for ingestion")
+            else:
+                suggested_dtype = kdb_in.dtype
+                try:
+                    for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                        logger.debug("{0} line:".format(i))
+                        print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
 
-            except BrokenPipeError as e:
-                logger.error(e)
-                raise e
+                except BrokenPipeError as e:
+                    logger.error(e)
+                    raise e
     if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
         logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
         sys.exit(1)
@@ -1228,7 +1234,7 @@ def view(arguments):
     elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
     if arguments.kdb_out is not None:
-        with fileutil.open(arguments.kdb_in, 'r') as kdb_in:
+        with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted) as kdb_in:
             with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
                 try:
                     line = None
@@ -1482,6 +1488,7 @@ def cli():
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
+    view_parser.add_argument("--sorted", action="store_true", help="Sort the k-mer profile before displaying")
     view_parser.add_argument("--dtype", type=str, default="uint64", help="Read in the profiles as unsigned integer 64bit NumPy arrays")
     view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
     view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
