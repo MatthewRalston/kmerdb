@@ -292,7 +292,6 @@ class KDBReader(bgzf.BgzfReader):
         logger.info("Reading additional blocks as YAML...")
         logger.debug("Reading additional blocks as YAML...")
         sys.stderr.write("\n")
-        logger.info("\n\n\nFly\n\n\n")
         logger.info("Validating the header data against the schema...")
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.metadata_schema)
@@ -333,7 +332,7 @@ class KDBReader(bgzf.BgzfReader):
             sort is False
             
         self.slurp(dtype=dtype, sort=sort)
-        self.is_int = False
+        self.is_int = True
         self.dtype = dtype
         
 
@@ -349,37 +348,6 @@ class KDBReader(bgzf.BgzfReader):
         line = self.readline()
         return parse_line(line)
 
-    # def _load_block(self, start_offset=None):
-    #     if start_offset is None:
-    #         # If the file is being read sequentially, then _handle.tell()
-    #         # should be pointing at the start of the next block.
-    #         # However, if seek has been used, we can't assume that.
-    #         start_offset = self._block_start_offset + self._block_raw_length
-    #     if start_offset == self._block_start_offset:
-    #         self._within_block_offset = 0
-    #         return
-    #     elif start_offset in self._buffers:
-    #         # Already in cache
-    #         self._buffer, self._block_raw_length = self._buffers[start_offset]
-    #         self._within_block_offset = 0
-    #         self._block_start_offset = start_offset
-    #         return
-    #     # Must hit the disk... first check cache limits,
-    #     while len(self._buffers) >= self.max_cache:
-    #         # TODO - Implemente LRU cache removal?
-    #         self._buffers.popitem()
-    #     # Now load the block
-    #     handle = self._handle
-    #     if start_offset is not None:
-    #         handle.seek(start_offset)
-    #     self._block_start_offset = handle.tell()
-        
-    #     block_size, self._buffer = bgzf._load_bgzf_block(handle, self._text)
-    #     self._within_block_offset = 0
-    #     self._block_raw_length = block_size
-    #     # Finally save the block in our cache,
-    #     self._buffers[self._block_start_offset] = self._buffer, block_size
-        
     
     def __iter__(self):
         return self
@@ -389,17 +357,8 @@ class KDBReader(bgzf.BgzfReader):
         self._reader.close()
         return
         
-        
-    # def __next__(self):
-    #     try:
-    #         self._load_block()
-    #     except StopIteration as e:
-    #         logger.warning(e)
-    #         self._handle.close()
-    #         raise StopIteration
-    #     return self._buffer
 
-    def _slurp(self, dtype:str="uint64", sort:bool=True):
+    def _slurp(self, dtype:str="uint64", sort:bool=False):
         """
         A function to read an entire .kdb file into memory
         """
@@ -473,12 +432,13 @@ class KDBReader(bgzf.BgzfReader):
                     self._handle.seek(0)
                     self._load_block()
                     logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
-                    if sort is not True:
+                    if sort is True:
                         # If the file is sorted, do not sort
                         indices = np.lexsort((kmer_ids, counts))
-                        for i in indices:
-                            self.kmer_ids[i] = kmer_ids[i]
-                            self.profile[i] = counts[i]
+                        
+                        for i, idx in enumerate(indices): # This is right, not fixing this.
+                            self.kmer_ids[i] = kmer_ids[idx]
+                            self.profile[i] = counts[idx]
                             logger.debug("Just in casey eggs and bakey...")
                     return self.profile
                 except StopIteration as e:
@@ -499,8 +459,8 @@ class KDBReader(bgzf.BgzfReader):
         if self.profile.dtype != dtype:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be the inferred numpy data type")
         self.profile = np.array(counts, dtype=suggested_dtype)
-        self.profile = np.array(kmer_ids, dtype=suggested_dtype)
-
+        self.kmer_ids = np.array(kmer_ids, dtype=suggested_dtype)
+        
         self.dtype = dtype
         self._handle.seek(0)
         self._load_block()

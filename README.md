@@ -76,6 +76,14 @@ kmerdb profile -k 8 example1.fq.gz example2.fq.gz profile.8.kdb
 kmerdb distance correlation profile1.kdb profile2.kdb (...)
 ```
 
+## Usage note:
+
+```bash
+kmerdb profile -k $k input.fa output.kdb # This may discard non-IUPAC characters, this feature lacks documentation!
+```
+IUPAC residues (ATCG+RYSWKM+BDHV) are kept throughout the k-mer counting. But non-IUPAC residues (N) and characters are trimmed from the sequences prior to k-mer counting.
+
+
 
 ## Documentation
 

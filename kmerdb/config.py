@@ -267,14 +267,13 @@ parallel 'kmerdb profile -k $K -pg $PG_CONN_URI {{}} {{.}}.$K.kdb' ::: $(/bin/ls
 ################################
 # W A R N I N G :  M E M O R Y #
 ################################
-# The first step of either rarefaction or clustering is to generate the k-mer profile matrix
-# The matrix is not a new concept, it is just samples as columns of profiles. 
-# Without metadata or graphical information embedded in the format, 
-# we can create a matrix and do data science with the information.
-# However, because the profiles are exponential in k, a linear increase in k 
-# hypothetically results in an improvement of resolution that is at least superlinear in k.
-# Therefore, the amount of memory can be calculated by the integer size times the profile resolution
-# times the number of samples.
+# The following is some 'basic' guesses about expected memory usage.
+# I believe this is an oversimplification of the memory profile for technical language and representation issues.
+# The profile loading function reads the array into memory from the file, assuming a certain data encoding.
+# The coding is now set to 'uint64' by default, which in theory allows us to only be limited by numpy array size.
+# Now that we have that out of the way.
+# The integer depth we have is large.
+#
 #
 #
 ##################

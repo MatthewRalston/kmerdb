@@ -1169,61 +1169,44 @@ def view(arguments):
                 raise ValueError("Could not parse YAML formatted header")
             else:
                 return header_dict
-        
-    
-    if type(arguments.kdb_in) is None or arguments.kdb_in == "STDIN" or arguments.kdb_in == "/dev/stdin": # Read from STDIN
-        logger.warning("Interpreting data from STDIN as uncompressed .kdb input")
-        metadata = ''
-        kdb_in = None
-        if arguments.decompress is True:
-            ifile = gzip.open(sys.stdin.buffer, 'rt')
-            while type(metadata) is str:
-                #logger.debug("looping in gzip for header")
-                line = ifile.readline()
-                metadata = get_header(line, metadata)
-            kdb_in = ifile
+
+    assert type(arguments.kdb_in) is str, "kdb_in must be a str"
+    if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
+    elif not os.path.exists(arguments.kdb_in):
+        raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
+    with fileutil.open(arguments.kdb_in, mode='r', dtype=arguments.dtype, sort=arguments.sorted) as kdb_in:
+        metadata = kdb_in.metadata
+        suggested_dtype=metadata["dtype"]
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+            if arguments.header:
+                yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                print(yaml.dump(metadata, sort_keys=False))
+                print(config.header_delimiter)
+        logger.info("Reading from file...")
+        if kdb_in.dtype != arguments.dtype:
+            raise ValueError("File dtype does not match argument dtype for ingestion")
         else:
-            i = 0
-            while type(metadata) is str:
-                line = sys.stdin.readline()
-                #logger.debug("looping in stdin for header")
-                #print(line)
+            suggested_dtype = kdb_in.dtype # Start here for automatic dtype detection
+            logger.debug("I cut off the json-formatted unstructured column for the main view.")
+            logger.debug("Automatically inferring dtype as {0}".format(suggested_dtype))
+            try:
+                for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                    logger.debug("{0} line:".format(i))
+                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
 
-                metadata = get_header(line, metadata)
-                i += 1
-
-                if i == 50:
-                    raise RuntimeError()
-            kdb_in = None
-    else:
-        suggested_dtype=arguments.dtype
-        assert type(arguments.kdb_in) is str, "kdb_in must be a str"
-        if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
-            raise IOError("Viewable .kdb filepath does not end in '.kdb'")
-        elif not os.path.exists(arguments.kdb_in):
-            raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-        with fileutil.open(arguments.kdb_in, mode='r', dtype=arguments.dtype, sort=arguments.sorted) as kdb_in:
-            metadata = kdb_in.metadata
-            if metadata["version"] != config.VERSION:
-                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
-                if arguments.header:
-                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
-                    print(yaml.dump(metadata, sort_keys=False))
-                    print(config.header_delimiter)
-                logger.info("Reading from file...")
-            if kdb_in.dtype != arguments.dtype:
-                raise ValueError("File dtype does not match argument dtype for ingestion")
-            else:
-                suggested_dtype = kdb_in.dtype
-                try:
-                    for i, kmer_id in enumerate(kdb_in.kmer_ids):
-                        logger.debug("{0} line:".format(i))
-                        print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
-
-                except BrokenPipeError as e:
-                    logger.error(e)
-                    raise e
+                    print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
+                    # I don't think anyone cares about the graph representation.
+                    # I don't think this actually matters because I can't figure out what the next data structure is.
+                    # Is it a Cypher query and creation node set?
+                    # I need to demonstrate a capacity for graph based learning.
+                    # (:-|X) The dread pirate roberts got me.
+                    # :)
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
     if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
         logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
         sys.exit(1)
@@ -1240,7 +1223,7 @@ def view(arguments):
                     line = None
                     for line in kdb_in:
                         line = line.rstrip()
-                        kmer_id, count, kmer_metadata = fileutil.parse_line(line)
+                        kmer_id, count, kmer_metadata = line.line.rstrip().split("\t")
                         kdb_out.write("{0}\t{1}\t{2}\n".format(kmer_id, count, kmer_metadata))
                     
                 except StopIteration as e:
