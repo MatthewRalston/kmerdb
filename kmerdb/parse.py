@@ -45,7 +45,7 @@ logger = logging.getLogger(__file__)
 
 
 
-def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False, dtype:str="uint32"):
+def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False, dtype:str="uint64"):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
