@@ -1175,9 +1175,9 @@ def view(arguments):
         raise IOError("Viewable .kdb filepath does not end in '.kdb'")
     elif not os.path.exists(arguments.kdb_in):
         raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r', dtype=arguments.dtype, sort=arguments.sorted) as kdb_in:
+    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.sorted) as kdb_in:
         metadata = kdb_in.metadata
-        suggested_dtype=metadata["dtype"]
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
         if metadata["version"] != config.VERSION:
             logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
         if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
@@ -1186,27 +1186,27 @@ def view(arguments):
                 print(yaml.dump(metadata, sort_keys=False))
                 print(config.header_delimiter)
         logger.info("Reading from file...")
-        if kdb_in.dtype != arguments.dtype:
-            raise ValueError("File dtype does not match argument dtype for ingestion")
-        else:
-            suggested_dtype = kdb_in.dtype # Start here for automatic dtype detection
-            logger.debug("I cut off the json-formatted unstructured column for the main view.")
-            logger.debug("Automatically inferring dtype as {0}".format(suggested_dtype))
-            try:
-                for i, kmer_id in enumerate(kdb_in.kmer_ids):
-                    logger.debug("{0} line:".format(i))
-                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
+        logger.debug("I cut off the json-formatted unstructured column for the main view.")
+        try:
+            for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                assert kmer_id == kdb_in.profile[i], "The index of the k-mer id is not equal to the row index"
 
-                    print("{0}\t{1}".format(kmer_id, kdb_in.profile[kmer_id]))
-                    # I don't think anyone cares about the graph representation.
-                    # I don't think this actually matters because I can't figure out what the next data structure is.
-                    # Is it a Cypher query and creation node set?
-                    # I need to demonstrate a capacity for graph based learning.
-                    # (:-|X) The dread pirate roberts got me.
-                    # :)
-            except BrokenPipeError as e:
-                logger.error(e)
-                raise e
+                    
+
+                
+                logger.debug("{0} line:".format(i))
+                logger.debug("=== = = = ======= =  =  =  =  =  = |")
+
+                print("{0}\t{1}\t{2}".format(i, kmer_id, kdb_in.counts[kmer_id]))
+                # I don't think anyone cares about the graph representation.
+                # I don't think this actually matters because I can't figure out what the next data structure is.
+                # Is it a Cypher query and creation node set?
+                # I need to demonstrate a capacity for graph based learning.
+                # (:-|X) The dread pirate roberts got me.
+                # :)
+        except BrokenPipeError as e:
+            logger.error(e)
+            raise e
     if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
         logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
         sys.exit(1)
@@ -1256,23 +1256,22 @@ def profile(arguments):
     logger.info("Checking extension of output file...")
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
         raise IOError("Destination .kdb filepath does not end in '.kdb'")
-    
+
+
+
+
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
-    try:
-        np.dtype(arguments.dtype)
-    except TypeError as e:
-        logger.error(e)
-        logger.error("kmerdb encountered a TypeError. Need to halt.")
-        raise TypeError("kmerdb encountered an invalid type string...")
-
-    
+    N = total_kmers
 
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
+    # Initialize arrays
+    
 
     infile = parse.Parseable(arguments) #
 
+    
     logger.info("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
     logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
     logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
@@ -1287,37 +1286,27 @@ def profile(arguments):
     # (counts<numpy.array>, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
     # Construct a final_counts array for the composite profile across all inputs
-    logger.debug("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers))
-    try:
-        final_counts = np.zeros(total_kmers, dtype=arguments.dtype)
-    except TypeError as e:
-        logger.error("Invalid dtype for final array instantiation")
-        logger.error(e)
-        raise e
+    logger.debug("Initializing large list for extended metadata")
     all_kmer_metadata = list([] for x in range(total_kmers)) if arguments.all_metadata else None
-    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(final_counts.nbytes))
-
+    logger.debug("Allocation completed")
+    counts = np.zeros(N, dtype="uint64")
     # Complete collating of counts across files
     # This technically uses 1 more arrray than necessary 'final_counts' but its okay
     logger.info("Summing counts from individual fasta/fastq files into a composite profile...")
     for d in data:
-        final_counts = final_counts + d[0] # Add the counts to the zeroes array
+        counts = counts + d[0]
         if arguments.all_metadata:
             logger.info("\n\nMerging metadata from all files...\n\n")
             all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
 
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-
-    unique_kmers = int(np.count_nonzero(final_counts))
+    unique_kmers = int(np.count_nonzero(counts))
     total_nullomers = total_kmers - unique_kmers
-    all_observed_kmers = int(np.sum(final_counts))
-    sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
-    sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
-    sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-    sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
+    all_observed_kmers = int(np.sum(counts))
 
     logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
     logger.info("Formatting master metadata dictionary...")
+
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -1327,69 +1316,117 @@ def profile(arguments):
         "unique_nullomers": total_nullomers,
         "metadata": arguments.all_metadata,
         "sorted": arguments.sorted,
-        "dtype": arguments.dtype,
+        "kmer_ids_dtype": "uint64",
+        "profile_dtype": "uint64",
+        "count_dtype": "uint64",
+        "frequencies_dtype": "float64",
         "tags": [],
         "files": [d[1] for d in data]
     })
         
+    try:
+        np.dtype(metadata["kmer_ids_dtype"])
+        np.dtype(metadata["profile_dtype"])
+        np.dtype(metadata["count_dtype"])
+        np.dtype(metadata["frequencies_dtype"])
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a type error and needs to exit")
+        raise TypeError("Incorrect dtype.")
+
+    logger.debug("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers))
+    kmer_ids = np.array(range(N), dtype=metadata["kmer_ids_dtype"])
+    profile = np.array(range(N), dtype=metadata["profile_dtype"])
+    counts = np.array(counts, dtype=metadata["count_dtype"])
+    frequencies = np.divide(counts, metadata["total_kmers"])
+    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))    
 
 
     
+
 
     logger.info("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb)) 
     kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
     try:
         sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(arguments.kdb))
 
-        ids = np.zeros(total_kmers, dtype="uint64")
-        counts = np.zeros(total_kmers, dtype="uint64")
-        metadata = []
+
+        # Numpy indexing is trash
+        #kmer_ids = np.zeros(total_kmers, dtype=metadata["kmer_ids_dtype"])
+        #profile = np.zeros(total_kmers, dtype=metadata["profile_dtype"])
+        #counts = np.zeros(total_kmers, dtype=metadata["count_dtype"])
+        #frequencies = np.zeros(total_kmers, dtype=metadata["frequencies_dtype"])
+        all_metadata = []
         if arguments.all_metadata:
-            for i, count in enumerate(final_counts):
-                seq = kmer.id_to_kmer(i, arguments.k)
-                kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
-                reads = []
-                starts = []
-                reverses = []
-                for read, start, reverse in all_kmer_metadata[i]:
-                    reads.append(read)
-                    starts.append(start)
-                    reverses.append(reverse)
-                kmer_metadata["reads"] = reads
-                kmer_metadata["starts"] = starts
-                kmer_metadata["reverses"] = reverses
 
-                if arguments.sorted:
-                    ids[i] = i
-                    counts[i] = count
-                    metadata.append(kmer_metadata)
-                else:
-                    kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+            if arguments.sorted:
+                for i, idx in enumerate(lexsort((counts, kmer_ids))):
+                    seq = kmer.id_to_kmer(idx, arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                    reads = []
+                    starts = []
+                    reverses = []
+                    frequency = float(count)/N
+                    for read, start, reverse in all_kmer_metadata[idx]:
+                        reads.append(read)
+                        starts.append(start)
+                        reverses.append(reverse)
+                        kmer_metadata["reads"] = reads
+                        kmer_metadata["starts"] = starts
+                        kmer_metadata["reverses"] = reverses
+                    counts[idx] = count
+                    frequencies[idx] = frequency
+                    all_metadata.append(kmer_metadata)
+                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+            else:
+                for i, count in enumerate(counts):
+                    seq = kmer.id_to_kmer(idx, arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+                    all_metadata.append(kmer_metadata)
+                    frequency = float(count)/N
+                    counts[idx] = count
+                    frequencies[idx] = frequency
+                    print("{0}\t{1}\t{2}\t{3}".format(i, i, counts[i], frequencies[i]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
         else:
-            for i, count in enumerate(final_counts):
-                seq = kmer.id_to_kmer(i, arguments.k)
-                kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+            if arguments.sorted:
+                for i, idx in enumerate(lexsort((counts, kmer_ids))):
+                    seq = kmer.id_to_kmer(idx, arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+                    all_metadata.append(kmer_metadata)
+                    frequency = float(count)/N
+                    counts[idx] = count
+                    frequencies[idx] = frequency
 
-                if arguments.sorted:
-                    ids[i] = i
-                    counts[i] = count
-                    metadata.append(kmer_metadata)
-                else:
-                    kdb_out.write("{0}\t{1}\t{2}\n".format(i, count, kmer_metadata))
+                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+            else:
+                for i in range(N):
+                    kmer_id = kmer_ids[i]
+                    p = profile[i]
+                    c = counts[i]
+                    f = frequencies[i]
+                    seq = kmer.id_to_kmer(int(kmer_id), arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                    all_metadata.append(kmer_metadata)
+                    print("{0}\t{1}\t{2}\t{3}".format(i, i, counts[i], frequencies[i]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
-        if arguments.sorted:
-            ids = np.array(ids, dtype=arguments.dtype)
-            counts = np.array(counts, dtype=arguments.dtype)
             
-            indices = np.lexsort((ids, counts))
-            for i in indices:
-                kdb_out.write("{0}\t{1}\t{2}\n".format(ids[i], counts[i], metadata[i]))
     finally:
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
+
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
+    
+
         sys.stderr.write("\nDone\n")
     
         
@@ -1443,7 +1480,6 @@ def cli():
 
     profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    profile_parser.add_argument("-d", "--dtype", type=str, default="uint64", help="dtype for k-mer profile NumPy arrays (Default: uint64)")
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
 
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")

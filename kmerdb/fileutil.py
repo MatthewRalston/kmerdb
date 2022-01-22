@@ -149,7 +149,7 @@ def parse_line(line):
 
 
 
-def open(filepath, mode="r", metadata=None, dtype:str="uint64", sort:bool=False):
+def open(filepath, mode="r", metadata=None, sort:bool=False):
     """
     Opens a file for reading or writing. Valid modes are 'xrwbt'. 'metadata=' is needed when writing/creating.
 
@@ -170,8 +170,6 @@ def open(filepath, mode="r", metadata=None, dtype:str="uint64", sort:bool=False)
         raise TypeError("kmerdb.fileutil.open expects an additional metadata dictionary")
     elif type(sort) is not bool:
         raise TypeError("kmerdb.fileutil.open expects a boolean for the keyword argument 'sort'")
-    elif type(dtype) is not str or dtype not in ["uint64", "uint32", "float64", "float32"]:
-        raise TypeError("kmerdb.fileutli.open expects a valid numpy data type as the keyword argument 'dtype'")
     
     modes = set(mode)
     if modes - set("xrwbt") or len(mode) > len(modes):
@@ -191,7 +189,7 @@ def open(filepath, mode="r", metadata=None, dtype:str="uint64", sort:bool=False)
         raise ValueError("must have exactly one or read/write")
 
     if "r" in mode.lower():
-        return KDBReader(filename=filepath, mode=mode, dtype=dtype, sort=sort)
+        return KDBReader(filename=filepath, mode=mode, sort=sort)
     elif "w" in mode.lower() or "x" in mode.lower():
         return KDBWriter(metadata, filename=filepath, mode=mode)
     else:
@@ -202,21 +200,13 @@ def open(filepath, mode="r", metadata=None, dtype:str="uint64", sort:bool=False)
 
 
 class KDBReader(bgzf.BgzfReader):
-    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, column_dtypes:str="uint64", count_dtypes:str="uint64", sort:bool=False):
+    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, column_dtype:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'filename' to be a str")
-        elif type(column_dtypes) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'column_dtypes' to be a str")
-        elif type(count_dtypes) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'count_dtypes' to be a str")
         elif type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'sort' to be a bool")
-        try:
-            np.dtype(dtype)
-        except TypeError as e:
-            raise TypeError("kmerdb.fileutil.KDBReader expects a valid NumPy data type as an optional argument")
         
         if fileobj:
             assert filename is None
@@ -242,6 +232,10 @@ class KDBReader(bgzf.BgzfReader):
         self.profile      = None
         self.counts       = None
         self.frequencies  = None
+        self.count_dtype = None
+        self.frequencies_dtype = None
+        self.kmer_ids_dtype = None
+        self.profile_dtype = None
         '''
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
@@ -264,9 +258,6 @@ class KDBReader(bgzf.BgzfReader):
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             elif "metadata_blocks" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
-            elif "dtype" not in initial_header_data.keys() or initial_header_data["dtype"] not in ["uint32", "uint64", "float32", "float64"]:
-                logger.error(initial_header_data)
-                raise TypeError("kmerdb.fileutil.KDBReader couldn't determine the type of count/frequency stored in the file.")
             else:
                 logger.debug(initial_header_data)
                 if initial_header_data["metadata_blocks"] == 1:
@@ -299,16 +290,18 @@ class KDBReader(bgzf.BgzfReader):
         logger.info("Validating the header data against the schema...")
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.metadata_schema)
-            self.metadata = initial_header_data
+            self.metadata = dict(initial_header_data)
+            
             self.k = self.metadata['k']
-            self.column_dtypes = self.metadata["kmer_ids_dtype"]
-            self.count_dtypes = self.metadata["count_dtype"]
+            self.kmer_ids_dtype = self.metadata["kmer_ids_dtype"]
+            self.profile_dtype = self.metadata["profile_dtype"]
+            self.count_dtype = self.metadata["count_dtype"]
             self.frequencies_dtype = self.metadata["frequencies_dtype"]
             self.sorted = self.metadata["sorted"]
             logger.info("Self assigning dtype to uint64 probably")
             logger.debug("Checking for metadata inference...")
-            self.profile = np.zeros(4**self.metadata["k"], dtype=self.metadata["profile_dtype"])
             self.kmer_ids = np.zeros(4**self.metadata["k"], dtype=self.metadata["kmer_ids_dtype"])
+            self.profile = np.zeros(4**self.metadata["k"], dtype=self.metadata["profile_dtype"])
             self.counts = np.zeros(4**self.metadata["k"], dtype=self.metadata["count_dtype"])
             self.frequencies = np.zeros(4**self.metadata["k"], dtype=self.metadata["frequencies_dtype"])
             logger.info("Squash target this.")
@@ -333,18 +326,17 @@ class KDBReader(bgzf.BgzfReader):
         # print(self._buffer) # 2
         # print(self.readline())
 
-        if dtype != self.dtype:
-            dtype = self.dtype
-
         if sort is True and self.metadata["sorted"] is True:
             sort is True
         else:
             sort is False
             
-        self.slurp(column_dtypes=column_dtypes, count_dtypes=count_dtypes, sort=sort)
+        self.slurp(column_dtypes=column_dtype, count_dtypes=count_dtypes, frequencies_dtype=frequencies_dtype, sort=sort)
         self.is_int = True
-        self.column_dtypes = column_dtypes
+        self.kmer_ids_dtype = column_dtype
+        self.profile_dtype = column_dtype
         self.count_dtypes = count_dtypes
+        self.frequencies_dtype = frequencies_dtype
         
 
         #
@@ -365,7 +357,6 @@ class KDBReader(bgzf.BgzfReader):
 
     def __exit__(self, type, value, tb):
         self._handle.close()
-        self._reader.close()
         return
         
 
@@ -387,9 +378,7 @@ class KDBReader(bgzf.BgzfReader):
             logger.error(e)
             logger.error("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be a valid numpy data type")
-        if dtype != self.dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be equal to the dtype in the file. Got {0} was {1}".format(dtype, self.dtype))
-        elif type(sort) is not bool:
+        if type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the sort keyword argument to be a bool")
         # First calculate the amount of memory required by the array
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
@@ -490,20 +479,26 @@ class KDBReader(bgzf.BgzfReader):
                 return self.profile
         else:
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
-        if self.profile.dtype != dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be the inferred numpy data type")
+        if self.profile.dtype != self.profile_dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
+        elif self.kmer_ids.dtype != self.kmer_ids_dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
+        elif self.counts.dtype != self.count_dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
+        elif self.frequencies.dtype != self.frequencies_dtype:
+            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
         #self.profile = np.array(counts, dtype=suggested_dtype)
         #self.kmer_ids = np.array(kmer_ids, dtype=suggested_dtype)
         self.kmer_ids = np.array(kmer_ids, dtype=column_dtypes)
         self.profile = np.array(profile, dtype=column_dtypes)
         self.counts = np.array(counts, dtype=count_dtypes)
-        self.frequencies = np.array(frequencies, dtype=count_dtypes)
+        self.frequencies = np.array(frequencies, dtype=frequencies_dtype)
         self._handle.seek(0)
         self._load_block()
         return self.counts
 
     def slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
-        self._slurp(column_dtypes=column_dtypes, count_dtype=count_dtype, frequencies_dtype=frequencies_dtype, sort=sort)
+        self._slurp(column_dtypes=column_dtypes, count_dtypes=count_dtypes, frequencies_dtype=frequencies_dtype, sort=sort)
 
     
     

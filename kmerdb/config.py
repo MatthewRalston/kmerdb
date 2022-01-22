@@ -31,6 +31,10 @@ metadata_schema = {
         "unique_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
+        "profile_dtype": {"type": "string"},
+        "kmer_ids_dtype": {"type": "string"},
+        "count_dtypes": {"type": "string"},
+        "frequencies_dtype": {"type": "string"},
         "dtype": {"type": "string"},
         "tags": {
             "type": "array",
@@ -74,7 +78,7 @@ metadata_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "dtype"]
+    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype"]
 }
 
 
