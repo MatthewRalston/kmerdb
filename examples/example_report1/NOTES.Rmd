@@ -80,6 +80,14 @@ getmode <- function(v) {
 4. Can the correlation distance recapitulate phylogenetic knowledge?
 5. If so, what depth is asymptotically similar to 
 
+# Command line manual
+
+
+
+## Objectives
+
+* Do
+
 
 
 # Abstract

@@ -1175,7 +1175,7 @@ def view(arguments):
         raise IOError("Viewable .kdb filepath does not end in '.kdb'")
     elif not os.path.exists(arguments.kdb_in):
         raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.sorted) as kdb_in:
+    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.sorted, slurp=True) as kdb_in:
         metadata = kdb_in.metadata
         kmer_ids_dtype = metadata["kmer_ids_dtype"]
         if metadata["version"] != config.VERSION:
@@ -1188,16 +1188,26 @@ def view(arguments):
         logger.info("Reading from file...")
         logger.debug("I cut off the json-formatted unstructured column for the main view.")
         try:
-            for i, kmer_id in enumerate(kdb_in.kmer_ids):
-                assert kmer_id == kdb_in.profile[i], "The index of the k-mer id is not equal to the row index"
+            if arguments.sorted:
+                for i, idx in enumerate(np.lexsort((kdb_in.counts, kdb_in.kmer_ids))):
+                    print("{0}\t{1}\t{2}\t{3}".format(i, kdb_in.kmer_ids[idx], kdb_in.frequencies[idx], kdb_in.profile[idx]))
+            else:
+                for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                    try:
+                        assert kdb_in.profile[i] == i, "The index of the row is not sorted properly"
+                        assert kmer_id == kdb_in.kmer_ids[i], "The kmer id is not equal to itself"
+                    except AssertionError as e:
+                        logger.error("Row enumeration: {0}".format(i))
+                        logger.error("Profile line: {0}".format(i))
+                        logger.error("Kmer id: {0}".format(kmer_id))
+                        logger.error("Count: {0}".format(kdb_in.counts[i]))
+                        logger.error(e)
+                        #raise e
+                        pass
+                    logger.debug("{0} line:".format(i))
+                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
 
-                    
-
-                
-                logger.debug("{0} line:".format(i))
-                logger.debug("=== = = = ======= =  =  =  =  =  = |")
-
-                print("{0}\t{1}\t{2}".format(i, kmer_id, kdb_in.counts[kmer_id]))
+                    print("{0}\t{1}\t{2}\t{3}".format(i, kdb_in.kmer_ids[i], kdb_in.frequencies[i], kdb_in.counts[i]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
@@ -1360,7 +1370,7 @@ def profile(arguments):
         if arguments.all_metadata:
 
             if arguments.sorted:
-                for i, idx in enumerate(lexsort((counts, kmer_ids))):
+                for i, idx in enumerate(np.lexsort((counts, kmer_ids))):
                     seq = kmer.id_to_kmer(idx, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     reads = []
@@ -1374,36 +1384,41 @@ def profile(arguments):
                         kmer_metadata["reads"] = reads
                         kmer_metadata["starts"] = starts
                         kmer_metadata["reverses"] = reverses
-                    counts[idx] = count
-                    frequencies[idx] = frequency
+                    counts[idx] = counts[idx]
+                    frequencies[idx] = frequencies[idx]
                     all_metadata.append(kmer_metadata)
-                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, counts[idx], frequencies[idx]))
+                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i, count in enumerate(counts):
-                    seq = kmer.id_to_kmer(idx, arguments.k)
+                    kmer_id = kdb_in.kmer_ids[i]
+                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                    logger.info("{0}\t{1}\t{2}\t{3}\t".format(i, idx, kmer_id, counts[idx], frequencies[idx]))
+
                     kmer_metadata = kmer.neighbors(seq, arguments.k)
                     all_metadata.append(kmer_metadata)
-                    frequency = float(count)/N
-                    counts[idx] = count
-                    frequencies[idx] = frequency
-                    print("{0}\t{1}\t{2}\t{3}".format(i, i, counts[i], frequencies[i]))
+                    counts[idx] = counts[idx]
+                    frequencies[idx] = frequencies[idx]
+                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, i, kmer_ids[i], counts[i], frequencies[i]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
         else:
             if arguments.sorted:
-                for i, idx in enumerate(lexsort((counts, kmer_ids))):
-                    seq = kmer.id_to_kmer(idx, arguments.k)
+                for i, idx in enumerate(np.lexsort((counts, kmer_ids))):
+
+                    kmer_id = int(kmer_ids[idx])
+                    logger.info("{0}\t{1}\t{2}\t{3}\t".format(i, idx, kmer_id, counts[idx], frequencies[idx]))
+                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k)
                     all_metadata.append(kmer_metadata)
-                    frequency = float(count)/N
-                    counts[idx] = count
-                    frequencies[idx] = frequency
+                    counts[idx] = counts[idx]
+                    frequencies[idx] = frequencies[idx]
 
-                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, counts[idx], frequencies[idx]))
+                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i in range(N):
-                    kmer_id = kmer_ids[i]
+                    kmer_id = int(kdb_in.kmer_ids[i])
+                    logger.info("{0}\t{1}\t{2}\t{3}\t".format(i, idx, kmer_id, counts[idx], frequencies[idx]))
                     p = profile[i]
                     c = counts[i]
                     f = frequencies[i]
