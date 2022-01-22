@@ -294,8 +294,10 @@ def kmer_to_id(s):
 
 def id_to_kmer(id, k):
     if type(id) is not int:
+        logger.error(type(id))
         raise TypeError("kmerdb.id_to_kmer expects an int as its first positional argument")
     elif type(k) is not int:
+        logger.error(type(k))
         raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
     else:
         kmer = ""
