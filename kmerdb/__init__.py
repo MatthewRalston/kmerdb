@@ -1148,6 +1148,7 @@ def header(arguments):
             print(config.header_delimiter)
             
 def view(arguments):
+    import numpy as np
     from kmerdb import fileutil, config, util
     import json
     metadata = None
@@ -1187,27 +1188,37 @@ def view(arguments):
                 print(config.header_delimiter)
         logger.info("Reading from file...")
         logger.debug("I cut off the json-formatted unstructured column for the main view.")
+        logger.debug(kdb_in.profile)
         try:
             if arguments.sorted:
-                for i, idx in enumerate(np.lexsort((kdb_in.counts, kdb_in.kmer_ids))):
-                    print("{0}\t{1}\t{2}\t{3}".format(i, kdb_in.kmer_ids[idx], kdb_in.frequencies[idx], kdb_in.profile[idx]))
+                kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
+                for i, idx in enumerate(kmer_ids_sorted_by_count):
+                    logger.debug("{0}\t{1}\t{2}\t{3}\t{4}\t{5}".format(i, idx, kdb_in.profile[idx], kdb_in.kmer_ids[idx], kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                    logger.debug(type(i))
+                    logger.debug(type(idx))
+                    print("{0}\t{1}\t{2}\t{3}\t{4}\t{5}".format(i, idx, kdb_in.profile[idx], kdb_in.kmer_ids[idx], kdb_in.counts[idx], kdb_in.frequencies[idx]))
             else:
-                for i, kmer_id in enumerate(kdb_in.kmer_ids):
+                for i, idx in enumerate(kdb_in.profile):
+                    kmer_id = kdb_in.kmer_ids[idx]
+                    logger.debug("The row in the file should follow this order:")
+                    logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                    logger.debug(type(i))
+                    logger.debug(type(idx))
                     try:
-                        assert kdb_in.profile[i] == i, "The index of the row is not sorted properly"
-                        assert kmer_id == kdb_in.kmer_ids[i], "The kmer id is not equal to itself"
+                        assert idx == kdb_in.profile[i], "The index of the row is not sorted properly"
+                        assert kmer_id == kdb_in.kmer_ids[idx], "The kmer id is not equal to itself"
                     except AssertionError as e:
                         logger.error("Row enumeration: {0}".format(i))
-                        logger.error("Profile line: {0}".format(i))
+                        logger.error("Profile line: {0}".format(idx))
                         logger.error("Kmer id: {0}".format(kmer_id))
-                        logger.error("Count: {0}".format(kdb_in.counts[i]))
+                        logger.error("Count: {0}".format(kdb_in.counts[kmer_id]))
                         logger.error(e)
-                        #raise e
-                        pass
+                        raise e
+                        #pass
                     logger.debug("{0} line:".format(i))
                     logger.debug("=== = = = ======= =  =  =  =  =  = |")
 
-                    print("{0}\t{1}\t{2}\t{3}".format(i, kdb_in.kmer_ids[i], kdb_in.frequencies[i], kdb_in.counts[i]))
+                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kdb_in.kmer_ids[idx], kdb_in.counts[kdb_in.kmer_ids[idx]], kdb_in.frequencies[kdb_in.kmer_ids[idx]]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
@@ -1227,7 +1238,7 @@ def view(arguments):
     elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
     if arguments.kdb_out is not None:
-        with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted) as kdb_in:
+        with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
             with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
                 try:
                     line = None
@@ -1370,7 +1381,8 @@ def profile(arguments):
         if arguments.all_metadata:
 
             if arguments.sorted:
-                for i, idx in enumerate(np.lexsort((counts, kmer_ids))):
+                kmer_ids_sorted_by_count = np.lexsort(list(zip(counts, kmer_ids)))
+                for i, idx in enumerate(kmer_ids_sorted_by_count):
                     seq = kmer.id_to_kmer(idx, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     reads = []
@@ -1388,7 +1400,7 @@ def profile(arguments):
                     frequencies[idx] = frequencies[idx]
                     all_metadata.append(kmer_metadata)
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i, count in enumerate(counts):
                     kmer_id = kdb_in.kmer_ids[i]
@@ -1400,10 +1412,11 @@ def profile(arguments):
                     counts[idx] = counts[idx]
                     frequencies[idx] = frequencies[idx]
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, i, kmer_ids[i], counts[i], frequencies[i]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
         else:
             if arguments.sorted:
-                for i, idx in enumerate(np.lexsort((counts, kmer_ids))):
+                kmer_ids_sorted_by_count = np.lexsort(list(zip(counts, kmer_ids)))
+                for i, idx in enumerate(kmer_ids_sorted_by_count):
 
                     kmer_id = int(kmer_ids[idx])
                     logger.info("{0}\t{1}\t{2}\t{3}\t".format(i, idx, kmer_id, counts[idx], frequencies[idx]))
@@ -1414,11 +1427,11 @@ def profile(arguments):
                     frequencies[idx] = frequencies[idx]
 
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(idx, counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i in range(N):
                     kmer_id = int(kdb_in.kmer_ids[i])
-                    logger.info("{0}\t{1}\t{2}\t{3}\t".format(i, idx, kmer_id, counts[idx], frequencies[idx]))
+                    logger.info("{0}\t{1}\t{2}\t{3}\t".format(idx, kmer_id, counts[idx], frequencies[idx]))
                     p = profile[i]
                     c = counts[i]
                     f = frequencies[i]
@@ -1426,7 +1439,7 @@ def profile(arguments):
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     all_metadata.append(kmer_metadata)
                     print("{0}\t{1}\t{2}\t{3}".format(i, i, counts[i], frequencies[i]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t\n".format(i, counts[i], frequencies[i], json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
