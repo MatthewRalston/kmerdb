@@ -45,7 +45,7 @@ logger = logging.getLogger(__file__)
 
 
 
-def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False, dtype:str="uint64"):
+def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -76,8 +76,6 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'both_strands' to be a bool")
     elif type(all_metadata) is not bool:
         raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'all_metadata' to be a bool")
-    elif type(dtype) is not str:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'dtype' to be a str")
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []
@@ -90,7 +88,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
 
     # Initialize the kmer array
     try:
-        counts = np.zeros(total_kmers, dtype=dtype)
+        counts = np.zeros(total_kmers, dtype="uint64")
     except TypeError as e:
         logger.error("Invalid dtype for numpy array instantiation")
         logger.error(e)
@@ -264,6 +262,6 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, both_strands=self.arguments.both_strands, all_metadata=self.arguments.all_metadata, dtype=self.arguments.dtype)
+        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, both_strands=self.arguments.both_strands, all_metadata=self.arguments.all_metadata)
 
 
