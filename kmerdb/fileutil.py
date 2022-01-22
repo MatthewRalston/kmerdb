@@ -505,6 +505,16 @@ class KDBReader(bgzf.BgzfReader):
                     except Exception as e:
                         logger.error(e)
                         raise e
+                    logger.debug("Validating shape prior to if unsorted is True")
+                    logger.debug("Number of lines read: {0}".format(i))
+                    logger.debug("Number of k-mer (N) set globally: {0}".format(N))
+                    logger.debug("Profile shape: {0}".format(self.profile.size))
+                    logger.debug("Kmer_ids shape: {0}".format(self.kmer_ids.size))
+                    logger.debug("Counts shape: {0}".format(self.counts.size))
+                    logger.debug("Frequencies shape: {0}".format(self.frequencies.size))
+                    assert self.profile.size == self.kmer_ids.size, "Profile size has diverged from kmer_ids shape"
+                    assert self.profile.size == self.counts.size, "Counts size has diverged from profile size/shape"
+                    assert self.counts.size == self.frequencies.size, "Frequencies size has diverged from counts shape"
                 elif sort is True:
                     i = 0
                     try:
@@ -535,18 +545,18 @@ class KDBReader(bgzf.BgzfReader):
                             if isfloat(_count):
                                 count = float(_count)
                                 logger.info("Determining the type of data in the file1...")
-                                logger.info("File counts at {0}, calculated frequency = {1}".format(count, frequency))
+                                logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                             else:
                                 count = int(_count)
                                 logger.info("Determining the type of data in the file2...")
-                                logger.info("File counts at {0}, calculated frequency = {1}".format(count, frequency))
+                                logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                                 #logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, frequency))
-                            print(count)
                             frequency = float(count)/N
                             self.profile[j] = j
+
                             self.kmer_ids[j] = kmer_id
-                            self.counts[kmer_id] = count
-                            self.frequencies[kmer_id] = frequency
+                            self.counts[j] = count
+                            self.frequencies[j] = _frequency
 
                             #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                             try:
@@ -556,8 +566,10 @@ class KDBReader(bgzf.BgzfReader):
                                     assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
                                 else:
                                     logger.info("Determining type of data in the file4...")
+                                    logger.info("It looks like the frequency data is a double. python frequency as {0}, frequency string: '{1}'".format(frequency, _frequency))
                                     #logger.info("It looks like the frequency data is a double. Caclulated frequency at {0}, frequency read: {1}".format(frequency, _frequency))
                                     assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
+
                             except AssertionError as e:
                                 logger.error(e)
                                 logger.warning("Interpretting string for NumPy formatting")
@@ -576,41 +588,65 @@ class KDBReader(bgzf.BgzfReader):
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
 
+
                         self.kmer_ids[j] = kmer_id
                         self.profile[j] = kmer_id
                         self.counts[kmer_id] = count
                         self.frequencies[kmer_id] = frequency
+
+                        logger.debug("Validating shape prior to if unsorted is True")
+                        logger.debug("Number of lines read: {0}".format(i))
+                        logger.debug("Number of k-mer (N) set globally: {0}".format(N))
+                        logger.debug("Profile shape: {0}".format(self.profile.size))
+                        logger.debug("Kmer_ids shape: {0}".format(self.kmer_ids.size))
+                        logger.debug("Counts shape: {0}".format(self.counts.size))
+                        logger.debug("Frequencies shape: {0}".format(self.frequencies.size))
+                        assert self.profile.size == self.kmer_ids.size, "Profile size has diverged from kmer_ids shape"
+                        assert self.profile.size == self.counts.size, "Counts size has diverged from profile size/shape"
+                        assert self.counts.size == self.frequencies.size, "Frequencies size has diverged from counts shape"
+
                     except StopIteration as e:
                         if i == N:
                             logger.debug("Read {0} lines from the file...".format(i))
                             logger.warning("StopIteration was raised!!!")
                             raise e
                         else:
-                            logger.debug("Number of lines read: {0}".format(i))
-                            logger.debug("Number of k-mers (N) set globally.".format(N))
-                            logger.debug("Read only {0} lines from the file...".format(i))
-                            logger.debug("Profile must have been sparse...")
+                            logger.error("Number of lines read: {0}".format(i))
+                            logger.error("Number of k-mers (N) set globally.".format(N))
+                            logger.error("Read only {0} lines from the file...".format(i))
+                            logger.error("Profile must have been read before this point")
                             logger.error(e)
-                            pass
+                            raise e
                     except Exception as e:
                         logger.error(e)
                         raise e
-                else:
-                    raise RuntimeError("Whoops")
-                    logger.info("Read {0} lines from the file...".format(i))
-                    self._handle.seek(0)
-                    self._load_block()
-                    logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
-                    if sort is True:
-                        # If the file is sorted, do not sort
-                        indices = np.lexsort((kmer_ids, counts))
-                        
-                        for i, idx in enumerate(indices): # This is right, not fixing this.
-                            self.kmer_ids[i] = kmer_ids[idx]
-                            self.profile[i] = profile[idx]
-                            self.frequencies[idx] = frequencies[idx]
-                            self.counts[idx] = counts[idx]
-                            logger.debug("Just in casey eggs and bakey...")
+                logger.info("Read {0} lines from the file...".format(i))
+                logger.debug("Rechecking shape... I can't help myself.")
+                assert self.profile.size == self.kmer_ids.size, "Number of k-mer ids mismatched in count from row-index 'profile'"
+                assert self.kmer_ids.size == self.counts.size, "Number of Counts is mismatched in count from row-index 'profile'"
+                assert self.frequencies.size == self.counts.size, "Number of Frequencies is mismatched in count from row-index 'profile'"
+                logger.debug("Check completed...")            
+                self._handle.seek(0)
+                self._load_block()
+
+                logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
+                if sort is True:
+                    # If the file is sorted, do not sort
+                    kmer_ids_sorted_by_count = np.lexsort(list(zip(self.kmer_ids, self.counts)))
+
+                    print(kmer_ids_sorted_by_count[0:5])
+                    for i, idx in enumerate(kmer_ids_sorted_by_count): # This is right, not fixing this.
+                        p = i
+                        kmer_id = kmer_ids[i]
+                        count = counts[idx]
+
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(p, idx, kmer_id, count))
+                        # I stand corrected
+                        self.kmer_ids[i] = kmer_ids[idx]
+                        self.profile[i] = profile[idx]
+                        self.frequencies[idx] = frequencies[idx]
+                        self.counts[idx] = counts[idx]
+                        logger.debug("Just in casey eggs and bakey...")
 
             else:
                 logger.debug("Profile has been intiailized as zeros only, incorrect instantiation.")
@@ -637,17 +673,28 @@ class KDBReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
         #self.profile = np.array(counts, dtype=suggested_dtype)
         #self.kmer_ids = np.array(kmer_ids, dtype=suggested_dtype)
-        self.kmer_ids = np.array(kmer_ids, dtype=column_dtypes)
-        self.profile = np.array(profile, dtype=column_dtypes)
-        self.counts = np.array(counts, dtype=count_dtypes)
-        self.frequencies = np.array(frequencies, dtype=frequencies_dtype)
+        #self.kmer_ids = np.array(kmer_ids, dtype=column_dtypes)
+        #self.profile = np.array(profile, dtype=column_dtypes)
+        #self.counts = np.array(counts, dtype=count_dtypes)
+        #self.frequencies = np.array(frequencies, dtype=frequencies_dtype)
         self._handle.seek(0)
         self._load_block()
         #print([x for x in np.ndindex(self.kmer_ids.flat) if x < ])
+        logger.info("Data types read from file")
         logger.info(type(self.profile[0]))
         logger.info(type(self.kmer_ids[0]))
         logger.info(type(self.counts[0]))
         logger.info(type(self.frequencies[0]))
+
+
+        logger.info("K-mer profile size (row-index): {0}".format(self.profile.size))
+        logger.info("Kmer_ids size: {0}".format(self.kmer_ids.size))
+        logger.info("Counts size: {0}".format(self.counts.size))
+        logger.info("Frequencies size: {0}".format(self.frequencies.size))
+        assert self.profile.size == self.kmer_ids.size, "Number of k-mer ids mismatched in count from row-index 'profile'"
+        assert self.kmer_ids.size == self.counts.size, "Number of Counts is mismatched in count from row-index 'profile'"
+        assert self.frequencies.size == self.counts.size, "Number of Frequencies is mismatched in count from row-index 'profile'"
+        
         return self.counts
 
     def slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
