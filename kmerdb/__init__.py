@@ -184,6 +184,18 @@ def distances(arguments):
         df = pd.DataFrame(profiles)
         #columns = list(df.columns) # I hate this language, it's hateful.
         n = len(columns)
+    elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
+        logger.info("Reading input as tsv/csv from STDIN")
+        try:
+            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
+        except pd.errors.EmptyDataError as e:
+            logger.error(e)
+            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
+            sys.exit(1)
+        profiles = np.array(df)
+        columns = list(df.columns)
+        n = len(columns)
+
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
         try:
             df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
@@ -199,17 +211,6 @@ def distances(arguments):
         logger.error("Not sure why you'd want a singular distance.")
         logger.error("kdb distance requires more than one .kdb file as positional inputs")
         sys.exit(1)
-    elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
-        logger.info("Reading input as tsv/csv from STDIN")
-        try:
-            df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
-        except pd.errors.EmptyDataError as e:
-            logger.error(e)
-            logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
-            sys.exit(1)
-        profiles = np.array(df)
-        columns = list(df.columns)
-        n = len(columns)
     else:
         logger.error("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)))
         sys.exit(1)
@@ -221,8 +222,10 @@ def distances(arguments):
     sys.stderr.write(config.DISTANCE_MASTHEAD)
 
     logger.info("Custom calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
-    files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+    
     if arguments.metric in ["pearson", "correlation", "spearman", "EMD", "d2s"]:
+        
+        #files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
         data = [['' for x in range(n)] for y in range(n)]
         for i in range(n):
             for j in range(n):
@@ -245,7 +248,7 @@ def distances(arguments):
                     elif arguments.metric == "euclidean":
                         logger.info("Computing custom euclidean distance")
                         data[i][j] = distance.euclidean(profiles[i], profiles[j])
-                    elif arguments.metric == "spearman" and all(f.metadata["sorted"] is True for f in files):
+                    elif arguments.metric == "spearman":
                         cor, pval = distance.spearman(profiles[i], profiles[j])
                         logger.info("Computing SciPy Spearman distance")
                         # FIXME! also print pval matrices
@@ -622,7 +625,7 @@ def get_matrix(arguments):
 
     
     if len(arguments.input) > 1:
-        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+        files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
         if arguments.k is None:
             arguments.k = files[0].k
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
@@ -636,13 +639,12 @@ def get_matrix(arguments):
             logger.error("Default choice of k, since not specified at the CLI is {0}".format(arguments.k))
             logger.error("Proceeding with k set to {0}".format(suggested_k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-        elif not all(kdbrdr.dtype == arguments.dtype and arguments.dtype == kdbrdr.dtype for kdbrdr in files):
-            raise TypeError("One or more files did not have the default dtype or the default dtype did not match one or more files...")
-        dtypes = [kdbrdr.dtype for kdbrdr in files]
+        dtypes = [kdbrdr.count_dtype for kdbrdr in files]
         suggested_dtype = dtypes[0]
-        if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
+        if not all(kdbrdr.count_dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
         data = [kdbrdr.counts for kdbrdr in files]
+        logger.info(data)
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
         # The following does *not* transpose a matrix defined as n x N=4**k
@@ -1128,6 +1130,7 @@ def header(arguments):
     with fileutil.open(arguments.kdb, mode='r') as kdb_in:
         if kdb_in.metadata["version"] != config.VERSION:
             logger.warning("KDB file version is out of date, may be incompatible with current fileutil.KDBReader class")
+        N = 4**kdb_in.metadata["k"]
 
         assert kdb_in.profile.size == N, "view | read profile size did not match N from the header metadata"
         assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
@@ -1135,10 +1138,10 @@ def header(arguments):
         assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
 
         if arguments.json:
-            print(dict(kdb.metadata))
+            print(dict(kdb_in.metadata))
         else:
             yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(kdb.metadata))
+            print(yaml.dump(kdb_in.metadata))
             print(config.header_delimiter)
             
 def view(arguments):
@@ -1170,7 +1173,7 @@ def view(arguments):
         raise IOError("Viewable .kdb filepath does not end in '.kdb'")
     elif not os.path.exists(arguments.kdb_in):
         raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.sorted, slurp=True) as kdb_in:
+    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
         metadata = kdb_in.metadata
         kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
@@ -1183,45 +1186,43 @@ def view(arguments):
                 print(config.header_delimiter)
         logger.info("Reading from file...")
         logger.debug("I cut off the json-formatted unstructured column for the main view.")
-        logger.debug(kdb_in.profile)
+        #logger.debug(kdb_in.profile)
         try:
-            if arguments.sorted and metadata["sorted"] is True:
+            if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
                 kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
+                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                 for i, idx in enumerate(kmer_ids_sorted_by_count):
                     p = kdb_in.profile[i]
                     kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
+                    logger.debug("The first is an implicit row-index. The second is the corresponding profile. The third is a k-mer id, then the counts and frequencies.")
                     logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-                    logger.debug(type(i))
-                    logger.debug(type(idx))
+
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, kmer_id, p, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
             else:
-                for i, idx in enumerate(kdb_in.profile):
+                for i, idx in enumerate(kdb_in.kmer_ids):
                     p = kdb_in.profile[i]
                     kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
                     logger.debug("The row in the file should follow this order:")
+                    logger.debug("The first is an implicit row-index. The second is the corresponding profile. The third is a k-mer id, then the counts and frequencies.")
                     logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-                    logger.debug(type(i))
-                    logger.debug(type(idx))
                     try:
-                        assert idx == kdb_in.profile[i], "The row/kmer id we're focusing is not found in the profile under this index"
-                        #assert i == kdb_in.profile[i], "The k-mer row did not match the absorbed profile"
-                        #assert p == i, "The row/kmer id we're focusing on is not found in this sort order. Column 1 is always row index, column2 is always profile sort order, then k-mer id, counts etc."
-                        if p != i and metadata["sorted"] is True:
-                            logger.warning("We are dealing with a sorted file... reading into memory unsorted")
+                        if arguments.un_sort is True:
+                            assert p == idx, "view | kmer_id {0} didn't match the loaded profile {1}".format(idx, p)
+                            assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
+                            assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
                         else:
-                            logger.warning("We are dealing with a sorted file... reading into memory unsorted")
+                            #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
+                            pass
                     except AssertionError as e:
-                        logger.error("Row enumeration: {0}".format(i))
-                        logger.error("Profile line: {0}".format(kdb_in.profile[i]))
-                        logger.error("Kmer id: {0}".format(kmer_id))
-                        logger.error("Count: {0}".format(kdb_in.counts[idx]))
-                        logger.error(e)
-                        raise e
-                        #pass
+                        logger.warning(e)
+                        logger.warning("K-mer id {0} will be printed in the {1} row".format(idx, i))
+                        #raise e
                     logger.debug("{0} line:".format(i))
                     logger.debug("=== = = = ======= =  =  =  =  =  = |")
-
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, kmer_id, p, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                    if arguments.un_sort is True:
+                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                    else:
+                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
@@ -1255,7 +1256,7 @@ def view(arguments):
                         kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
                         p = kdb_in.profile[j]
                         logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
-                        kdb_out.write("{0}\t{1}\t{2}\n".format(i, kmer_id, p, kdb_in.counts[kmer_id], kmer_metadata))
+                        kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, p, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
                     
                 except StopIteration as e:
                     logger.error(e)
@@ -1371,7 +1372,7 @@ def profile(arguments):
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
     logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))    
-
+    sys.stderr.write(str(yaml.dump(metadata, sort_keys=False)))
 
     
 
@@ -1395,7 +1396,8 @@ def profile(arguments):
                 list_of_duples = list(zip(kmer_ids, counts))
                 logger.debug(list_of_duples[0:3])
                 kmer_ids_sorted_by_count = np.lexsort(list_of_duples)
-                for i, idx in enumerate(kmer_ids_sorted_by_count):
+                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
+                for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
                     seq = kmer.id_to_kmer(idx, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     reads = []
@@ -1413,6 +1415,8 @@ def profile(arguments):
                     frequencies[idx] = frequencies[idx]
                     all_metadata.append(kmer_metadata)
                     assert j <= i + 1, "profile | row index was not sequential. Possibly read improperly."
+                    assert idx == kmer_ids[i], "profile | row index did not match a kmer_id"
+                    logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
                     j += 1
@@ -1421,12 +1425,13 @@ def profile(arguments):
                 for i, idx in enumerate(kmer_ids):
                     kmer_id = int(idx)
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(idx, idx, kmer_ids[i], counts[kmer_id], frequencies[kmer_id]))
-
+                    #logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[kmer_id], frequencies[kmer_id]))
+                    
                     kmer_metadata = kmer.neighbors(seq, arguments.k)
                     all_metadata.append(kmer_metadata)
                     counts[idx] = counts[idx]
                     frequencies[idx] = frequencies[idx]
+                    logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[i], frequencies[i], json.dumps(kmer_metadata)))
                     j += 1
@@ -1434,8 +1439,9 @@ def profile(arguments):
             if arguments.sorted:
                 duple_of_arrays = (kmer_ids, counts)
                 kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
+                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                 logger.debug("K-mer id sort shape: {0}".format(len(kmer_ids_sorted_by_count)))
-                for i, idx in enumerate(kmer_ids_sorted_by_count):
+                for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
                     kmer_id = int(kmer_ids[idx])
                     logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
@@ -1554,7 +1560,8 @@ def cli():
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
-    view_parser.add_argument("--sorted", action="store_true", help="Sort the k-mer profile before displaying")
+    view_parser.add_argument("--re-sort", action="store_true", help="Sort the k-mer profile before displaying")
+    view_parser.add_argument("--un-sort", action="store_true", help="Unsort the k-mer profile before displaying")
     view_parser.add_argument("--dtype", type=str, default="uint64", help="Read in the profiles as unsigned integer 64bit NumPy arrays")
     view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
     view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
