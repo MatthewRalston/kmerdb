@@ -1190,7 +1190,7 @@ def view(arguments):
         logger.debug("I cut off the json-formatted unstructured column for the main view.")
         logger.debug(kdb_in.profile)
         try:
-            if arguments.sorted:
+            if arguments.sorted and metadata["sorted"] is True:
                 kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
                 for i, idx in enumerate(kmer_ids_sorted_by_count):
                     p = kdb_in.profile[i]
@@ -1210,7 +1210,11 @@ def view(arguments):
                     try:
                         assert idx == kdb_in.profile[i], "The row/kmer id we're focusing is not found in the profile under this index"
                         #assert i == kdb_in.profile[i], "The k-mer row did not match the absorbed profile"
-
+                        #assert p == i, "The row/kmer id we're focusing on is not found in this sort order. Column 1 is always row index, column2 is always profile sort order, then k-mer id, counts etc."
+                        if p != i and metadata["sorted"] is True:
+                            logger.warning("We are dealing with a sorted file... reading into memory unsorted")
+                        else:
+                            logger.warning("We are dealing with a sorted file... reading into memory unsorted")
                     except AssertionError as e:
                         logger.error("Row enumeration: {0}".format(i))
                         logger.error("Profile line: {0}".format(kdb_in.profile[i]))
