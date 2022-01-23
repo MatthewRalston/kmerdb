@@ -404,6 +404,7 @@ class KDBReader(bgzf.BgzfReader):
         self.profile = np.zeros(N, dtype=column_dtypes)
         self.counts = np.zeros(N, dtype=count_dtypes)
         self.frequencies = np.zeros(N, dtype=frequencies_dtype)
+        self.all_kmer_metadata = []
         kmer_ids = []
         profile = []
         counts = []
@@ -428,32 +429,49 @@ class KDBReader(bgzf.BgzfReader):
                                 break
                             # Don't forget to not parse the metadata column [:-1]
 
-                            x, p, kmer_id, _count, _frequency, metadata = line.rstrip().split("\t")
+                            x, p, kmer_id, _count, _frequency, kmer_metadata = line.rstrip().split("\t")
                             x = int(x)
                             p = int(p)
                             
                             logger.debug(line.rstrip())
 
-                            logger.debug("{0}\t{1}\t{2}\t{3}".format(j, kmer_id, _count, _frequency))
 
                             assert j == x, "Line number did not match"
-                            
-                            logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(x, p, kmer_id, _count, _frequency))
 
-                            _frequency = float(_frequency)
+                            logger.debug("{0}\t{1}\t{2}\t'{3}'\t'{4}'".format(x, p, kmer_id, _count, _frequency))
+
                             kmer_id = int(kmer_id)
                             kmer_ids.append(kmer_id)
                             profile.append(kmer_id)
 
                             if isfloat(_count):
-                                count = float(_count)
+                                parsed_integer_string = is_integer.match(_count)
+                                if parsed_integer_string is not None:
+                                    logger.info("Casting count field to integer...")
+                                    logger.info("Starting count | castin' as int '{0}'".format(_count))
+
+                                    count = int(_count)
+                                    #logger.warning("Casting count field to integer.")
+                                    #raise TypeError("Shouldn't be normal usage. Unsupported")
+                                else:
+                                    logger.info("Starting count | cast as float '{0}'".format(_count))
+                                    count = float(_count)
                                 logger.info("Determining the type of data in the file1...")
                                 logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                             else:
-                                count = int(_count)
+                                parsed_integer_string = is_integer.match(_count)
+                                if parsed_integer_string is not None:
+                                    logger.info("Casting count field to integer...")
+                                    logger.info("Starting count | castin' as int '{0}'".format(_count))
+                                    count = int(_count)
+                                    #logger.warning("Casting count field to integer.")
+                                    #raise TypeError("Shouldn't be normal usage. Unsupported")
+                                else:
+                                    logger.info("Starting count | IDGAF castin' as int '{0}'".format(_count))
+                                    count = int(_count)
                                 logger.info("Determining the type of data in the file2...")
-                                logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
-                                #logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, frequency))
+                                logger.info("File counts at {0}, file frequency = '{1}'".format(count, _frequency))
+                            assert type(count) is int, "_slurp | type of count field is not int"
                             frequency = float(count)/N
                             self.profile[j] = p
 
@@ -462,23 +480,52 @@ class KDBReader(bgzf.BgzfReader):
                             self.kmer_ids[p] = kmer_id
                             self.counts[kmer_id] = count
                             self.frequencies[kmer_id] = _frequency
-
+                            self.all_kmer_metadata.append(kmer_metadata)
                             #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                             try:
                                 if isfloat(_frequency):
+                                    logger.debug("Frequency: '{0}'".format(_frequency))
+                                    try:
+                                        logger.debug("type: {0}".format(type(_frequency)))
+                                        logger.debug("Using integer matching regex...")
+                                        pis = is_integer.match(_frequency)
+                                    except TypeError as e:
+                                        logger.error(e)
+                                        raise e
+                                    if pis is not None:
+                                        logger.warning("Matched frequency as integer: perhaps an error or a genuine zero...Reseting to zero")
+                                        frequency = float(0)
+                                        logger.error("Starting frequency cast as integer | '{0}'".format(_frequency))
+                                        raise TypeError("Matched frequency to integer instead of float. Aborting.")
+                                    else:
+                                        logger.info("Starting frequency cast as float | '{0}'")
+                                        frequency = float(_frequency)
                                     logger.info("Determining type of data in the file3...")
                                     logger.info("It looks like the frequency data is a double. interpretted frequency as {0}, frequency string: '{1}'".format(frequency, _frequency))
-                                    assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
+                                    assert frequency == float(_frequency), "kmerdb.fileutil.KDBReader._slurp | Frequency did not match expected value based on the count during recalculation of frequencies..."
+
                                 else:
+                                    parsed_integer_string = is_integer.match(_frequency)
+                                    if parsed_integer_string is not None:
+                                        logger.warning("Casting frequency field to integer.")
+                                        raise TypeError("Casting frequency field to integer is unsupported.")
+                                    else:
+                                        logger.info("Starting frequency | cast as int '{0}'".format(_frequency))
+                                        logger.info("Castin' frequency field to an integer.")
+                                        
+                                        frequency = int(count)
                                     logger.info("Determining type of data in the file4...")
-                                    logger.info("It looks like the frequency data is a double. python frequency as {0}, frequency string: '{1}'".format(frequency, _frequency))
+                                    logger.info("It looks like the frequency data is an int. python frequency as {0}, frequency string: '{1}'".format(frequency, _frequency))
                                     #logger.info("It looks like the frequency data is a double. Caclulated frequency at {0}, frequency read: {1}".format(frequency, _frequency))
-                                    assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
+                                    assert float(frequency) == float(_frequency), "kmerdb.fileutil.KDBReader._slurp | Frequency did not match expected value based on the count during recalculation of frequencies..."
+
 
                             except AssertionError as e:
                                 logger.error(e)
                                 logger.warning("Interpretting string for NumPy formatting")
-                                #raise e
+                                raise e
+                            assert type(frequency) is float, "_slurp | frequency field not cast as float"
+                            
                             # if self.sorted is True:
                             #     self.profile[]
                             # else:
@@ -493,6 +540,7 @@ class KDBReader(bgzf.BgzfReader):
                         self.kmer_ids[j] = kmer_id
                         self.counts[kmer_id] = count
                         self.frequencies[kmer_id] = frequency
+                        #self.all_kmer_metadata[i] = kmer_metadata)
                     except StopIteration as e:
                         if i == N:
                             logger.debug("Read {0} lines from the file...".format(i))
@@ -545,14 +593,25 @@ class KDBReader(bgzf.BgzfReader):
                             kmer_id = int(kmer_id)
 
                             if isfloat(_count):
+                                s = findall_float.match(_count)
+                                if s is not None:
+                                    count = float(_count)
+                                else:
+                                    raise TypeError("kmerdb.fileutil.KDBReader._slurp | couldn't properly detect float")
                                 count = float(_count)
                                 logger.info("Determining the type of data in the file1...")
                                 logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                             else:
-                                count = int(_count)
                                 logger.info("Determining the type of data in the file2...")
                                 logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
-                                #logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, frequency))
+                                logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, _frequency))
+
+                                s = is_integer.match(_count)
+                                if s is not None:
+                                    count = int(_count)
+                                else:
+                                    raise TypeError("kmerdb.fileutil.KDBReader._slurp | couldn't properly detect integer")
+
                             frequency = float(count)/N
                             # Trying to get the needle threaded here.
                             # The goal is for the profile to be a running index, similar to the row number
