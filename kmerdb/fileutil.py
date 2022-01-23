@@ -428,11 +428,17 @@ class KDBReader(bgzf.BgzfReader):
                                 break
                             # Don't forget to not parse the metadata column [:-1]
 
-                            p, kmer_id, _count, _frequency, metadata = line.rstrip().split("\t")
-
+                            x, p, kmer_id, _count, _frequency, metadata = line.rstrip().split("\t")
+                            x = int(x)
+                            p = int(p)
+                            
                             logger.debug(line.rstrip())
 
                             logger.debug("{0}\t{1}\t{2}\t{3}".format(j, kmer_id, _count, _frequency))
+
+                            assert j == x, "Line number did not match"
+                            
+                            logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(x, p, kmer_id, _count, _frequency))
 
                             _frequency = float(_frequency)
                             kmer_id = int(kmer_id)
@@ -449,11 +455,13 @@ class KDBReader(bgzf.BgzfReader):
                                 logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                                 #logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, frequency))
                             frequency = float(count)/N
-                            self.profile[j] = j
+                            self.profile[j] = p
 
-                            self.kmer_ids[j] = kmer_id
-                            self.counts[j] = count
-                            self.frequencies[j] = _frequency
+
+                            self.profile[j] = p
+                            self.kmer_ids[p] = kmer_id
+                            self.counts[kmer_id] = count
+                            self.frequencies[kmer_id] = _frequency
 
                             #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                             try:
@@ -478,16 +486,11 @@ class KDBReader(bgzf.BgzfReader):
                             #     self.kmer_ids[j] = kmer_id
                             #     self.counts[kmer_id] = count
                             #     self.frequencies[kmer_id] = frequency
-                            profile.append(i)
-                            kmer_ids.append(kmer_id)
-                            counts.append(count)
-                            frequencies.append(frequency)
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
                         i += 1
 
-
+                        self.profile[j] = p
                         self.kmer_ids[j] = kmer_id
-                        self.profile[j] = kmer_id
                         self.counts[kmer_id] = count
                         self.frequencies[kmer_id] = frequency
                     except StopIteration as e:
@@ -531,16 +534,15 @@ class KDBReader(bgzf.BgzfReader):
                                 break
                             # Don't forget to not parse the metadata column [:-1]
 
-                            p, kmer_id, _count, _frequency, metadata = line.rstrip().split("\t")
+                            x, p, kmer_id, _count, _frequency, metadata = line.rstrip().split("\t")
 
                             logger.debug(line.rstrip())
 
                             logger.debug("{0}\t{1}\t{2}\t{3}".format(j, kmer_id, _count, _frequency))
 
                             _frequency = float(_frequency)
+                            p = int(p)
                             kmer_id = int(kmer_id)
-                            kmer_ids.append(kmer_id)
-                            profile.append(kmer_id)
 
                             if isfloat(_count):
                                 count = float(_count)
@@ -552,12 +554,15 @@ class KDBReader(bgzf.BgzfReader):
                                 logger.info("File counts at {0}, file frequency = {1}".format(count, _frequency))
                                 #logger.debug("kmer_id: {0}, count: {1}, frequency: {2}".format(kmer_id, count, frequency))
                             frequency = float(count)/N
-                            self.profile[j] = j
-
-                            self.kmer_ids[j] = kmer_id
-                            self.counts[j] = count
-                            self.frequencies[j] = _frequency
-
+                            # Trying to get the needle threaded here.
+                            # The goal is for the profile to be a running index, similar to the row number
+                            # But this could maintain lexical sort order
+                            # 
+                            self.profile[j] = p
+                            self.kmer_ids[p] = kmer_id
+                            self.counts[kmer_id] = count
+                            self.frequencies[kmer_id] = _frequency
+                            i+=1
                             #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                             try:
                                 if isfloat(_frequency):
@@ -581,18 +586,8 @@ class KDBReader(bgzf.BgzfReader):
                             #     self.kmer_ids[j] = kmer_id
                             #     self.counts[kmer_id] = count
                             #     self.frequencies[kmer_id] = frequency
-                            profile.append(i)
-                            kmer_ids.append(kmer_id)
-                            counts.append(count)
-                            frequencies.append(frequency)
                         logger.debug("The {0}th line was kmer-id: {1} with an abundance of {2}".format(j, kmer_id, count))
-                        i += 1
 
-
-                        self.kmer_ids[j] = kmer_id
-                        self.profile[j] = kmer_id
-                        self.counts[kmer_id] = count
-                        self.frequencies[kmer_id] = frequency
 
                         logger.debug("Validating shape prior to if unsorted is True")
                         logger.debug("Number of lines read: {0}".format(i))
@@ -632,20 +627,18 @@ class KDBReader(bgzf.BgzfReader):
                 logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
                 if sort is True:
                     # If the file is sorted, do not sort
-                    kmer_ids_sorted_by_count = np.lexsort(list(zip(self.kmer_ids, self.counts)))
-
-                    print(kmer_ids_sorted_by_count[0:5])
+                    kmer_ids_sorted_by_count = np.lexsort((self.kmer_ids, self.counts))
                     for i, idx in enumerate(kmer_ids_sorted_by_count): # This is right, not fixing this.
-                        p = i
-                        kmer_id = kmer_ids[i]
-                        count = counts[idx]
+                        p = self.profile[i]
+                        kmer_id = self.kmer_ids[p]
+                        count = self.counts[idx]
 
-                        logger.debug("{0}\t{1}\t{2}\t{3}".format(p, idx, kmer_id, count))
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(i, p,  kmer_id, count))
                         # I stand corrected
-                        self.kmer_ids[i] = kmer_ids[idx]
-                        self.profile[i] = profile[idx]
-                        self.frequencies[idx] = frequencies[idx]
-                        self.counts[idx] = counts[idx]
+                        #self.profile[i] = profile[i]
+                        #self.kmer_ids[i] = kmer_ids[profile[i]]
+                        #self.counts[idx] = counts[idx]
+                        ###self.frequencies[idx] = frequencies[idx]
                         logger.debug("Just in casey eggs and bakey...")
 
             else:
