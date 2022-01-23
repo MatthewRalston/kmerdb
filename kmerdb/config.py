@@ -129,25 +129,52 @@ https://github.com/MatthewRalston/kdb
 Copyright 2020 Matt Ralston (mrals89@gmail.com)
 
 # First links
+==========================================-
+
+|      Project     p a g e               |
+
+===========================================
+
 https://matthewralston.github.io/kmerdb
+
+===========================================
+
+|     P y P I                             |
+
+===========================================
 https://pypi.org/project/kmerdb/
+
+
+===========================================
+
+|          G i t h u b                    |
+
+===========================================
+
 https://github.com/MatthewRalston/kdb
+
+
+============================================
+
+|   N o t   Very   H u m e r u s           |
+
+============================================
 https://matthewralston.github.io/blog/kmer-database-format-part-1
 
 Please cite my repository in your work!
 
 Feel free to e-mail me or reach out!
 
-Reddy47 - Matt Ralston on Spotify
+|||Reddy47||| - Matt Ralston on Spotify
 On top : what she sounds like when she's on top of the logging aesthetics.
 Aston Martin Music : what she sounds like when she's on air in the logging aesthetics.
 Pemex : A dichotomy between a wreckage and it's stubborn bgzf format. Just here for the noise, bass, and the smoke.
 Sipping on Yak: What she sounds like when she's purring along in her new dtype specifications. Where did that come from... this stuff is kind of cool...
 Death by Dishonor: What she sounds like when the fileutil slurps into memory. I have generally no idea how she sounds when things are running right, but this song give me the sense of urgency and mystery to keep listening.
-Bury Me: Generally I feel like Link falling into the dust behind the debugger, the part of the day that slips away. "I don't wanna sleep tonight FontFace DarkandMyterioso." When the logger messages come colliding together to help pinpoint where something was being printed out vs not being shown as the program executes in its path of execution, which doesn't always print messages in order, we get what we can and then make issues from the little we get in to provide directional information about where in the code the issues are locking up or breaking in to.
 Belial | Nit Grit : What she sounds like when she's churning through the lexical sort on the primary index. Distinguishing the count from the k-mer id is difficult to describe. 1:30 on, anyways. Checking in. And when the fileutil is barely dressing up the issues relating to absorption issues.
 Who Dat? - Terror Reid, Getter
 
+The soundtrack to my program. \s Also, hi mom.
 
 """
 DONE = """
@@ -186,6 +213,8 @@ kmerdb matrix DESeq2 test/data/*.8.kdb
 kmerdb matrix Frequency test/data/*.8.kdb
 
 pass <==/==> don't normalize, adjust frequencies, perform any modification of k-mers.
+
+This is what 95% of people are looking for: aggregating profiles into tabular .tsv format.
 
 Matrix generation beginning!
 
@@ -234,11 +263,13 @@ The workflow is roughly as follows:
 #
 # -k $K is the parameter that specifies the k-mer resolution
 #
-# This command uses PostgreSQL behind the scenes for on-disk k-mer counting
+# This command used to use PostgreSQL behind the scenes for on-disk k-mer counting
 # since memory is limiting for profile generation when dealing 
 # with biologically conventional choices of k (20 < k < 35).
+#
+# Now we're all in memory.
 # I STRONGLY SUGGEST YOU START WITH MORE MODERATE CHOICES OF K (10 < k < 15)
-parallel 'kmerdb profile -k $K -pg $PG_CONN_URI {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
+parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
 
 
 
