@@ -72,6 +72,16 @@ CLI Usage
 kmerdb --help
 # Build a [composite] profile to a new or existing .kdb file
 kmerdb profile -k 8 example1.fq.gz example2.fq.gz profile.8.kdb
+
+# View the raw data
+kmerdb view profile.8.kdb # -H for full header
+
+# View the header
+kmerdb header profile.8.kdb
+
+# Collate the files
+kmerdb matrix -p $cores pass *.8.kdb
+
 # Calculate similarity between two (or more) profiles
 kmerdb distance correlation profile1.kdb profile2.kdb (...)
 ```
@@ -89,7 +99,23 @@ IUPAC residues (ATCG+RYSWKM+BDHV) are kept throughout the k-mer counting. But no
 
 Check out the [main webpage](https://matthewralston.github.io/kmerdb) and the [Readthedocs documentation](https://kdb.readthedocs.io/en/stable/), with examples and descriptions of the module usage.
 
+Important features to usage that may be important may not be fully documented.
+
+For example, the IUPAC treatment is largely custom, and does the sensible thing when ambiguous bases are found in fasta files, but it could use some polishing.
+
+In addition, the '`N`' residue rejection creates gaps in the k-mer profile from the real dataset by admittedly ommitting certain k-mer counts.
+This is one method for counting k-mers and handling ambiguity. Fork it and play with it a bit.
+
+Also, the parallel handling may not always be smooth, if you're trying to load dozens of 12+ mer profiles into memory. This would especially matter in the matrix command, before the matrix is generated. You can use single-core if your machine can't collate that much into main memory at once, depending on how deep the fastq dataset is, and the `--block-size` parameter in `kmerdb profile` is likely going to facilitate your memory overhead by reading chunks of `--block-size` reads into memory at once while accumulating the k-mer counts in a `uint64` array. Even when handling small-ish k-mer profiles, you may bump into memory overheads rather quickly. 
+
+Besides that, I'd suggest reading the source, the differente elements of the [main page](https://matthewralston.github.io/kmerdb) or the [RTD documentation](https://kdb.readthedocs.io/en/stable/).
+
+
+
+
 ## Development
+
+https://matthewralston.github.io/kmerdb/developing
 
 ```bash
 python setup.py test
