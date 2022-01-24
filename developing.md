@@ -1,8 +1,8 @@
 ---
-title: Quickstart
+title: Developing
 layout: post
-description: 'Everything you need to get started'
-image: assets/images/dna3.gif
+description: 'Everything you need to get started developing with kmerdb'
+image: assets/images/Python-transparent-greyscale.png
 nav-menu: true
 toc: true
 ---

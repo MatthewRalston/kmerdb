@@ -120,30 +120,27 @@ optional arguments:
 A typical workflow first requires the generation of k-mer profiles. Complete metadata for each k-mer can be saved to the same database with `--all-metadata`. Note that this could cause significant increases in file size depending on the total k-mer coverage and the sequencing complexity. It is not recommended to experiment with `--all-metadata` at this time. Instead, we focus our attention on the numbers rather than the graph structure. Note that while individual profiles may be composite (i.e. you could mimic your own metagenomic compositions with downsampled fastq files to adjust proportions), the counts are stored in aggregate. All k-mer counts are stored in the header metadata, per-file.
 
 ```bash
-usage: kmerdb profile [-h] [-v] [-p {1,2,3...}] [-pq PARALLEL_FASTQ] [--batch-size BATCH_SIZE] [-b FASTQ_BLOCK_SIZE] [-n N] [--strand-specific] [--all-metadata]
-                      [--sparse] [-k K]
-                      <.fasta|.fastq> [<.fasta|.fastq> ...] kdb
+usage: kmerdb profile [-h] [-v] [-k K] [-p PARALLEL] [--batch-size BATCH_SIZE] [-b FASTQ_BLOCK_SIZE] [-n N] [--both-strands] [--all-metadata] [--sorted] <.fasta|.fastq> [<.fasta|.fastq> ...] kdb
 
 positional arguments:
   <.fasta|.fastq>       Fasta or fastq files
   kdb                   Kdb file
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v, --verbose         Prints warnings to the console by default
-  -p {1,2,3...}, --parallel {1,2,3...}
+  -k K                  Choose k-mer size (Default: 12)
+  -p PARALLEL, --parallel PARALLEL
                         Shred k-mers from reads in parallel
-  -pq PARALLEL_FASTQ, --parallel-fastq PARALLEL_FASTQ
-                        The number of blocks to read in parallel for reading fastqs
   --batch-size BATCH_SIZE
                         Number of updates to issue per batch to PostgreSQL while counting
   -b FASTQ_BLOCK_SIZE, --fastq-block-size FASTQ_BLOCK_SIZE
                         Number of reads to load in memory at once for processing
   -n N                  Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation
-  --strand-specific     Retain k-mers from the forward strand of the fast(a|q) file only
+  --both-strands        Retain k-mers from the forward strand of the fast(a|q) file only
   --all-metadata        Include read-level k-mer metadata in the .kdb
-  --sparse              Whether or not to store the profile as sparse
-  -k K                  Choose k-mer size (Default: 12)
+  --sorted              Sort the output kdb file by count
+
 ```
 
 
@@ -161,33 +158,47 @@ It is worth noting that the 'files' attribute contains an array of file metadata
 
 ```bash
 # This should display the entire header of most files
->zcat test/data/foo.12.kdb | head -n 30 
+>zcat test/data/Cdiff.8.kdb | head -n 30 
 # This will also display just the header
->kmerdb header test/data/foo.12.kdb
+>kmerdb header test/data/Cdiff.8.kdb
 # The -H flag includes the header in the uncompressed output
->kmerdb view -H test/data/foo.12.kdb
-version: 0.0.2
-metadata_blocks: 1
-k: 12
-metadata: false
-tags: []
+>kmerdb view -H test/data/Cdiff.8.kdb
+count_dtype: uint64
 files:
-- filename: test/data/Cacetobutylicum_ATCC824.fasta.gz
-  md5: 919357d5173cfa372e1e9a0f2b89c996
+- filename: test/data/Cdifficile_R3.fasta
+  md5: ac539883c5104301f3d21de0c3813ad5
   mononucleotides:
-	  A: 1427820
-	  C: 637998
-	  G: 640100
-	  T: 1426962
-  nullomers: 12880136
-  sha256: b98be262a9904a3c2f84caa455679b7cebab7b2e9e15ca3105c69e001595abd6
-  total_kmers: 8265716
-  total_reads: 2
-  unique_kmers: 3897080
+    A: 1444649
+    C: 601738
+    G: 590294
+    T: 1456466
+  nullomers: 2337
+  sha256: a96df44a1661bfa6db54b976da2ab0880e842c790188f7f18bb2b8b85f9caafc
+  total_kmers: 4093140
+  total_reads: 1
+  unique_kmers: 63199
+frequencies_dtype: float64
+header_offset: 362
+k: 8
+kmer_ids_dtype: uint64
+metadata: false
+metadata_blocks: 1
+profile_dtype: uint64
+sorted: true
+tags: []
+total_kmers: 4093140
+unique_kmers: 63199
+unique_nullomers: 2337
+version: 0.6.3
 
-0       4
-1       1
-2       0
+
+========================
+0	1126	64835	0	0.0
+1	1379	64140	0	0.0
+2	1382	65205	0	0.0
+3	1386	65501	0	0.0
+4	1390	64989	0	0.0
+
 ...
 ```
 

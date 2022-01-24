@@ -23,11 +23,11 @@ In this case we generate a matrix X that can be unnormalized, normalized, or wit
 kmerdb profile -k $k input1.fa input1.kdb # $k represents some common choice of k.
 kmerdb profile -k $k input2.fa input2.kdb # Repeat via bash code as necessary to generate all inputs
 # Compound profiles
-#kmerdb profile -k $k input1.fa input2.fa input3.fa first_three.kdb
-#kmerdb profile -k $k input4.fa input5.fa input6.fa second_three.kdb
+#kmerdb profile -k $k -p 3 input1.fa input2.fa input3.fa first_three.kdb
+#kmerdb profile -k $k -p 3 input4.fa input5.fa input6.fa second_three.kdb
 
 # Unnormalized count matrix
-kmerdb matrix Unnormalized *.$k.kdb > X.tsv 
+kmerdb matrix -p $cores pass *.$k.kdb > X.tsv 
 # In this case, X.tsv is a tsv for import into Pandas
 ```
 
@@ -45,6 +45,10 @@ Then, you can use the tsv as input to further exporatory steps such as clusterin
 ```bash
 # Generate a Spearman correlation coefficient distance matrix
 kmerdb distance spearman X.tsv
+# Calculate the ssxy/sqrt(ssxx*ssyy) Pearson correlation coefficient
+kmerdb distance pearson X.tsv
+# Use SciPy to calculate correlation distance
+kmerdb distance correlation X.tsv
 #cat X.tsv | kmerdb distance spearman STDIN # or '/dev/stdin', has a bizarre syntax for reading from STDIN
 # kmerdb distance -h
 

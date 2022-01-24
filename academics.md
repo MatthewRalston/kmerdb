@@ -38,9 +38,12 @@ To this end, we discuss key research topics such as the juxtaposition of alignme
 
 Here we discuss the underlying bioinformatic techniques behind both alignment and assembly and use this discussion to present a novel alignment-free framework for metagenomic species decomposition, bacterial species inference, metagenome simulation, and Markov probabilities.
 
-A principle challenge in the acceleration and automation of bioinformatic analyses based on Illumina Next Generation Sequencing (NGS) and other platforms is the abstraction of conventional alignment-based methods into an alignment-free analytical space. Bioinformatics is expected to be rate-limiting in the modern biological discovery process, with the recent dramatic reductions in the cost of sequencing leading to mountains of raw data for analysis. Quick, efficient, and accurate methods are needed to identify sequences, quantify abundances, estimate mutational likelihoods, and explore the sequence similarity space.
+A principle challenge in the acceleration and automation of bioinformatic analyses based on Illumina Next Generation Sequencing (NGS) and other platforms is the abstraction of conventional alignment-based methods into an alignment-free analytical space. Bioinformatics is expected to be rate-limiting in the modern biological discovery process, with the recent dramatic reductions in the cost of sequencing leading to mountains of raw data for analysis. Quick, efficient, and accurate methods are needed to identify sequences, quantify abundances, estimate mutational likelihoods, and explore the sequence similarity space. We happen to do almost none of these things in this framework.
 
-The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. Now we advocate for data structures, algorithms, and concepts of sequence identity/similarity beyond the concepts of reference sequences and alignment. This first advantage is leveraged through metagenome simulation to compare our k-mer counter with others, and to explore the differences between idealized fidelity of the simulated metagenomic fractions under simulated subsampling conditions versus the behavior of real world metagenomic samples. 
+Instead we provide the user with matrices for their own interpretation and analysis. Basic phylogenetic is a function of both properly assembled and high-quality Illumina sequencing datasets and is the principle goal of this software. We provide the raw matrices and scipy distance matrices for the user to explore. 
+
+
+The first advantage of the so-called "alignment-free" methods is the flexibility to leverage reference sequences when the information is available, but to not restrict the effective utilization rate of the dataset to that which can be aligned with absolute certainty. Now we advocate for data structures, algorithms, and concepts of sequence identity/similarity beyond the concepts of reference sequences and alignment. This first advantage is leveraged through phylogenetic analysis to compare our k-mer counter with others, to understand similarity metrics as a function of k and sequencing depth, and to explore the differences between idealized fidelity of the simulated metagenomic fractions under simulated subsampling conditions versus the behavior of real world metagenomic samples. 
 
 The second advantage of foregoing the expensive quadratic mapping step (which is required in conventional alignment-based sequencing pipelines) is the comparable accuracy with which expression measurements (Kallisto) and mutations can be called (e.g. Kevlar, Cell 2019). This presents the opportunity to discuss the role of the minimizer and k-mer as an exposable data layer to promote the comparison of indexing and k-mer/minimizer-generating strategies.
 
@@ -48,7 +51,9 @@ Here I provide a brief primer on the two branches of nucleic acid sequencing bio
 
 ## What are K-mer spectra
 
-The first step of many bioinformatic algorithms is to generate the counts of all length k subsequences in the dataset. This vector may be thought of as the k-mer spectra at that choice of k. This k-mer count histogram can be thought of as a kind of genomic or transcriptomic spectrum, a charactristic curve describing the dataet in terms of both the species of interest and the abundance of certain subsequences. Those subsequence subspectra and corresponding "abundance" measurements (the k-mer count vector) are in an additive space with the complete spectra of the organism, the transcribed regions only, and the intergenic regions as well.
+The first step of many bioinformatic algorithms is to generate the locations (and perhaps counts) of all length k subsequences in the dataset. The spectra is just the count vector itself, while the deBrujin graph or suffix-array based index data structure identifies the locations of the k subsequences.
+
+This k-mer count histogram can be thought of as a kind of genomic or transcriptomic spectrum, a charactristic curve describing the dataet in terms of both the species of interest and the abundance of certain subsequences. Those subsequence subspectra and corresponding "abundance" measurements (the k-mer count vector) are in an additive space with the complete spectra of the organism, the transcribed regions only, and the intergenic regions as well.
 
 Because of this additive nature between genes and genomes, genomes and metagenomes etc., ratios of composition in uncharacterized metagenomes may be estimated when reference sequences are provided through the method of least squares.
 
@@ -58,7 +63,7 @@ Alignment-free methods are more flexible in their sequencing inputs, in a figura
 
 K-mer databases are the backbone of modern bioinformatic sequence alignment (e.g. seed regions, minimizers, etc.) and sequence assembly algorithms (e.g. deBruijn graphs). The topic of alignment-free methods and in particular, the k-mer spectra abstraction layer, has received considerable attention in the literature for its efficiency and because of its broad applicability.
 
-## Linear vs quadratic runtime
+## Linear vs quadratic runtime in pseudo-aligners (which this is not)
 
 Alignment-free methods can produce quantifications faster and with comparable accuracy to genomic/transcriptomic alignment-based quantification. Several challenges remain including the choice of correct distribution and statistical framewok for modeling and hypothesis testing. 
 
@@ -105,11 +110,11 @@ The technical specifications for Argo2 are given below
 
 # Current state
 
-There have been 3 pre-releases in the codebase thus far, and we are on version number 0.0.7. The codebase has changed into a sophisticated on-disk k-mer counting strategy, with multiple parallelization options. The first of which is native OS parallelism using something like GNU parallels to run the program on many genomes or metagenomes, simultaneously. The second parallelization option use the Python3 multiprocessing library, particularly for processing fastq datasets.
 
-When I say on-disk, I mean the file format I've created is essentially an indexed database. This allows rapid access to sequential transition probabilities, on-disk, during a random walk representing a Markov process. This is a key feature for anyone who wants to seriously traverse a 4<sup>k</sup> dimensional space.
 
-The codebase also currently contains a randomization feature, distance matrices, arbitrary interoperability with Pandas dataframes, clustering features, normalization, standardization, and dimensionality reduction. The suite is currently ready for a regression feature that I've promised, and I'd like to implement this early this Spring. Next, I'd be interested in working on the following features that would make the suite ready for another beta release. 
+The numerical backbone of the project has been solidified, more sanity checks and assertions throughout runtime. The memory tends to be an issue even for mild choices of k. We are now using 'uint64' and 'float64' for indexes, counts, and frequencies. Parallelization has been improved in the matrix command for 'quick' loading of count profiles into memory. Currently KDBReader is lazy load, only reading the header metadata when file is first opened. Behavior other than the 'slurp()' and '_slurp' methods are decided only by the source and Bio.bgzf module. In principle, you could read the file line-by-line if you wanted to, but the behavior is sufficient at the moment for acceptance testing.
+
+In addition to these 'features' my focus has been mostly focused on getting the ideal Pearson and Spearman correlation coefficients to understand profile fidelity behavior.
 
 
 
