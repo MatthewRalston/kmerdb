@@ -134,6 +134,8 @@ def markov_probability(arguments):
     sys.stderr.write(DONE)
                     
 def distances(arguments):
+    from multiprocessing import Pool
+
     import pandas as pd
     import numpy as np
     from scipy.spatial.distance import pdist, squareform
@@ -143,7 +145,14 @@ def distances(arguments):
     n = len(arguments.input)
 
     if len(arguments.input) > 1:
-        files = list(map(lambda f: fileutil.open(f, 'r'), arguments.input))
+        futil = fileutil.FileUtil(arguments)
+        if arguments.parallel > 1:
+            with Pool(processes=arguments.parallel) as pool:
+                files = pool.map(futil.load_file, arguments.input)
+        else:
+            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+
+        
         logger.debug("Files: {0}".format(files))
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
@@ -161,11 +170,11 @@ def distances(arguments):
         
         if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One or more files did not have dtype = {0}".format(suggested_dtype))
-        data = [kdbrdr.profile for kdbrdr in files]
-        #profiles = np.transpose(np.array(data, dtype=suggested_dtype))
-        #profiles = np.array(data, dtype=suggested_dtype)
-        profiles = np.transpose(data)
-        logger.debug("Dammit, wrong dimensionality")
+
+        data = [kdbrdr.counts for kdbrdr in files]
+        logger.info(data)
+        pure_data = np.array(data, dtype=suggested_dtype)
+        profiles = np.transpose(pure_data)
 
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
@@ -181,7 +190,6 @@ def distances(arguments):
             raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns, len(files))))
         logger.debug("Shape: {0}".format(profiles.shape))
         logger.info("Converting arrays of k-mer counts into a pandas DataFrame...")
-        df = pd.DataFrame(profiles)
         #columns = list(df.columns) # I hate this language, it's hateful.
         n = len(columns)
     elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
@@ -192,8 +200,9 @@ def distances(arguments):
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
-        profiles = np.array(df)
+        profiles = np.transpose(np.array(df))
         columns = list(df.columns)
+        assert profiles.shape[0] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
         n = len(columns)
 
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
@@ -203,9 +212,10 @@ def distances(arguments):
             logger.error(e)
             logger.error("Pandas error on DataFrame reading. Perhaps a null dataset being read?")
             sys.exit(1)
-        profiles = np.array(df)
+        profiles = np.transpose(np.array(df))
         columns = list(df.columns) # I'm sorry I ever made this line. Please forgive me.
         # This is just gratuitous code and language. I'm really really not sure what I want to express here.
+        assert profiles.shape[0] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
         n = len(columns)
     elif len(arguments.input) == 1 and os.path.splitext(arguments.input[0])[-1] == ".kdb":
         logger.error("Not sure why you'd want a singular distance.")
@@ -243,6 +253,8 @@ def distances(arguments):
                     logger.debug("Info: ixj {0}x{1}".format(i, j))
                     
                     if arguments.metric == "pearson":
+
+                        logger.error("{0}".format(type(profiles[i])))
                         logger.info("Computing custom Pearson correlation coefficient...")
                         data[i][j] = distance.correlation(profiles[i], profiles[j])
                     elif arguments.metric == "euclidean":
@@ -292,6 +304,8 @@ def get_matrix(arguments):
     logging.getLogger('matplotlib.font_manager').disabled = True
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
+    from multiprocessing import Pool
+    
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -303,7 +317,14 @@ def get_matrix(arguments):
 
     
     if len(arguments.input) > 1:
-        files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+
+        futil = fileutil.FileUtil(arguments)
+        if arguments.parallel > 1:
+            with Pool(processes=arguments.parallel) as pool:
+                files = pool.map(futil.load_file, arguments.input)
+        else:
+            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+
         if arguments.k is None:
             arguments.k = files[0].k
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
@@ -1250,10 +1271,10 @@ def cli():
 
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    matrix_parser.add_argument("-p", "--parallel", type=int, default=1, help="Read files in parallel")
     matrix_parser.add_argument("--with-index", default=False, action="store_true", help="Print the row indices as well")
     matrix_parser.add_argument("--column-names", default=None, type=str, help="A filepath to a plaintext flat file of column names.")
     matrix_parser.add_argument("--delimiter", default="\t", type=str, help="The choice of delimiter to parse the input .tsv with. DEFAULT: '\t'")
-    matrix_parser.add_argument("-d", "--dtype", default="uint32", type=str, choices=["uint32", "uint64", "float32", "float64"], help="Data type to read into memory. DEFAULT: 'uint32'")
     matrix_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. DEFAULT: '\t'")
         
     #matrix_parser.add_argument("--normalize-with", type=str, choices=["ecopy", "DESeq2"], default="DESeq2", help="Normalize with which method? DEFAULT: DESeq2")
@@ -1297,7 +1318,7 @@ def cli():
     dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     dist_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
-    dist_parser.add_argument("-d", "--dtype", type=str, default="uint32", choices=["uint32", "uint64", "float32", "float64"], help="Choice of data type to read data into memory with. Default: 'uint32'")
+    dist_parser.add_argument("-p", "--parallel", type=int, default=1, help="Read files in parallel")
     dist_parser.add_argument("--column-names", type=str, default=None, help="A filepath to a plaintext flat file of column names.")
     dist_parser.add_argument("--delimiter", type=str, default="\t", help="The delimiter to use when printing the csv.")
     dist_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
