@@ -46,14 +46,28 @@ identity = {
 #
 #
 #
-def correlation(counts1:np.array, counts2:np.array, dtype="uint64"):
+def correlation(counts1:np.ndarray, counts2:np.ndarray):
+    """
+    A custom correlation function. Returns
 
+    ssxy over the square-root of ssxx*ssyy
+
+    :param counts1: The counts array
+    :type counts1: numpy.ndarray
+    :param counts2: The second counts array
+    :type counts2: numpy.ndarray
+    :returns: float
+    :rtype: float
+    
+    """
     if type(counts1) is not np.ndarray:
         raise TypeError("kmerdb.distance.correlation expects a NumPy array as its first positional argument")
     elif type(counts2) is not np.ndarray:
         raise TypeError("kmerdb.distance.correlation expects a NumPy array as its second positional argument")
+    elif counts1.shape != counts2.shape:
+        raise TypeError("kmerdb.distance.correlation expects the NumPy arrays to have the same dimension.")
     elif counts1.size != counts2.size:
-        raise TypeError("kmerdb.distance.correlation expects two equal size NumPy arrays as its first and second positional arguments.")
+        raise TypeError("kmerdb.distance.correlation expects two equal size NumPy arrays/vectors as its first and second positional arguments.")
     x_bar = np.sum(counts1)/counts1.size
     y_bar = np.sum(counts2)/counts2.size
 
