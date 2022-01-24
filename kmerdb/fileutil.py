@@ -841,8 +841,6 @@ class KDBWriter(bgzf.BgzfWriter):
 
 
 class FileReader:
-    def __init__(self, arguments):
-        self.arguments = arguments
 
     def load_file(self, f):
         self.file = open(f, 'r', slurp=False)
