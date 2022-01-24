@@ -48,9 +48,9 @@ identity = {
 #
 def correlation(counts1:np.array, counts2:np.array, dtype="uint64"):
 
-    if type(counts1) is not np.array:
+    if type(counts1) is not np.ndarray:
         raise TypeError("kmerdb.distance.correlation expects a NumPy array as its first positional argument")
-    elif type(counts2) is not np.array:
+    elif type(counts2) is not np.ndarray:
         raise TypeError("kmerdb.distance.correlation expects a NumPy array as its second positional argument")
     elif counts1.size != counts2.size:
         raise TypeError("kmerdb.distance.correlation expects two equal size NumPy arrays as its first and second positional arguments.")
