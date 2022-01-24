@@ -495,8 +495,8 @@ class KDBReader(bgzf.BgzfReader):
                                     if pis is not None:
                                         logger.warning("Matched frequency as integer: perhaps an error or a genuine zero...Reseting to zero")
                                         frequency = float(0)
-                                        logger.error("Starting frequency cast as integer | '{0}'".format(_frequency))
-                                        raise TypeError("Matched frequency to integer instead of float. Aborting.")
+                                        logger.error("Starting frequency cast as fresh float 0.0 | '{0}'".format(_frequency))
+                                        #raise TypeError("Matched frequency to integer instead of float. Aborting.")
                                     else:
                                         logger.info("Starting frequency cast as float | '{0}'")
                                         frequency = float(_frequency)
