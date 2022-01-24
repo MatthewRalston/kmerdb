@@ -223,7 +223,7 @@ def distances(arguments):
 
     logger.info("Custom calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
     
-    if arguments.metric in ["pearson", "correlation", "spearman", "EMD", "d2s"]:
+    if arguments.metric in ["pearson", "spearman", "EMD", "d2s"]:
         
         #files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
         data = [['' for x in range(n)] for y in range(n)]
@@ -242,9 +242,9 @@ def distances(arguments):
                     #print("Info: ixj {0}x{1}")
                     logger.debug("Info: ixj {0}x{1}".format(i, j))
                     
-                    if arguments.metric == "correlation" or arguments.metric == "pearson":
-                        logger.info("Computing custom correlation coefficient")
-                        data[i][j] = distance.correlation(files[i], files[j], k=suggested_k, dtype=suggested_dtype)
+                    if arguments.metric == "pearson":
+                        logger.info("Computing custom Pearson correlation coefficient...")
+                        data[i][j] = distance.correlation(profiles[i], profiles[j])
                     elif arguments.metric == "euclidean":
                         logger.info("Computing custom euclidean distance")
                         data[i][j] = distance.euclidean(profiles[i], profiles[j])
