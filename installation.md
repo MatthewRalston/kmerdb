@@ -43,6 +43,7 @@ Install locally for development
 ```bashn
 git clone git@github.com:MatthewRalston/kmerdb.git
 cd kdb
+# I know the following may be prone to fail, but I need to know if this is an issue, I always install from setup.py.
 pip install --no-cache-dir . # python setup.py install
 ```
 
