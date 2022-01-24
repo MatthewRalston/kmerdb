@@ -351,7 +351,12 @@ class KDBReader(bgzf.BgzfReader):
         self.profile_dtype = column_dtype
         self.count_dtypes = count_dtypes
         self.frequencies_dtype = frequencies_dtype
-
+        handle.close()
+        self._handle.close()
+        self._handle = None
+        handle = None
+        fileobj=None
+        return
 
         #
     def read_line(self):
@@ -394,6 +399,8 @@ class KDBReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be a valid numpy data type")
         if type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the sort keyword argument to be a bool")
+        if self._handle is None:
+            self._handle = _open(self._filepath, 'rb')
         # First calculate the amount of memory required by the array
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
         num_bytes = 4 * N
@@ -751,7 +758,10 @@ class KDBReader(bgzf.BgzfReader):
         return self.counts
 
     def slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
-        self._slurp(column_dtypes=column_dtypes, count_dtypes=count_dtypes, frequencies_dtype=frequencies_dtype, sort=sort)
+        if np.sum(self.counts) != 0:
+            return self.counts
+        else:
+            return self._slurp(column_dtypes=column_dtypes, count_dtypes=count_dtypes, frequencies_dtype=frequencies_dtype, sort=sort)
 
     
     
@@ -830,11 +840,14 @@ class KDBWriter(bgzf.BgzfWriter):
 
 
 
-class FileUtil:
+class FileReader:
     def __init__(self, arguments):
         self.arguments = arguments
 
-
     def load_file(self, f):
-        return open(f, 'r', slurp=True)
+        self.file = open(f, 'r', slurp=False)
+        return self.file
+
+    def slurp(self):
+        return self.file.slurp()
         
