@@ -687,6 +687,7 @@ class KDBReader(bgzf.BgzfReader):
                 if sort is True:
                     # If the file is sorted, do not sort
                     kmer_ids_sorted_by_count = np.lexsort((self.kmer_ids, self.counts))
+                    reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                     for i, idx in enumerate(kmer_ids_sorted_by_count): # This is right, not fixing this.
                         p = self.profile[i]
                         kmer_id = self.kmer_ids[p]
