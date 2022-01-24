@@ -145,13 +145,8 @@ def distances(arguments):
     n = len(arguments.input)
 
     if len(arguments.input) > 1:
-        futil = fileutil.FileUtil(arguments)
-        if arguments.parallel > 1:
-            with Pool(processes=arguments.parallel) as pool:
-                files = pool.map(futil.load_file, arguments.input)
-        else:
-            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
-
+        file_reader = fileutil.FileReader(arguments)
+        files = list(map(lambda f: fileutil.open(f, 'r', slurp=False), arguments.input))
         
         logger.debug("Files: {0}".format(files))
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
@@ -170,8 +165,14 @@ def distances(arguments):
         
         if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One or more files did not have dtype = {0}".format(suggested_dtype))
+        if arguments.parallel > 1:
+            with Pool(processes=arguments.parallel) as pool:
+                files = pool.map(file_reader.load_file, arguments.input)
+        else:
+            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
 
-        data = [kdbrdr.counts for kdbrdr in files]
+
+        data = [kdbrdr.slurp() for kdbrdr in files]
         logger.info(data)
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
@@ -318,12 +319,8 @@ def get_matrix(arguments):
     
     if len(arguments.input) > 1:
 
-        futil = fileutil.FileUtil(arguments)
-        if arguments.parallel > 1:
-            with Pool(processes=arguments.parallel) as pool:
-                files = pool.map(futil.load_file, arguments.input)
-        else:
-            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+        file_reader = fileutil.FileReader(arguments)
+        files = list(map(lambda f: fileutil.open(f, 'r', slurp=False), arguments.input))
 
         if arguments.k is None:
             arguments.k = files[0].k
@@ -342,7 +339,13 @@ def get_matrix(arguments):
         suggested_dtype = dtypes[0]
         if not all(kdbrdr.count_dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
-        data = [kdbrdr.counts for kdbrdr in files]
+        if arguments.parallel > 1:
+            with Pool(processes=arguments.parallel) as pool:
+                files = pool.map(file_reader.load_file, arguments.input)
+        else:
+            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+
+        data = [kdbrdr.slurp() for kdbrdr in files]
         logger.info(data)
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
