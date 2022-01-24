@@ -145,7 +145,7 @@ def distances(arguments):
     n = len(arguments.input)
 
     if len(arguments.input) > 1:
-        file_reader = fileutil.FileReader(arguments)
+        file_reader = fileutil.FileReader()
         files = list(map(lambda f: fileutil.open(f, 'r', slurp=False), arguments.input))
         
         logger.debug("Files: {0}".format(files))
@@ -319,7 +319,7 @@ def get_matrix(arguments):
     
     if len(arguments.input) > 1:
 
-        file_reader = fileutil.FileReader(arguments)
+        file_reader = fileutil.FileReader()
         files = list(map(lambda f: fileutil.open(f, 'r', slurp=False), arguments.input))
 
         if arguments.k is None:
