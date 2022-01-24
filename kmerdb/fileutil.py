@@ -351,7 +351,7 @@ class KDBReader(bgzf.BgzfReader):
         self.profile_dtype = column_dtype
         self.count_dtypes = count_dtypes
         self.frequencies_dtype = frequencies_dtype
-        
+
 
         #
     def read_line(self):
@@ -828,3 +828,13 @@ class KDBWriter(bgzf.BgzfWriter):
             logger.error("Mode: {}".format(mode.lower()))
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
 
+
+
+class FileUtil:
+    def __init__(self, arguments):
+        self.arguments = arguments
+
+
+    def load_file(self, f):
+        return open(f, 'r', slurp=True)
+        
