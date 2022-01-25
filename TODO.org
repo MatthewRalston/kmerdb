@@ -5,14 +5,15 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-* Code questions today
-** IndexErrors
-** TypeErrors
-** dtype coercion errors
-** Why does my code produce errors during numerical conversion?
-** Why is my code behaving in a way that confuses me?
-** Why don't I have mechanisms to identify why the numerical casting through Python from the file format, the file on disk, the uh, the input dataset. The prioritized uh microbial species makeup.")
-
+* Regression R^2 overhaul (Adjusted R^2)
+** RMS/SST/n-1
+** RMS = SSRes/(n-p) = ( yy' - Bhat'X'y ) / (n-p)
+** SST / (n-1) = y'y - squareOfSum / n
+** statsmodels
+** pos 1 (.kdb) vs all other pos (.tsv)
+*** simulated metagenome
+*** imbalanced total_kmers between ideal species
+*** 
 * Code maintenance
 ** TODO COMMENTS
 ** TODO Logging
