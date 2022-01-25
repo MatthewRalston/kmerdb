@@ -847,6 +847,18 @@ def header(arguments):
             print(config.header_delimiter)
             
 def view(arguments):
+    """
+    Another end-user function that takes an argparse Namespace object as its only input.
+    This function facilitates the primary view of the dataset. It is a flat file after all, so we just need
+    to display data properly to the user. This function is responsible for opening a KDBReader object,
+    slurping the contents into memory, assert format sanity checks, and then iterate over those contents to reproduce the file to stdout.
+    This function also has --un-sort and --re-sort features for sanity checking the sort order. Un-sort will un-sort a file onto just the k-mer id
+    The un-sort function will produce what 'kmerdb profile -k $k input.fa output.kdb' would produce without the --sorted flag.
+    The re-sort function will re-sort the list lexically according to count, and display the results on stdout.
+    The default action is to display the .kdb file exactly as it is, assuming that the parsing KDBReader stands up.
+
+    """
+    
     import numpy as np
     from kmerdb import fileutil, config, util, kmer
     import json
@@ -971,6 +983,23 @@ def view(arguments):
 
             
 def profile(arguments):
+    """
+    A complex, near-end user function that handles an arparse Namespace as its only positional argument
+
+    This function handles multiprocessing, NumPy type checking and array initialization, full metadata expansion if needed.
+
+    It also manages count aggregation across multiple fasta/fastq files as default.
+    
+    The function produces a composite profile from multiple inputs, possibly in parallel,
+
+    and provides functionality to produce a .kdb format file, while writing the same information (the full k-mer profile to stdout)
+
+    This behavior can be suppressed with the --quiet CLI option.
+
+    This function is also responsible for the sorting of output files.
+
+    The help menu for this function is your friend.
+    """
     from multiprocessing import Pool
     import json
     import time
@@ -1134,7 +1163,8 @@ def profile(arguments):
                     counts[idx] = counts[idx]
                     frequencies[idx] = frequencies[idx]
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
+                    if arguments.quiet is not True:
+                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[i], frequencies[i], json.dumps(kmer_metadata)))
                     j += 1
         else:
@@ -1152,8 +1182,8 @@ def profile(arguments):
                     all_metadata.append(kmer_metadata)
                     counts[idx] = counts[idx]
                     frequencies[idx] = frequencies[idx]
-
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
+                    if arguments.quiet is not True:
+                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i, idx in enumerate(kmer_ids):
@@ -1165,7 +1195,8 @@ def profile(arguments):
                     seq = kmer.id_to_kmer(int(kmer_id), arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     all_metadata.append(kmer_metadata)
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[i], frequencies[i]))
+                    if arguments.quiet is not True:
+                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[i], frequencies[i]))
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[i], frequencies[i], json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
@@ -1247,6 +1278,7 @@ def cli():
     profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
+    profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
 
     profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
