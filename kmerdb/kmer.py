@@ -79,42 +79,46 @@ class Kmers:
     
     :ivar k: The choice of k to shred with
     :ivar strand_specific: Include k-mers from forward strand only
+    :ivar verbose: print extra logging in the case of fasta files
+    :ivar all_metadata: return extra metadata about sequence locations
     """
-    def __init__(self, k, strand_specific=True, fasta=False, all_metadata=False):
+    def __init__(self, k, strand_specific=True, verbose=False, all_metadata=False):
         """
 
         :param k: The choice of k to shred with
         :type k: int
         :param strand_specific: Include k-mers from forward strand only
         :type strand_specific: bool
-        :param fasta: Whether or not to print extra logging in the case of fasta and not in the case of fastq
-        :type fasta: bool
+        :param verbose: Whether or not to print extra logging in the case of fasta and not in the case of fastq
+        :type verbose: bool
         :param all_metadata: Whether or not to pass back extra metadata
         :type all_metadata: bool
 
 
         """
         if type(k) is not int:
-            raise TypeError("kmerdb.kmer.Kmers.__init__() expects an int as its first positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects an int as its first positional argument")
         elif type(strand_specific) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its second positional argument")
-        elif type(fasta) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its third positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its second positional argument")
+        elif type(verbose) is not bool:
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its third positional argument")
         elif type(all_metadata) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers.__init__() expects a bool as its fourth positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its fourth positional argument")
         self.k = k 
         self.strand_specific = strand_specific
-        self.fasta = fasta
+        self.verbose = verbose
         self.all_metadata = all_metadata
         self.__permitted_chars = set("ACTGRYSWKMBDHVN")
 
     def shred(self, seqRecord):
         """
+        Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
+        Doublets become replace with two counts, etc.
 
         :param seqRecord: 
         :type seqRecord: Bio.SeqRecord.SeqRecord
-        :returns: 
-        :rtype: 
+        :returns: a parallel map 
+        :rtype: dict
 
         """
         
@@ -129,7 +133,7 @@ class Kmers:
         all_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
         all_non_iupac_symbols = list(letters - self.__permitted_chars)
         if len(all_non_iupac_symbols) > 0:
-            logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.fasta else "fastq"))
+            logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.verbose else "fastq"))
             logger.warning(list(letters - self.__permitted_chars))
             raise ValueError("Non-IUPAC symbols detected in the fasta file")
         elif len(all_iupac_symbols) > 0:
@@ -240,7 +244,7 @@ class Kmers:
                     logger.error("Unexpected behavior, rerun with -vv (DEBUG verbosity) to see more information")
                     raise RuntimeError("IUPAC standard extra base pairs (R, B, etc.) or non-IUPAC characters detected in the sequence")
             del s
-        if self.fasta:
+        if self.verbose:
             sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
             sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {2} unique k-mers\n\n{3} were discarded due to sequence content\n\n".format(len(seqRecord.seq), len(str(seqRecord.seq))-self.k+1, len(list(set(kmers))), len([x for x in kmers if x is None])))
         return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
@@ -264,7 +268,9 @@ def kmer_to_id(s):
 
     Therefore, this method does not need to be wrapped in the k-mer class
 
-    :param s: The input k-mer
+
+
+    :param s: The input k-mer as string
     :type s: str
     :returns: The kPal-inspired binary encoding
     :rtype: int
@@ -293,6 +299,16 @@ def kmer_to_id(s):
 
 
 def id_to_kmer(id, k):
+    """
+    Convert an id_to_kmer. I don't understand this docstring's purpose.
+
+    :param id: The int id is the input to the id_to_kmer conversion
+    :type id: int
+    :param k: The int k is used to byte convert the id to the sequence of characters
+    :type k: int
+    :returns: The k-mer as string
+    :rtype: str
+    """
     if type(id) is not int:
         logger.error(type(id))
         raise TypeError("kmerdb.id_to_kmer expects an int as its first positional argument")
@@ -310,6 +326,16 @@ def id_to_kmer(id, k):
 
 
 def neighbors(s, k):
+    """
+    Create the basic neighbors kmer_metadata dictionary. Soon to be deprecated.
+
+    :param s: The sequence as a string that will be sliced for k-mers
+    :type s: str
+    :param k: The int k 
+    :type k: int
+    :returns: The neighbors for a certain sequence s as a str
+    :rtype: dict
+    """
     if not isinstance(s, str):
         raise TypeError("kmerdb.kmer.neighbors expects a Biopython Seq object as its first positional argument")
     elif type(k) is not int:

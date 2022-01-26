@@ -76,11 +76,11 @@ NAME = 'kmerdb'
 DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
 URL = 'https://github.com/MatthewRalston/kmerdb'
-CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.0.4.tar.gz"
+CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.6.6.tar.gz"
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = "0.6.5"
+VERSION = "0.6.6"
 # What packages are required for this module to be executed?
 
 REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]

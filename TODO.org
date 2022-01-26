@@ -5,22 +5,43 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* Code maintenance
+** TODO COMMENTS [7/7]
+DEADLINE: <2022-01-29 Sat> SCHEDULED: <2022-01-27 Thu>
+  - [X] util
+    - [X] merge_metadata_lists [3/3]
+      - [X] k
+      - [X] meta_metadata_list = meta_metadata_list[i] + metadata
+      - [X] new_kmer_metadata
+    - [X] represent_orderedDict
+      - [X] dumper
+      - [X] data
+      
+  - [X] kmer
+  - [X] distance
+  - [X] __init__
+  - [X] seqparser
+  - [X] fileutil
+  - [X] parse
+** TODO Logging
+** TODO Revisit Sphinx documentation
+** TODO Unit tests
+** Acceptance tests
+** Variable naming
+* New branch is called numpy_pearson
+** Still debugging the install at this point.
+** Stackoverflow issue at: https://stackoverflow.com/questions/70859444/cythonize-installs-so-files-to-wrong-location
+** Gonna shelve this for a bit until we get a response.
+
 * Regression R^2 overhaul (Adjusted R^2)
 ** RMS/SST/n-1
 ** RMS = SSRes/(n-p) = ( yy' - Bhat'X'y ) / (n-p)
 ** SST / (n-1) = y'y - squareOfSum / n
 ** statsmodels
-** pos 1 (.kdb) vs all other pos (.tsv)
+** pos 1 (composite.kdb) vs suspected constituent (.tsv)
 *** simulated metagenome
 *** imbalanced total_kmers between ideal species
-*** 
-* Code maintenance
-** TODO COMMENTS
-** TODO Logging
-** TODO Revisit Sphinx documentation
-** Unit tests
-** Acceptance tests
-** Variable naming
+
 * Essential features
 ** Genome size estimation
 ** UMAP

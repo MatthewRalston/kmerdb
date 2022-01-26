@@ -69,6 +69,12 @@ def isfloat(num):
     """
     Thanks to the author of:
     https://www.programiz.com/python-programming/examples/check-string-number
+
+
+    :param num: Check if a string is a float, or could be converted to a float
+    :type num: str
+    :returns: Whether or not the string can be parsed as a float
+    :rtype: bool
     """
     if type(num) is str:
         logger.debug("Type of number being interpreted through pure Python : {0}".format(type(num)))
@@ -164,6 +170,8 @@ def parse_line(line):
 def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False):
     """
     Opens a file for reading or writing. Valid modes are 'xrwbt'. 'metadata=' is needed when writing/creating.
+    Returns a lazy-loading KDBReader object or a KDBWriter object.
+    The data may be force loaded with 'slurp=True'
 
     :param filepath:
     :type filepath: str
@@ -171,6 +179,10 @@ def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False):
     :type mode: str
     :param metadata: The file header/metadata dictionary to write to the file.
     :type metadata: dict
+    :param sort: Sort on read the data into KDBReader
+    :type sort: bool
+    :param slurp: Immediately load all data into KDBReader
+    :type slurp: bool
     :returns: kmerdb.fileutil.KDBReader/kmerdb.fileutil.KDBWriter
     :rtype: kmerdb.fileutil.KDBReader
     """
@@ -213,6 +225,20 @@ def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False):
 
 
 class KDBReader(bgzf.BgzfReader):
+    """
+    A class that reads KDB files, potentially just for accessing header metadata, or for reading the entire contents into numpy arrays.
+    
+
+    :ivar filename: str
+    :ivar fileobj: io.IOBase
+    :ivar mode: str
+    :ivar max_cache: int
+    :ivar column_dtype: NumPy uint datatype
+    :ivar count_dtypes: Numpy uint datatype
+    :ivar frequencies_dtype: NumPy float datatype
+    :ivar sort: bool
+    :ivar slurp: bool
+    """
     def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, column_dtype:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False, slurp:bool=False):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
@@ -380,9 +406,6 @@ class KDBReader(bgzf.BgzfReader):
         
 
     def _slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
-        """
-        A function to read an entire .kdb file into memory
-        """
         if type(column_dtypes) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the column_dtypes keyword argument to be a str")
         elif type(count_dtypes) is not str:
@@ -758,6 +781,19 @@ class KDBReader(bgzf.BgzfReader):
         return self.counts
 
     def slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False):
+        """
+        A function to lazy-load an entire .kdb file into memory. 
+
+        :param column_dtypes: a NumPy uint datatype
+        :type column_dtypes: str
+        :param count_dtypes: a NumPy uint datatype
+        :type count_dtypes: str
+        :param frequencies_dtype: a NumPy float datatype
+        :type frequencies_dtype: str
+        :param sort: Whether or not to sort the columns?
+        :type sort: bool
+        """
+
         if np.sum(self.counts) != 0:
             return self.counts
         else:
@@ -766,6 +802,16 @@ class KDBReader(bgzf.BgzfReader):
     
     
 class KDBWriter(bgzf.BgzfWriter):
+    """
+    A wrapper class around Bio.bgzf.BgzfWriter to write a kdb file to disk.
+
+    :ivar metadata: OrderedDict
+    :ivar filename: str
+    :ivar mode: str
+    :ivar fileobj: io.IOBase
+    :ivar compresslevel: int
+    """
+    
     def __init__(self, metadata:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
         if not isinstance(metadata, OrderedDict):
