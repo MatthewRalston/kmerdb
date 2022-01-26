@@ -32,7 +32,14 @@ import Bio
 
 class SeqParser:
     """
-    Largely independent module, needs 3 pieces of information passed back in from the outside
+    Largely useless module, needs 3 pieces of information passed back in from the outside.
+    This performs ugly decompression of fasta and fastq files, patching the __next__ methods, effectively.
+    It allows you to read either fasta or fastq data in blocks, obviously useful for the latter.
+
+
+    :ivar filepath: The .fastq, .fastq.gz, .fasta, .fasta.gz, .fna, .fna.gz, .fa, or .fa.gz file.
+    :ivar num: The number of records to read in from a .fastq
+    :ivar k: The choice of k to initialize the calculation of kmer/nullomer counts.
     """
     def __init__(self, filepath, num, k):
         if type(filepath) is not str:
@@ -53,8 +60,6 @@ class SeqParser:
         self.total_kmers = 0
         self.unique_kmers = 0
         self.nullomers = 0
-        self.mononucleotides = {'A': 0, 'C': 0, 'G': 0, 'T': 0}
-        # 
         self.compressed = False
         self.fastq = False
         exts = os.path.splitext(filepath)
@@ -75,15 +80,14 @@ class SeqParser:
                 self.fastq = False
             else:
                 raise ValueError("Cannot parse files of extension '{0}'.\n\nRequires fasta (.fna, .fasta, .fa), fastq (.fq, .fastq), or their gzipped equivalents")
+
+        # This is a really ugly patch to add appropriate fastq and fasta next behavior.
         if self.fastq:
             self.__class__.__iter__ = self._iter_fastq
             self.__class__.__next__ = self._next_fastq
         else:
             self.__class__.__iter__ = self._iter_fasta
             self.__class__.__next__ = self._next_fasta
-
-                
-
                 
         if self.compressed:
             if self.fastq:
@@ -99,7 +103,6 @@ class SeqParser:
             else:
                 logger.info("Opening uncompressed fasta file '{0}'...".format(filepath))
                 self._handle = SeqIO.parse(open(self.filepath, 'r'), "fasta")
-
         # Get checksums
         self.md5, self.sha256 = self.__checksum()
 
@@ -120,10 +123,10 @@ class SeqParser:
         return (hash_md5.hexdigest(), hash_sha256.hexdigest())
 
     def header_dict(self):
-        """ Create a header dictionary to convert into YAML to go in the header block of the compression header. Has a schema to be validated, defined in config.py
+        """ Create a header dictionary to convert into YAML to go in the header block(s) of the compression header. Has a schema to be validated, defined in config.py
 
         :returns: dict
-        :rtype: 
+        :rtype: dict
 
         """
         return {
@@ -134,7 +137,6 @@ class SeqParser:
             "total_kmers": self.total_kmers,
             "unique_kmers": self.unique_kmers or 4**self.k - self.nullomers,
             "nullomers": self.nullomers,
-            "mononucleotides": self.mononucleotides
         }
             
     def __exit__(self, exc_type, exc_value, traceback):
@@ -145,14 +147,12 @@ class SeqParser:
         
         
     def _iter_fastq(self):
+        """A custom iterator method to add to the 'reads' array as iterated upon.
+        """
         try:
             for i in range(self.num):
-                self.reads.append(self._handle.__next__())
+                self.reads.append(next(self._handle))
         except StopIteration as e:
-            # with db._engine.connect() as conn:
-            #     self.nullomers = db.get_nullomers(conn).pop()
-            #     self.total_kmers = db.get_sum_counts(conn).pop()
-            #     self.unique_kmers = 4**k - self.nullomers
             pass
         except ValueError as e:
             logger.error(e)
@@ -161,20 +161,15 @@ class SeqParser:
         return self
 
     def _next_fastq(self):
+        """
+        A custom mononucleotide counter
+        
+        """
         if not len(self.reads):
             raise StopIteration
         else:
             self.total_reads += 1
-            #sys.stderr.write("\r")
-            #sys.stderr.write("Read {0} reads from '{1}'...".format(self.total_reads, self.filepath))
             read = self.reads.pop()
-            self.mononucleotides["A"] += read.seq.count('A')
-            self.mononucleotides["T"] += read.seq.count('T')
-            self.mononucleotides["C"] += read.seq.count('C')
-            self.mononucleotides["G"] += read.seq.count('G')
-            # If you needed to see the fastq mononucleotides go up during parsing
-            #sys.stderr.write("\r")
-            #sys.stderr.write("Mononucleotides | A: {0}, C: {1}, G: {2}, T{3}".format(self.mononucleotides["A"], self.mononucleotides["C"], self.mononucleotides["G"], self.mononucleotides["T"]))
             return read
 
     def _iter_fasta(self):
@@ -183,16 +178,8 @@ class SeqParser:
     def _next_fasta(self):
 
         seq = next(self._handle)
-        self.mononucleotides["A"] += seq.seq.count('A')
-        self.mononucleotides["T"] += seq.seq.count('T')
-        self.mononucleotides["C"] += seq.seq.count('C')
-        self.mononucleotides["G"] += seq.seq.count('G')
-
-        logger.debug("Mononucleotides | A: {0}, C: {1}, G: {2}, T: {3}".format(self.mononucleotides["A"], self.mononucleotides["C"], self.mononucleotides["G"], self.mononucleotides["T"]))
         self.total_reads += 1
-        sys.stderr.write("\r")
         sys.stderr.write("Read {0} sequences from '{1}'...\n".format(self.total_reads, self.filepath))
-        
         return seq
         
         
