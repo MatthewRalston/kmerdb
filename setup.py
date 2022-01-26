@@ -107,7 +107,7 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     download_url=CURRENT_RELEASE,
-    keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
+    keywords = ["k-mer", "kmer", "bioinformatics", "kmerdb", "kdb"],
     classifiers=[
         "Development Status :: 1 - Planning",
         "Intended Audience :: Developers",
@@ -119,6 +119,8 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Software Development :: Libraries :: Python Modules",
@@ -135,7 +137,7 @@ setup(
     install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
     extras_require=EXTRAS,
     include_package_data=True,
-    license='GPLv3+',
+    license='Apache-2.0',
     test_suite='test',
 #    tests_require=['mamba', 'expect'],
 )
