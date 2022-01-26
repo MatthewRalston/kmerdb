@@ -96,7 +96,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
 
     logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(total_kmers, counts.nbytes))
         # Instantiate the kmer class
-    Kmer = kmer.Kmers(k, strand_specific=not both_strands, fasta=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
+    Kmer = kmer.Kmers(k, strand_specific=not both_strands, verbose=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
     recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
     if not fasta:
