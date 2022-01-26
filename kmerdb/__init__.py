@@ -87,6 +87,12 @@ def shuf(arguments):
     sys.stderr.write(DONE)
     
 def markov_probability(arguments):
+    """
+    A very old function that is probably broken in the indexing function.
+    
+    :param arguments: argparse Namespace
+    :type arguments:
+    """
     import pandas as pd
     import numpy as np
     from kmerdb import fileutil, index, probability, seqparser
@@ -100,7 +106,7 @@ def markov_probability(arguments):
         arguments.kdbi = arguments.kdb + "i"
         #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
         profiles = np.array([], dtype="int64")
-        with fileutil.open(arguments.kdb, 'r') as kdb:
+        with fileutil.open(arguments.kdb, 'r', slurp=True) as kdb:
             k = kdb.metadata['k']
             with index.open(arguments.kdbi, 'r') as kdbi:
                 with seqparser.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
@@ -134,6 +140,9 @@ def markov_probability(arguments):
     sys.stderr.write(DONE)
                     
 def distances(arguments):
+    """
+    An end-user function to provide CLI access to certain distances
+    """
     from multiprocessing import Pool
 
     import pandas as pd
@@ -234,7 +243,7 @@ def distances(arguments):
 
     logger.info("Custom calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
     
-    if arguments.metric in ["pearson", "spearman", "EMD", "d2s"]:
+    if arguments.metric in ["pearson", "spearman"]:
         
         #files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
         data = [['' for x in range(n)] for y in range(n)]
@@ -259,6 +268,8 @@ def distances(arguments):
                         logger.info("Computing custom Pearson correlation coefficient...")
                         data[i][j] = distance.correlation(profiles[i], profiles[j])
                     elif arguments.metric == "euclidean":
+                        logger.error("Custom Euclidean distance is DEPRECATED")
+                        raise RuntimeError("Genuine bug, please report the usage of deprecated custom distance functions")
                         logger.info("Computing custom euclidean distance")
                         data[i][j] = distance.euclidean(profiles[i], profiles[j])
                     elif arguments.metric == "spearman":
@@ -267,8 +278,12 @@ def distances(arguments):
                         # FIXME! also print pval matrices
                         data[i][j] = cor
                     elif arguments.metric == "EMD":
+                        logger.error("Custom EMD distance is deprecated")
+                        raise RuntimeError("Genuine bug, please report the usage of deprecated custom distance functions")
                         data[i][j] = distance.EMD(profiles[i], profiles[j])
                     elif arguments.metric == "d2s":
+                        logger.error("Custom d2s distance is deprecated")
+                        raise RuntimeError("Genuine bug, please report the usage of deprecated custom distance functions")
                         data[i][j] = distance.d2s(profiles[i], profiles[j])
                     else:
                         logger.error("Other distances are not implemented yet")
@@ -824,6 +839,10 @@ def hierarchical(arguments):
         
 
 def header(arguments):
+    """
+    Another end-user function that takes an argparse Namespace object.
+    This function just reads the metadata header, can print in json.
+    """
     from kmerdb import fileutil, config, util
 
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
@@ -857,6 +876,9 @@ def view(arguments):
     The re-sort function will re-sort the list lexically according to count, and display the results on stdout.
     The default action is to display the .kdb file exactly as it is, assuming that the parsing KDBReader stands up.
 
+
+    :param arguments: argparse namespace
+    :type arguments: 
     """
     
     import numpy as np
@@ -999,6 +1021,9 @@ def profile(arguments):
     This function is also responsible for the sorting of output files.
 
     The help menu for this function is your friend.
+
+    :param arguments: argparse Namespace
+    :type arguments:
     """
     from multiprocessing import Pool
     import json
