@@ -11,13 +11,30 @@ try:
     from setuptools import find_packages
     from setuptools import setup
     from setuptools import Command
-    from setuptools import Extension
+    from setuptools.extension import Extension
+
 except ImportError:
     sys.exit(
-        "We need the Python library 'setuptools' to be installed."
+        "We need the Python library 'setuptools' and 'distutils' to be installed."
         "Try running: python -m ensurepip"
     )
 
+try:
+    from Cython.Build import cythonize
+    from Cython.Distutils import build_ext
+except ImportError:
+    sys.exit(
+        "We need the Python library 'cython' to be installed."
+        "Try running: pip install cython or conda install cython"
+        )
+
+try:
+    import numpy as np
+except ImportError:
+    sys.exit("Sadly, the extra feature of the Cython correlation function only works if NumPy is preinstalled, like in a conda environment.")
+    # If you're here, welcome to my program. Work with me here. What are you looking for? Pollute my issues.
+    # I can get rid of this NumPy requirement if I want, but then the bots will bias my dl numbers. Kthx.
+    
 if sys.version_info[:2] < (3, 7):
     sys.stderr.write(
         "KMERDB is tested on Python 3.7 or later. "
@@ -94,48 +111,106 @@ EXTRAS = {
 
     # 'fancy feature': ['django'],
 }
+if can_import('numpy') is not None:
+    import numpy as np
+    extensions = [
+        Extension("distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
+    ]
+    # Where the magic happens:
+    setup(
+        name=NAME,
+        version=VERSION,
+        description=DESCRIPTION,
+        long_description=long_description,
+        long_description_content_type='text/markdown',
+        author=AUTHOR,
+        author_email=EMAIL,
+        python_requires=REQUIRES_PYTHON,
+        url=URL,
+        download_url=CURRENT_RELEASE,
+        keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
+        classifiers=[
+            "Development Status :: 1 - Planning",
+            "Intended Audience :: Developers",
+            "Intended Audience :: Science/Research",
+            "License :: OSI Approved :: Apache Software License",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.6",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Topic :: Scientific/Engineering",
+            "Topic :: Scientific/Engineering :: Bio-Informatics",
+            "Topic :: Software Development :: Libraries :: Python Modules",
+        ],
+        packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+        package_dir={'kmerdb': 'kmerdb'},
+        package_data={'kmerdb': ['CITATION']},
+        # If your package is a single module, use this instead of 'packages':
+        #py_modules=['kmerdb'],
+        #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
+        entry_points={
+            'console_scripts': ['kmerdb=kmerdb:cli'],
+        },
+        install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
+        extras_require=EXTRAS,
+        include_package_data=True,
+        license='Apache-2.0',
+        test_suite='test',
+        #    tests_require=['mamba', 'expect'],
+        cmdclass={'build_ext': build_ext},
+        ext_modules=cythonize(extensions),
+        library_dirs=["."],
+        zip_safe=False,
+    )
 
-# Where the magic happens:
-setup(
-    name=NAME,
-    version=VERSION,
-    description=DESCRIPTION,
-    long_description=long_description,
-    long_description_content_type='text/markdown',
-    author=AUTHOR,
-    author_email=EMAIL,
-    python_requires=REQUIRES_PYTHON,
-    url=URL,
-    download_url=CURRENT_RELEASE,
-    keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
-    classifiers=[
-        "Development Status :: 1 - Planning",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Topic :: Scientific/Engineering",
-        "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-    ],
-    packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
-    package_dir={'kmerdb': 'kmerdb'},
-    package_data={'kmerdb': ['CITATION']},
-    # If your package is a single module, use this instead of 'packages':
-    #py_modules=['kmerdb'],
-    #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
-    entry_points={
-        'console_scripts': ['kmerdb=kmerdb:cli'],
-    },
-    install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
-    extras_require=EXTRAS,
-    include_package_data=True,
-    license='GPLv3+',
-    test_suite='test',
-#    tests_require=['mamba', 'expect'],
-)
+
+else:
+    print("WARNING: Disabling the pyx distances")
+    # Where the magic happens:
+    setup(
+        name=NAME,
+        version=VERSION,
+        description=DESCRIPTION,
+        long_description=long_description,
+        long_description_content_type='text/markdown',
+        author=AUTHOR,
+        author_email=EMAIL,
+        python_requires=REQUIRES_PYTHON,
+        url=URL,
+        download_url=CURRENT_RELEASE,
+        keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
+        classifiers=[
+            "Development Status :: 1 - Planning",
+            "Intended Audience :: Developers",
+            "Intended Audience :: Science/Research",
+            "License :: OSI Approved :: Apache Software License",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.6",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Topic :: Scientific/Engineering",
+            "Topic :: Scientific/Engineering :: Bio-Informatics",
+            "Topic :: Software Development :: Libraries :: Python Modules",
+        ],
+        packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+        package_dir={'kmerdb': 'kmerdb'},
+        package_data={'kmerdb': ['CITATION']},
+        # If your package is a single module, use this instead of 'packages':
+        #py_modules=['kmerdb'],
+        #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
+        entry_points={
+            'console_scripts': ['kmerdb=kmerdb:cli'],
+        },
+        install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
+        extras_require=EXTRAS,
+        include_package_data=True,
+        license='Apache-2.0',
+        test_suite='test',
+        #    tests_require=['mamba', 'expect'],
+    )

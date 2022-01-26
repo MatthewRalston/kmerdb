@@ -53,3 +53,12 @@ def merge_metadata_lists(k, metadata_across_all_files, new_kmer_metadata):
         metadata_across_all_files[i] = metadata_across_all_files[i] + metadata
 
     return metadata_across_all_files
+
+
+def can_import(module_name):
+    """Check we can import the requested module. Forgot where this came from, sadly. Peace and love."""
+    try:
+        return __import__(module_name)
+    except ImportError:
+        return None
+

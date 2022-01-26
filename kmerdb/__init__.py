@@ -136,12 +136,27 @@ def markov_probability(arguments):
 def distances(arguments):
     from multiprocessing import Pool
 
+
     import pandas as pd
     import numpy as np
     from scipy.spatial.distance import pdist, squareform
 
 
-    from kmerdb import fileutil, distance, config
+    from kmerdb import fileutil, config, util, distances
+
+
+    has_cython = False
+    try:
+
+        logger.error("Correctly importing distance module")
+        from kmerdb.distance import correlation
+        from kmerdb import distance
+        has_cython = True
+    except ImportError as e:
+        logger.error(e)
+        logger.error("Could not import Cython distance submodule")
+        raise RuntimeError("Cannot import pyx library")
+
     n = len(arguments.input)
 
     if len(arguments.input) > 1:
@@ -257,7 +272,10 @@ def distances(arguments):
 
                         logger.error("{0}".format(type(profiles[i])))
                         logger.info("Computing custom Pearson correlation coefficient...")
-                        data[i][j] = distance.correlation(profiles[i], profiles[j])
+                        if has_cython is True:
+                            data[i][j] = correlation(profiles[i], profiles[j])
+                        else:
+                            raise RuntimeError("Cannot calculate pearson correlation without NumPy and Cython")
                     elif arguments.metric == "euclidean":
                         logger.info("Computing custom euclidean distance")
                         data[i][j] = distance.euclidean(profiles[i], profiles[j])
