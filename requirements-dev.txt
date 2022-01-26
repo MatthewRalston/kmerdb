@@ -1,3 +1,5 @@
+auditwheel==5.1.2
+Cython==0.29.26
 coverage==4.5.4
 expects==0.9.0
 ghstats==1.2.0
