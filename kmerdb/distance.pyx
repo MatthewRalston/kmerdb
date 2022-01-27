@@ -27,22 +27,11 @@ cimport numpy as cnp
 cimport cython
 import sys
 #from numba import jit
-import functools
+#import functools
 
+#cpdef double correlation(cnp.uint64_t[:] a, cnp.uint64_t[:] b, int total_kmers):
+cpdef double correlation(long[:] a, long[:] b, int total_kmers):
 
-from kmerdb import kmer, fileutil
-
-identity = {
-    'correlation': '1.0',
-    'euclidean'  : '0.0',
-    'hamming'    : '1.0',
-    'pearson'    : '1.0',
-    'spearman'   : '1.0'
-}
-
-ctypedef cnp.uint64_t data_type_t
-
-cdef double correlation(data_type_t[:] a, data_type_t[:] b, int total_kmers):
     cdef int i
     cdef float ssxx = 0
     cdef float ssyy = 0
