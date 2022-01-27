@@ -148,9 +148,10 @@ def distances(arguments):
     has_cython = False
     try:
 
-        logger.error("Correctly importing distance module")
+
         from kmerdb.distance import correlation
-        from kmerdb import distance
+        from kmerdb import python_distances as distance
+        logger.info("Correctly importing distance module")
         has_cython = True
     except ImportError as e:
         logger.error(e)
@@ -166,8 +167,13 @@ def distances(arguments):
         logger.debug("Files: {0}".format(files))
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
-        dtypes = [x.profile.dtype.name for x in files]
+        dtypes = [x.metadata["kmer_ids_dtype"] for x in files]
         suggested_dtype = dtypes[0]
+
+        logger.error(dtypes)
+        logger.error("Suggested dtype: {0}".format(suggested_dtype))
+
+        logger.info("\n\n\n\n{0}\n\n\n\n".format(suggested_dtype))
         
         ks = [kdbrdr.k for kdbrdr in files]
         suggested_k = ks[0]
@@ -189,6 +195,8 @@ def distances(arguments):
 
         data = [kdbrdr.slurp() for kdbrdr in files]
         logger.info(data)
+        logger.error("Suggested dtype {0}".format(suggested_dtype))
+        logger.error(data)
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
 
@@ -269,11 +277,9 @@ def distances(arguments):
                     logger.debug("Info: ixj {0}x{1}".format(i, j))
                     
                     if arguments.metric == "pearson":
-
-                        logger.error("{0}".format(type(profiles[i])))
                         logger.info("Computing custom Pearson correlation coefficient...")
                         if has_cython is True:
-                            data[i][j] = correlation(profiles[i], profiles[j])
+                            data[i][j] = correlation(profiles[i], profiles[j], profiles[i].size)
                         else:
                             raise RuntimeError("Cannot calculate pearson correlation without NumPy and Cython")
                     elif arguments.metric == "euclidean":
@@ -353,7 +359,7 @@ def get_matrix(arguments):
             logger.error("Default choice of k, since not specified at the CLI is {0}".format(arguments.k))
             logger.error("Proceeding with k set to {0}".format(suggested_k))
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-        dtypes = [kdbrdr.count_dtype for kdbrdr in files]
+        dtypes = [kdbrdr.metadata["count_dtype"] for kdbrdr in files]
         suggested_dtype = dtypes[0]
         if not all(kdbrdr.count_dtype == suggested_dtype for kdbrdr in files):
             raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
@@ -365,6 +371,7 @@ def get_matrix(arguments):
 
         data = [kdbrdr.slurp() for kdbrdr in files]
         logger.info(data)
+                     
         pure_data = np.array(data, dtype=suggested_dtype)
         profiles = np.transpose(pure_data)
         # The following does *not* transpose a matrix defined as n x N=4**k
