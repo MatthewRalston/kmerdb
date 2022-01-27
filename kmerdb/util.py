@@ -30,6 +30,15 @@ def represent_ordereddict(dumper, data):
     """
     Thanks to Blender and EquipDev on StackOverflow for this handy method to pass to yaml.add_representer
     https://stackoverflow.com/a/16782282
+
+    I use this throughout the metadata representation in the bgzf specification to print out the representer, it's just awesome.
+
+    I really like this answer. Finally got around to liking it this year, in Jan 2022 after using it for like a few years. 
+
+    :param dumper: The OrderedDict_Representer, this faciliatates non-key sorting for optimal metadata block structure.
+    :type dumper: 
+    :param data:
+    :type data: dict
     """
     value = []
 
@@ -42,23 +51,20 @@ def represent_ordereddict(dumper, data):
     return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
 
-def merge_metadata_lists(k, metadata_across_all_files, new_kmer_metadata):
+def merge_metadata_lists(k, meta_metadata_across_all_files, new_kmer_meta_metadata):
     """
-    Merge two 4**k metadata lists
+    Merge two 4**k metadata lists. 
+    :param k: The choice of k is important for count array indexing.
+    :type k: int
+    :param meta_metadata_across_all_files:
+    :type meta_metadata_across_all_files: list
+    :param new_kmer_meta_metadata:
+    :type new_kmer_meta_metadata: list
     """
-    if 4**k != len(new_kmer_metadata):
-        raise TypeError("kmerdb.util.merge_metadata_lists() expects a new_kmer_metadata list to have 4^{0} elements. Got {1}".format(k, len(new_kmer_metadata)))
+    if 4**k != len(new_kmer_meta_metadata):
+        raise TypeError("kmerdb.util.merge_metadata_lists() expects a new_kmer_metadata list to have 4^{0} elements. Got {1}".format(k, len(new_kmer_meta_metadata)))
 
-    for i, metadata in enumerate(new_kmer_metadata):
-        metadata_across_all_files[i] = metadata_across_all_files[i] + metadata
+    for i, meta_metadata in enumerate(new_kmer_meta_metadata):
+        meta_metadata_across_all_files[i] = meta_metadata_across_all_files[i] + meta_metadata
 
-    return metadata_across_all_files
-
-
-def can_import(module_name):
-    """Check we can import the requested module. Forgot where this came from, sadly. Peace and love."""
-    try:
-        return __import__(module_name)
-    except ImportError:
-        return None
-
+    return meta_metadata_across_all_files
