@@ -13,7 +13,7 @@ pip install dist/kmerdb-*-manylinux2014_x86_64.whl
 
 #python setup.py install || echo "'python setup.py install' died on your platform. Do you know why?"
 
-
+rm -rf dist build kmerdb.egg-info wheelhouse
 
 
 
