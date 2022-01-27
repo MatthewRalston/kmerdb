@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.6.5"
+VERSION="0.6.7"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -59,16 +59,7 @@ metadata_schema = {
                     "total_reads": {"type": "number"},
                     "total_kmers": {"type": "number"},
                     "unique_kmers": {"type": "number"},
-                    "nullomers": {"type": "number"},
-                    "mononucleotides": {
-                        "type": "object",
-                        "properties": {
-                            "A": {"type": "number"},
-                            "C": {"type": "number"},
-                            "G": {"type": "number"},
-                            "T": {"type": "number"}
-                        }
-                    }
+                    "nullomers": {"type": "number"}
                 },
                 "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers"]
             }
