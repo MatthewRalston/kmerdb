@@ -1152,8 +1152,9 @@ def profile(arguments):
     profile = np.array(range(N), dtype=metadata["profile_dtype"])
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
-    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))    
-    sys.stderr.write(str(yaml.dump(metadata, sort_keys=False)))
+    logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))
+    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+    sys.stderr.write(yaml.dump(metadata, sort_keys=False))
 
     
 
