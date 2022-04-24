@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.6.7"
+VERSION="0.6.8"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -115,7 +115,7 @@ DEFAULT_MASTHEAD = """
 
 Thank you for using kmerdb. Please feel free
 to submit issues and requests to 
-https://github.com/MatthewRalston/kdb
+https://github.com/MatthewRalston/kmerdb
 
 Copyright 2020 Matt Ralston (mrals89@gmail.com)
 
@@ -142,7 +142,7 @@ https://pypi.org/project/kmerdb/
 
 ===========================================
 
-https://github.com/MatthewRalston/kdb
+https://github.com/MatthewRalston/kmerdb
 
 
 ============================================
@@ -157,12 +157,6 @@ Please cite my repository in your work!
 Feel free to e-mail me or reach out!
 
 |||Reddy47||| - Matt Ralston on Spotify
-On top : what she sounds like when she's on top of the logging aesthetics.
-Aston Martin Music : what she sounds like when she's on air in the logging aesthetics.
-Pemex : A dichotomy between a wreckage and it's stubborn bgzf format. Just here for the noise, bass, and the smoke.
-Sipping on Yak: What she sounds like when she's purring along in her new dtype specifications. Where did that come from... this stuff is kind of cool...
-Death by Dishonor: What she sounds like when the fileutil slurps into memory. I have generally no idea how she sounds when things are running right, but this song give me the sense of urgency and mystery to keep listening.
-Belial | Nit Grit : What she sounds like when she's churning through the lexical sort on the primary index. Distinguishing the count from the k-mer id is difficult to describe. 1:30 on, anyways. Checking in. And when the fileutil is barely dressing up the issues relating to absorption issues.
 Who Dat? - Terror Reid, Getter
 
 The soundtrack to my program. \s Also, hi mom.
@@ -305,7 +299,7 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 ##################
 # dimensionality reduction + kmeans
 ##################
-# The first step ('kdb matrix') generates one from different profiles with the same choice of k.
+# The first step ('kmerdb matrix') generates one from different profiles with the same choice of k.
 # This command uses ecopy to normalize between sample k-mer total counts before PCA/tSNE.
 # -n $N is the dimensionality of either PCA or tSNE. A good choice for tSNE is 2.
 # If the command is run with PCA without a selected dimensionality, an elbow graph
@@ -327,7 +321,7 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K sklearn
 kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K --distance e Biopython
 #
-# If you wanted to save a matrix from kdb matrix for use on your own
+# If you wanted to save a matrix from kmerdb matrix for use on your own
 # it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
 # which we will see is used downstream in the rarefaction and hierarchical analytics pathways.
 #
@@ -338,7 +332,7 @@ kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K
 #
 # The Normalized matrix goes to the distance subcommand, which can use any of scipy's pdist distances
 # to form the m x m distance matrix.
-# The third step (kdb hierarchical)  is to build a dendrogram with scipy.cluster.hierarchy.
+# The third step (kmerdb hierarchical)  is to build a dendrogram with scipy.cluster.hierarchy.
 # This final step produces a plot in addition to the tsvs produced in the prior steps,
 # which can be captured as independent steps or with tee in a pipeline.
 kmerdb matrix [ Normalized ] test/data/*.$K.kdb | kmerdb distance spearman | kmerdb hiearchical
