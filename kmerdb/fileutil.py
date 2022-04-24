@@ -452,6 +452,7 @@ class KDBReader(bgzf.BgzfReader):
                                 line = next(self)
                             except StopIteration as e:
                                 logger.error("Finished loading initial profile through slurp-on-init")
+                                logger.error("Read profile from: {0}".format(self._filepath))
                                 raise e
                             if line is None:
                                 logger.warning("Next was None... profile was sparse, breaking")

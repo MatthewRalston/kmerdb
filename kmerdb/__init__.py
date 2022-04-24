@@ -380,11 +380,22 @@ def get_matrix(arguments):
             raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
         if arguments.parallel > 1:
             with Pool(processes=arguments.parallel) as pool:
-                files = pool.map(file_reader.load_file, arguments.input)
+                try:
+                    files = pool.map(file_reader.load_file, arguments.input)
+                except StopIteration as e:
+                    logger.error("Files: {)}".format(", ".join(arguments.input)))
+                    logger.error(e)
+                    raise e
         else:
-            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+            files = []
 
-        data = [kdbrdr.slurp() for kdbrdr in files]
+            for f in arguments.input:
+                sys.stderr.write("Reading input from '{0}'...Please be patient...".format(f))
+                fh = fileutil.open(f, 'r', slurp=True) # no metadata on matrix command
+                files.append(fh)
+
+
+        data = [kdbrdr.counts for kdbrdr in files]
         logger.info(data)
                      
         pure_data = np.array(data, dtype=suggested_dtype)
@@ -404,7 +415,13 @@ def get_matrix(arguments):
             columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
         else:
             with open(arguments.column_names, 'r') as column_names:
-                columns = [line.rstrip() for line in column_names]
+                rows = [line.rstrip() for line in column_names]
+                if len(rows) == 1 and type(rows[0]) == str:
+                    columns = rows[0].split("\t")
+                elif len(rows) > 1:
+                    columns = list(map(lambda r: r.rstrip().rstrip(".kdb"),rows))
+                else:
+                    raise ValueError("Could not properly parse .tsv column_names accessory file")
         if len(columns) != len(files):
             raise RuntimeError("Number of column names {0} does not match number of input files {1}...".format(len(columns), len(files)))
         suggested_metadata = files[0].metadata
