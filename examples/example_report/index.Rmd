@@ -408,16 +408,131 @@ We used the simulated metagenomes of firmicutes and proteobacteria of Anvar et a
 
 Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM, 
 
+First, let me explain my file nomenclature before the commands are described. I work with a simple $object.metadata.suffix Linux filename model. 
+
+Usually the $object is some type of primary identifier, like a genome name. 
+Metadata is a topic beyond scope, but let me first say I'm referencing metadata of the parameter choices as you're playing with .kdb and matrix files.
+Let me illustrate by examples:
+
+```
+ls /dodona/
+Cdiff-100.fastq
+Cdiff-100x.12.kdb
+Cdiff-100x1.fq
+Cdiff-100x2.fq
+Cdiff-100x.8.kdb
+Cdiff-100x_errFree.sam
+Cdiff-100x.fastq
+Cdiff-10.fastq
+Cdiff-10x.12.kdb
+Cdiff-10x1.fq
+Cdiff-10x2.fq
+Cdiff-10x.8.kdb
+Cdiff-10x_errFree.sam
+Cdiff-10x.fastq
+Cdiff.12.kdb
+Cdiff-15x.8.kdb
+Cdiff-20.fastq
+Cdiff-20x.12.kdb
+Cdiff-20x1.fq
+Cdiff-20x2.fq
+Cdiff-20x.8.kdb
+Cdiff-20x_errFree.sam
+Cdiff-20x.fastq
+Cdiff-25x.8.kdb
+Cdiff-30.fastq
+Cdiff-30x.12.kdb
+Cdiff-30x1.fq
+Cdiff-30x2.fq
+Cdiff-30x.8.kdb
+Cdiff-30x_errFree.sam
+Cdiff-30x.fastq
+Cdiff-35x.8.kdb
+Cdiff-40.fastq
+Cdiff-40x.12.kdb
+Cdiff-40x1.fq
+Cdiff-40x2.fq
+Cdiff-40x.8.kdb
+Cdiff-40x_errFree.sam
+Cdiff-40x.fastq
+Cdiff-45x.8.kdb
+Cdiff-50.fastq
+Cdiff-50x.12.kdb
+Cdiff-50x1.fq
+Cdiff-50x2.fq
+Cdiff-50x.8.kdb
+Cdiff-50x_errFree.sam
+Cdiff-50x.fastq
+Cdiff-5x.8.kdb
+Cdiff-60.fastq
+Cdiff-60x.12.kdb
+Cdiff-60x1.fq
+Cdiff-60x2.fq
+Cdiff-60x.8.kdb
+Cdiff-60x_errFree.sam
+Cdiff-60x.fastq
+Cdiff-70.fastq
+Cdiff-70x.12.kdb
+Cdiff-70x1.fq
+Cdiff-70x2.fq
+Cdiff-70x.8.kdb
+Cdiff-70x_errFree.sam
+Cdiff-70x.fastq
+Cdiff-80.fastq
+Cdiff-80x.12.kdb
+Cdiff-80x1.fq
+Cdiff-80x2.fq
+Cdiff-80x.8.kdb
+Cdiff-80x_errFree.sam
+Cdiff-80x.fastq
+Cdiff.8.kdb
+Cdiff-90.fastq
+Cdiff-90x.12.kdb
+Cdiff-90x1.fq
+Cdiff-90x2.fq
+Cdiff-90x.8.kdb
+Cdiff-90x_errFree.sam
+Cdiff-90x.fastq
+Cdifficile_R3.fasta
+Cdiff_no_error.12.tsv
+Cdiff_no_error.8.tsv
+Cdiff_no_error.pearson.12.tsv
+Cdiff_no_error.spearman.12.tsv
+column_names.txt
+```
+
+By examining this list you'll quickly see some patterns, some are output files from Art Illumina read simulator(`errFree.sam, 1.fq, 2.fq`), others are kdb files, others are fastq files converted from samtools from the error-free Art Illumina simulations(`Cdiff-$Xx.fastq`). I'll explain each suffix in brief. In each increment of 10, you'll see the same files, including a `.12.kdb` file with the same prefix. This file is the k-mer profile for a 12-mer profile of *C. difficile* 168 simulated at a read depth of `$Xx`, where $X is a number from 0-100. The filenames above all match `Cdiff-$Xx$suffix`, where `$suffix` is either Art Illumina data, an error free fastq file(`Cdiff-$Xx.fastq`, or a kdb file(`Cdiff-$Xx.12.kdb`)!
+
+The goal of this depth simulation is to create an error free profile that only represents the average randomness in coverage/completeness from an error free perspective. However, the Art Illumina "100x" dataset, for instance, is only 848Mb uncompressed, a fairly inaccurate level of coverage/sampling from my understanding. I'd like to see 1-5Gb compressed.
+
+
+
+
+To give the user of the capabilities of this tool at the command line, take for instance a file 'microbes.txt' conaining one organism/genome 'name' per line, and each organism/genome has a file `$genome.fa`, now you can just change your fasta files into k-mer profiles like this:
+
 ```bash
 function getmetagenome(){
-  col=$1
-  metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/'))
+  col=$1 # Cut the $col column from the randomized microbes.txt file
+  metagenome=($(cut -f$col microbes.txt | sed 's/.*/&.fna/')) # change a $genome into $genome.fna throughout the list
   #metagenome=($(sed -n "${col}p" microbes.txt | sed 's/.*/&.fna/g'))
-  echo "${metagenome[@]}"
+  echo "${metagenome[@]}" # Echo the list value
 }
 export -f getmetagenome
+# Create a k-mer profile by retrieving the nth metagenome from the permutation matrix of metagenome orderings.
 parallel -j 30 'kmerdb profile -k {2} $(getmetagenome {1})  metagenome_{1}.{2}.kdb 2> metagenome_{1}.{2}.log;' ::: $(seq 1 30) ::: $(seq 8 14)
 ```
+
+
+```bash
+parallel -j 10 '~/pckges/art_bin_MountRainier/art_illumina -ss HS25 -ef -i Cdifficile_R3.fasta -l 150 -m 200 -s 10 -f {} -o Cdiff-{}x' ::: $(seq 10 10 100)
+parallel -j 10 'samtools fastq Cdiff-{}x_errFree.sam > Cdiff-{}.fastq' ::: $(seq 10 10 100)
+parallel -j 10 'kmerdb profile -k 8 Cdiff-{}.fastq Cdiff-{}x.8.kdb' ::: $(seq 10 10 100)
+```
+
+
+
+
+
 
 # Discussion
 
