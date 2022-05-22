@@ -287,6 +287,7 @@ def distances(arguments):
                     
                     if arguments.metric == "pearson":
                         logger.info("Computing custom Pearson correlation coefficient...")
+                        #data[i][j] = distance.correlation(profiles[i], profiles[j])
                         if has_cython is True:
                             data[i][j] = correlation(profiles[i], profiles[j], profiles[i].size)
                         else:
