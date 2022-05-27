@@ -33,48 +33,45 @@ import sys
 cpdef double correlation(long[:] a, long[:] b, int total_kmers):
 
     cdef int i
-    cdef unsigned long long ssxx = 0
-    cdef unsigned long long ssyy = 0
-    cdef unsigned long long ssxy = 0
-    cdef float xx = 0
-    cdef float yy = 0
-    cdef float xy = 0
+    cdef long double ssxx = 0
+    cdef long double ssyy = 0
+    cdef long double ssxy = 0
+    cdef long double xx = 0
+    cdef long double yy = 0
+    cdef long double xy = 0
 
     cdef float x_bar = np.sum(a)/total_kmers
     cdef float y_bar = np.sum(b)/total_kmers
     if total_kmers != len(a) or total_kmers != len(b):
         raise ValueError("NumPy kmer count array total does not match length of arrays")
     for i in range(total_kmers):
-        xx = np.square(a[i] - x_bar)
-        yy = np.square(b[i] - y_bar)
-        xy = (a[i] - x_bar)*(b[i] - y_bar)
-        if xx > 0:
-            ssxx += int(math.log(xx))
-        if yy > 0:
-            ssyy += int(math.log(yy))
-            
         try:
-            if xy < 0: # Add a log of the negative of the negative number instead
-                ssxy += int(math.log(-xy))
-            else: # For large positive xy (not supposed to happen), we will interpret this as a inf/ssxx*ssyy
-                logger.debug("{0}\t{1}   |   {2}\t{3}\t{4}".format(a[i], b[i], xx, yy, xy))
-                ssxy += int(math.log(xy))
-        except ValueError as e:
-            logger.debug("{0}\t{1}\t{2}".format(xx, yy, xy))
-            logger.error(e)
-            if xx < 0:
-                logger.error("Incorrect denominator found, skipping")
-                continue
-            elif yy < 0:
-                logger.error("Incorrect denominator found, skipping")
-                continue
-            elif xy < 0:
-                logger.error("Incorrect numerator found. Interpretted as -inf")
-                continue
-        except Exception as e:
+            xx = (a[i] - x_bar)**2
+            yy = (b[i] - y_bar)**2
+            xy = (a[i] - x_bar)*(b[i] - y_bar)
+        except OverflowError as e:
+            logger.error("{0}\t{1}   |   {2}\t{3}\t{4}".format(a[i], b[i], xx, yy, xy))
             logger.error(e)
             raise e
+        
+
+        ssxx += xx
+        ssyy += yy
+        if xy > 0: # Add a log of the negative of the negative number instead
+            logger.debug("{0}\t{1}   |   {2}\t{3}\t{4} | ssxy = {5}".format(a[i], b[i], xx, yy, xy, ssxy))
+            ssxy += xy
+        else: # For large positive xy (not supposed to happen), we will interpret this as a inf/ssxx*ssyy
+
+            logger.debug("{0}\t{1}   |   {2}\t{3}\t{4} | ssxy = {5}".format(a[i], b[i], xx, yy, xy, ssxy))
+            ssxy += xy
+            if ssxy < 0:
+                raise RuntimeError("Sum of squared residuals is less than 0")
+            elif ssxy == 0:
+                raise RuntimeError("Sum of squared residuals is 0")
+            elif ssxy > 0:
+                logger.info("Looping...")
+                continue
     logger.info("Custom Pearson correlation acquired")
-    logger.info("{0}/{1}*{2}".format(np.exp(ssxy), np.exp(ssxx), np.exp(ssyy)))
-    return np.exp(ssxy)/(np.sqrt(np.exp(ssxx)*np.exp(ssyy)))
+    logger.info("{0}/sqrt({1}*{2})".format(ssxy, ssxx, ssyy))
+    return ssxy/(np.sqrt(ssxx*ssyy))
     
