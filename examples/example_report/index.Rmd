@@ -527,11 +527,19 @@ parallel -j 30 'kmerdb profile -k {2} $(getmetagenome {1})  metagenome_{1}.{2}.k
 parallel -j 10 '~/pckges/art_bin_MountRainier/art_illumina -ss HS25 -ef -i Cdifficile_R3.fasta -l 150 -m 200 -s 10 -f {} -o Cdiff-{}x' ::: $(seq 10 10 100)
 parallel -j 10 'samtools fastq Cdiff-{}x_errFree.sam > Cdiff-{}.fastq' ::: $(seq 10 10 100)
 parallel -j 10 'kmerdb profile -k 8 Cdiff-{}.fastq Cdiff-{}x.8.kdb' ::: $(seq 10 10 100)
+kmerdb matrix Normalized Cdiff-*.8.kdb > normalized.tsv
 ```
 
 
+# Similarity and effect of sampling error on profile fidelity
 
 
+
+```bash
+# Custom implementation of the Pearson Rho. ssxy/sqrt(ssxx*ssyy)
+kmerdb distance pearson normalized.tsv
+kmerdb distance spearman normalized.tsv
+```
 
 
 # Discussion
