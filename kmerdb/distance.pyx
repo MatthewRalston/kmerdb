@@ -65,9 +65,9 @@ cpdef double correlation(long[:] a, long[:] b, int total_kmers):
             logger.debug("{0}\t{1}   |   {2}\t{3}\t{4} | ssxy = {5}".format(a[i], b[i], xx, yy, xy, ssxy))
             ssxy += xy
             if ssxy < 0:
-                raise RuntimeError("Sum of squared residuals is less than 0")
+                logger.info("Sum of squared residuals is less than 0")
             elif ssxy == 0:
-                raise RuntimeError("Sum of squared residuals is 0")
+                logger.info("Sum of squared residuals is 0")
             elif ssxy > 0:
                 logger.info("Looping...")
                 continue
