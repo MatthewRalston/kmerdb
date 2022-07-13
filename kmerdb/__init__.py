@@ -144,7 +144,7 @@ def distances(arguments):
     An end-user function to provide CLI access to certain distances
     """
     from multiprocessing import Pool
-
+    import multiprocessing as mp
 
     import pandas as pd
     import numpy as np
@@ -158,7 +158,7 @@ def distances(arguments):
     try:
 
 
-        from kmerdb.distance import correlation
+        from kmerdb.distance import pearson_correlation
         from kmerdb import python_distances as distance
         logger.info("Correctly importing distance module")
         has_cython = True
@@ -265,7 +265,7 @@ def distances(arguments):
     sys.stderr.write(config.DISTANCE_MASTHEAD)
 
     logger.info("Custom calculating a {0}x{0} '{1}' distance matrix...".format(n, arguments.metric))
-    
+
     if arguments.metric in ["pearson", "spearman"]:
         
         #files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
@@ -289,7 +289,13 @@ def distances(arguments):
                         logger.info("Computing custom Pearson correlation coefficient...")
                         #data[i][j] = distance.correlation(profiles[i], profiles[j])
                         if has_cython is True:
-                            data[i][j] = correlation(profiles[i], profiles[j], profiles[i].size)
+                            idstr = "{0}x{1}".format(i, j)
+                            r = mp.Value('d', 0.0)
+                            p = mp.Process(target=pearson_correlation, args=(profiles[i], profiles[j], profiles[i].size, r))
+                            p.start()
+                            #data[i][j] = correlation(profiles[i], profiles[j], profiles[i].size)
+                            p.join()
+                            data[i][j] = r.value
                         else:
                             raise RuntimeError("Cannot calculate pearson correlation without NumPy and Cython")
                     elif arguments.metric == "euclidean":
@@ -314,12 +320,26 @@ def distances(arguments):
                         logger.error("Other distances are not implemented yet")
                         sys.exit(1)
                 # This double loop quickly identifies empty cells and sets the data correctly from the permutation above
+        logger.info("Joining processes for parallel correlations")
+        logger.info("\n\n")
+        logger.info("Done joining processes")
+        logger.info("\n\n")
+
+        
+
+        logger.info("Completing matrix from shared process values")
+        for i in range(n):
+            for j in range(n):
+                if not i < j:
+                    data[i][j] = None
         logger.info("Filling in symmetrical matrix...")
         for i in range(n):
             for j in range(n):
                 if data[i][j] is None:
                     data[i][j] = data[j][i]
                     #logger.info("\n\n\nSwerve swerve\n\n\n")
+
+                    
         dist = np.array(data)
     else:
         dist = pdist(np.transpose(profiles), metric=arguments.metric)
