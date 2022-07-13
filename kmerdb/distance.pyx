@@ -23,11 +23,17 @@ logger = logging.getLogger(__file__)
 
 import math
 import numpy as np
+import multiprocessing as mp
 cimport numpy as cnp
 cimport cython
 import sys
 #from numba import jit
 #import functools
+
+
+def pearson_correlation(a, b, total_kmers, sharedr):
+    r = correlation(a, b, total_kmers)
+    sharedr.value = r
 
 #cpdef double correlation(cnp.uint64_t[:] a, cnp.uint64_t[:] b, int total_kmers):
 cpdef double correlation(long[:] a, long[:] b, int total_kmers):
@@ -69,9 +75,10 @@ cpdef double correlation(long[:] a, long[:] b, int total_kmers):
             elif ssxy == 0:
                 logger.info("Sum of squared residuals is 0")
             elif ssxy > 0:
-                logger.info("Looping...")
+                logger.info("Calculating next ssxy...")
                 continue
     logger.info("Custom Pearson correlation acquired")
     logger.info("{0}/sqrt({1}*{2})".format(ssxy, ssxx, ssyy))
-    return ssxy/(np.sqrt(ssxx*ssyy))
+    r = ssxy/(np.sqrt(ssxx*ssyy))
+    return r
     
