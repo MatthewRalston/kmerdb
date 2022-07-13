@@ -5,6 +5,34 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+
+
+
+* Lost comments
+ 
+** What the sort order of the residue encoding into bits does to the bit encoding of a single letter vs a string
+** Writing the goals down for the pearson's r saturation behavior with depth
+** Implement a square on square matrix functionality on GPU with cupy in pyx?
+*** Cupy
+** Literally failing to document hidden search/link-traversal features...
+*** 
+*** 
+*** 
+*** 
+** Remembering that it's only supposed to be a k-mer count vector storage medium right now
+** Scoping scoping where does it end
+** Is my life's work pointless?
+** Losing my best friend because of relapse
+*** Sent 1 basic sorry, got an acknowledgement.
+*** Felt like shit, lost my fucking wallet and chillum
+*** Smoking habit down to 1 cig a day (just bored, less and less dynamism of focus.
+*** Recalling the CortizoneTM
+*** Apply gently
+*** Reminding myself I don't believe in these human-type humans. Humans about other humans seems like a soft, subjective, and wishy-washy skill to develop and I don't trust it.
+
+** Control struggle
+** Time/money management issues mounting
+
 * Code maintenance
 ** TODO COMMENTS [7/7]
 DEADLINE: <2022-01-29 Sat> SCHEDULED: <2022-01-27 Thu>
