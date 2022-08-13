@@ -158,15 +158,111 @@ In this report, we will look at the shape of the data as it is normalized by sam
 
 # Methodology
 
-## kmerdb is a PyPI package for k-mer profiles
+## Hardware
+
+Calculations were performed on a AMD ThreadRipper 3960 with 256Gb RAM, using a default install of the 'kmerdb' package on PyPI (v0.7.0). Runtimes due to read/write speeds may also have been effected by the storage medium, a ASUS AIC with 4x 2Gb Corsair NVMe drives across a gen4 PCIe x16 interface.
+
+## `kmerdb` is a PyPI package for k-mer profiles
 
 kmerdb is a Python module, distributed through the Python Package Index (PyPI) using the command line interface 'pip'. Installation is simple and painless for most users, requiring only the BioConductor package 'DESeq2' as an optional external dependency for normalization. Detailed documentation is available on the project's mainpage, also accessible from the Github repository.
 
 The first step is the generation of a non-sparse profile, stored in a specialized bgzf file format referred to as `.kdb`, from one or more `.fasta` or `.fastq` files after a typical quality control workflow for the sequencing platform. 
 
-From this point, profiles of the same k can be combined with the `kmerdb matrix` command, producing 'unnormalized' or 'normalized' data matrices. 
+From this point, profiles of the same k can be combined with the `kmerdb matrix` command, producing 'unnormalized' or 'normalized' data matrices and saved as simple tsvs. These simplified, human readable representations of groups of profiles as tabular datasets simplifies downstream calculations concerning clustering outputs or distance matrices.
 
-The more deliberate feature of the on-disk k-mer counting is that higher choices of k may be used, and according to the other report, it seems like choices of k below 30 would be extremely preferable for the immediate future. In fact, I will use a choice of k of 8 to ensure that all matrices can be properly stored in memory. This is covered to a better extent by `example_report1` because it is more focused on the profiling side of things, to what limit I can explore k meaningfully. Taking a break to review the choice of k handled by my system.
+Many commands have some or multiple locations where parallelization may be preferable for workflow (reading or writing multiple `.fna` files to calculate the aggregate profile). Check the `-h|--help` options for more information.
+
+
+## Correlation distances
+
+Pearson's r is calculated between two vectors $a, b$ by the following
+
+$$ r = frac{ss_{xy}}{sqrt{ss_{x} \cdot ss_{y}}} $$
+
+where $ss_{x}$ represents the sum of squares of differences between xs and the mean, $ss_{y}$ represents the analogous sum of squares for y, and $ss_{xy}$ represents the sum of the product of the differences between x, the mean of x, y, and the mean of y, respectively.
+
+This simmilarity/distance, is implemented as a Cython function exposed as the 'pearson' distance in the kmerdb package.
+
+Pearson and Spearman correlation coefficients are both useful in understanding the similarity between two large profiles, but are not sufficient.
+
+To undersand this behavior to a better extent, we investigated the saturation behavior of the Pearson and Spearman correlation coefficients with sequencing depth, using the art illumina read simulator (\parencite{huang2012art}).
+
+``` bash
+parallel 'art_illumina -ss HS25 -ef -i {1} -l 150 -f {2} -m 200 -s 10 -o {1.}_' ::: $(/bin/ls *.fna) ::: $(seq 100 100 1000)
+parallel 'kmerdb profile -k 12 {1.}_{2}_errFree.fastq {1.}_{2}.12.kdb' ::: $(/bin/ls *.fna) ::: $(seq 100 100 1000)
+
+
+
+```
+
+## 
+
+## Performance characteristics
+
+TODO: I want to make a multi-plot, preferably in Python, or a merged ggplot. 
+
+Figure 1, profile runtime  performance.
+
+Capturing the percentage from a cron every second may be dependent upon a command in my conky config.
+
+How performance degrades with k from 8-12 (colour) vs number of files (x) vs time in seconds (y)
+
+Figure 2. profile memory benchmark
+
+number of cores (colour) vs total memory in Gb (y) vs time in seconds (x)
+
+Figure 3. matrix runtime, parallelism scales with k (colour) and with the number of profiles
+
+
+number of profiles (colour) vs total memory in Gb (y) vs time in seconds (x)
+
+
+Figure 4. pearson distance runtime, parallelism, scale with k(colour) and with the number of profiles. Is the parallelism a linear decrease in runtime?
+That is, if you compare 11 profiles, you would need to calculate the triangular number of 11 - 1 different pairwise pearson correlations. 
+
+| x |   |   |   |   |   |   |   |   |   |   |
+|   | x |   |   |   |   |   |   |   |   |   |
+|   |   | x |   |   |   |   |   |   |   |   |
+|   |   |   | x |   |   |   |   |   |   |   |
+|   |   |   |   | x |   |   |   |   |   |   |
+|   |   |   |   |   | x |   |   |   |   |   |
+|   |   |   |   |   |   | x |   |   |   |   |
+|   |   |   |   |   |   |   | x |   |   |   |
+|   |   |   |   |   |   |   |   | x |   |   |
+|   |   |   |   |   |   |   |   |   | x |   |
+|   |   |   |   |   |   |   |   |   |   | x |
+
+
+profiles (x) vs runtime (y) vs k (colour)
+
+
+Figure 5. pearson distance memory benchmark, show single threaded vs parallel per thread average + std dev as a barchart.
+
+
+
+## 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Distribution fitting on normalized and unnormalized k-mer counts
@@ -403,10 +499,13 @@ We do not restrict our attention to the 1st or 2nd dimension only of PCA, but in
 
 ## Sufficient values of k for genomic separation
 
-We used the simulated metagenomes of firmicutes and proteobacteria of Anvar et al. to test some hypotheses related to microbial diversity in the abstract k-space (\parencite{anvar2014determining}). First we downloaded 
+I also made use of the C difficile R3 genome to simulate read depths for an average 3Mbp bacterium.
+
+## Simulating artificial 'metagenomes' 
+
+We used the simulated metagenomes of firmicutes and proteobacteria of Anvar et al. to test some hypotheses related to microbial diversity in the abstract k-space (\parencite{anvar2014determining}). 
 
 
-Calculations were performed on a AMD ThreadRipper 3960 with 64Gb RAM, 
 
 First, let me explain my file nomenclature before the commands are described. I work with a simple $object.metadata.suffix Linux filename model. 
 

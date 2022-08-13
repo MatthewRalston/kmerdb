@@ -24,6 +24,7 @@ logger = logging.getLogger(__file__)
 import math
 import numpy as np
 import multiprocessing as mp
+import statsmodels.api as sm
 cimport numpy as cnp
 cimport cython
 import sys
@@ -82,3 +83,49 @@ cpdef double correlation(long[:] a, long[:] b, int total_kmers):
     r = ssxy/(np.sqrt(ssxx*ssyy))
     return r
     
+cpdef double rsquared_adj(long[:] a, long[:] b, int total_kmers):
+
+
+    mod = sm.OLS(a, b)
+    res = mod.fit()
+    
+    return res.rsquared_adj
+
+cpdef double rsquared(long[:] a, long[:] b, int total_kmers):
+
+    mod = sm.OLS(a, b)
+    res = mod.fit()
+
+    return res.rsquared
+
+
+
+cpdef double coeff_of_determination(long[:] a, long[:] b, int n):
+    cdef long double ssres
+    cdef long double sstot
+
+    #cdef int n = float(total_kmers)
+    #cdef int p = 1
+    cdef long double abar = a.sum() / n# = cnp.mean(a)
+    cdef long double bbar = b.sum() / n # = cnp.mean(b)
+
+    mod = sm.OLS(a, b)
+    res = mod.fit()
+    f = res.fittedvalues.view()
+    ssres = np.square(b - f)
+    sstot = np.square(b - np.repeat(bbar, n))
+    return 1 - (ssres / sstot)
+                                    
+    
+cpdef double adjR2(long[:] a, long[:] b, int n):
+    cdef long double ssres
+    cdef long double sstot
+    cdef long double r2
+
+    cdef int p = 1
+    cdef long double abar = a.sum() / n# = cnp.mean(a)
+    cdef long double bbar = b.sum() / n # = cnp.mean(b)
+
+    r2 = coeff_of_determination(a, b, n)
+
+    return 1 - ((1 - r2)*(n - 1)/(n - p))

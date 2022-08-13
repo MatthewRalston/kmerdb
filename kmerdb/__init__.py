@@ -298,6 +298,34 @@ def distances(arguments):
                             data[i][j] = r.value
                         else:
                             raise RuntimeError("Cannot calculate pearson correlation without NumPy and Cython")
+                    elif arguments.metric == "rsquared":
+                        logger.info("Computing R2 with statsmodels")
+                        if has_cython is True:
+                            adjR2 = mp.Value('a', 0.0)
+                            p = mp.Process(target=rsquared, args=(profiles[i], profiles[j], profiles[i].size))
+                            p.join
+                            data[i][j] = r.value
+                    elif arguments.metric == "rsquared_adj":
+                        logger.info("Computing adjusted R2 with statsmodels")
+                        if has_cython is True:
+                            adjR2 = mp.Value('a', 0.0)
+                            p = mp.Process(target=rsquared_adj, args=(profiles[i], profiles[j], profiles[i].size))
+                            p.join
+                            data[i][j] = r.value
+                    elif arguments.metric == "determination":
+                        logger.info("Computing Coefficient of determination R2 (model fit provided by statsmodels)")
+                        if has_cython is True:
+                            adjR2 = mp.Value('a', 0.0)
+                            p = mp.Process(target=coefficient_of_determination, args=(profiles[i], profiles[j], profiles[i].size))
+                            p.join
+                            data[i][j] = r.value
+                    elif arguments.metric == "adjR2":
+                        logger.info("Computing adjusted R2 (model fit provided by statsmodels)")
+                        if has_cython is True:
+                            adjR2 = mp.Value('a', 0.0)
+                            p = mp.Process(target=adjR2, args=(profiles[i], profiles[j], profiles[i].size))
+                            p.join
+                            data[i][j] = r.value
                     elif arguments.metric == "euclidean":
                         logger.error("Custom Euclidean distance is DEPRECATED")
                         raise RuntimeError("Genuine bug, please report the usage of deprecated custom distance functions")
@@ -1448,12 +1476,14 @@ def cli():
     dist_parser.add_argument("-k", default=None, type=int, help="The k-dimension that the files have in common")
     
     dist_parser.add_argument("metric", choices=[
+        "adjR2",
         "braycurtis",
         "canberra",
         "chebyshev",
         "cityblock",
         "correlation",
         "cosine",
+        "determination",
         "dice",
         "euclidean",
         "hamming",
@@ -1464,6 +1494,8 @@ def cli():
         "matching",
         "minkowski",
         "pearson",
+        "rsquared",
+        "rsquared_adj"
         "rogerstanimoto"
         "russelrao",
         "seuclidean",

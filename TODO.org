@@ -23,6 +23,11 @@ DEADLINE: <2022-01-29 Sat> SCHEDULED: <2022-01-27 Thu>
   - [X] seqparser
   - [X] fileutil
   - [X] parse
+** TODO Force on distance for single threaded operation, otherwise reports the approximate number of cores needed for linear acceleration.
+** TODO Paper
+:LOGBOOK:
+CLOCK: [2022-07-20 Wed 07:11]
+:END:
 ** TODO Logging
 ** TODO Revisit Sphinx documentation
 ** TODO Unit tests
