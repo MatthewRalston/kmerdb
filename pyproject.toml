@@ -16,11 +16,11 @@
 
 [build-system]
 requires = ["setuptools", "wheel", "numpy>=1.19.0", "Cython>=0.29.21"]
-#build-backend = "setuptools.build_meta"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmerdb"
-version = "0.7.1"
+version = "0.7.2"
 description = "Yet another kmer library for Python"
 readme = "README.md"
 authors = [{name="Matt Ralston <mralston.development@gmail.com>", email="mralston.development@gmail.com"}]
@@ -155,7 +155,12 @@ citation = ["CITATION"]
 
 
 [project.urls]
-Homepage = "https://github.com/MatthewRalston/"
+Homepage = "https://matthewralston.github.io/kmerdb"
+QuickStart = "https://matthewralston.github.io/kmerdb/quickstart.html"
+Install = "https://matthewralston.github.io/kmerdb/installation.html"
+ForAcademics = "https://matthewralston.github.io/kmerdb/academics.html"
+Github = "https://github.com/MatthewRalston/kmerdb"
+Issues = "https://github.com/MatthewRalston/kmerdb/issues"
 
 [project.scripts]
 kmerdb = "kmerdb:cli"
