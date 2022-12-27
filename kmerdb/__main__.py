@@ -21,9 +21,10 @@ logger = None
 
 
 if __name__ == '__main__':
-    from kmerdb import cli
+    #from kmerdb import cli
+    import kmerdb
 
     if len(sys.argv) == 1:
         sys.exit(-1)
     else:
-        cli()
+        kmerdb.cli()
