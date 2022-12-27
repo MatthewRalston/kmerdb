@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.7.0"
+VERSION="0.7.1"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
@@ -121,27 +121,19 @@ Copyright 2020 Matt Ralston (mrals89@gmail.com)
 
 # First links
 ==========================================-
-
 |      Project     p a g e               |
-
 ===========================================
 
 https://matthewralston.github.io/kmerdb
 
 ===========================================
-
 |     P y P I                             |
-
 ===========================================
 https://pypi.org/project/kmerdb/
 
-
 ===========================================
-
 |          G i t h u b                    |
-
 ===========================================
-
 https://github.com/MatthewRalston/kmerdb
 
 
@@ -156,10 +148,8 @@ Please cite my repository in your work!
 
 Feel free to e-mail me or reach out!
 
-|||Reddy47||| - Matt Ralston on Spotify
-Who Dat? - Terror Reid, Getter
-
-The soundtrack to my program. \s Also, hi mom.
+Please check the README.md for more details.
+https://github.com/MatthewRalston/kmerdb
 
 """
 DONE = """
@@ -168,6 +158,9 @@ DONE = """
 ----------------D O N E-------------------
 ==========================================
 
+Thanks for checking out k-mer db.
+Accept the citation notice with 'kmerdb citation'
+Use 'kmerdb [cmd] -h' for more details.
 """
 
 
