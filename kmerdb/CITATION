@@ -3,17 +3,17 @@ When using programs that use kmerdb to generate k-mer profiles, please cite the 
 @article{Ralston2020kdb,
  title = {K-mer databases and k-mer profile matrices},
  author = {Matthew Ralston},
- address = {Hockessin DE, USA},
+ address = {Newark DE, USA},
  journal = {bioRxiv},
  month = {Feb},
  number = {1},
- volume = {36},
+ volume = {},
  url = {},
- year = {2021},
- pages = {42-47}
+ year = {2022},
+ pages = {}
 }
 
-(Feel free to use \nocite{Ralston2020kdb})
+(Feel free to use \nocite{Ralston2020kmerdb})
 
 
 This helps funding further development.

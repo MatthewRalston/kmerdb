@@ -15,3 +15,4 @@ jupyter-core==4.6.3
 mamba==0.10
 memory-profiler==0.57.0
 pytest==5.3.5
+twine==4.0.1

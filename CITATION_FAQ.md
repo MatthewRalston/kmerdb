@@ -5,11 +5,11 @@
 Kmerdb is indirectly funded through citations.
 
 Kmerdb is funded by me having a paid job that allows for
-maintaining GNU Parallel. This is much easier to get if kmerdb
+maintaining Kmerdb. This is much easier to get if kmerdb
 is cited in scientific journals, and history has shown that
 researchers forget to do this if they are not reminded explicitly.
 
-It is therefore important for the long-term survival of GNU Parallel
+It is therefore important for the long-term survival of Kmerdb
 that it is cited. The citation notice makes users aware of this.
 
 See also: https://lists.gnu.org/archive/html/parallel/2013-11/msg00006.html
@@ -43,7 +43,7 @@ It takes less than 10 seconds to do and is thus comparable to an
 programs.
 
 It is even optional to run this, as kmerdb will work without
-having 'kmerdb --citation' run first (in other words it is _not_
+having 'kmerdb citation' run first (in other words it is _not_
 comparable to a clickwrap license, that must be accepted before the
 program will run). However, not running it does not change that
 academic tradition requires you to cite in scientific articles. That
@@ -139,7 +139,7 @@ Threadripper upgrade for my PC, and I might be going back to school. I have some
 
 Citations means respect, friendliness, and cheer in my life when others can look at me as capable in the academy.
 
-Even outside the academy reputation is everything and an extra citation means the world. If publish or perish was a think even before the PhD glut, then it means it even more now, especially for researchers like myself who have not completed their doctorate.
+Even outside the academy reputation is everything and an extra citation means the world. If publish or perish was a 'thing' even before the PhD glut, then it means it even more now, especially for researchers like myself who have not completed their doctorate.
 
 Before the citation notice was implemented hardly anyone cited kmerdb.
 And that's cause there was nothing to cite!
@@ -165,7 +165,7 @@ distributed as part of a distribution.
 
 - Is there another way I can get rid of the citation notice?
 
-Yes. Find a way to finance future development of GNU Parallel. If you
+Yes. Find a way to finance future development of kmerdb. If you
 pay me a normal salary, I will be happy to remove the citation notice.
 
 The citation notice is about (indirect) funding - nothing else.
@@ -183,9 +183,9 @@ help you find an alternative:
 https://www.gnu.org/software/parallel/parallel_alternatives.html
 
 
-- I do not want to run 'kmerdb --citation'
+- I do not want to run 'kmerdb citation'
 
-If the inconvenience of running 'kmerdb --citation' one single time
+If the inconvenience of running 'kmerdb citation' one single time
 after installing GNU Parallel is too big, then you do not have to do
 it. You only need to do that if you do not want to see the citation
 notice.
@@ -195,7 +195,7 @@ But it really only takes 10 seconds to run.
 
 - I do not want to see the citation notice at every run
 
-You do not have to. Spend 10 seconds on running 'kmerdb --citation'
+You do not have to. Spend 10 seconds on running 'kmerdb citation'
 and the notice is silenced. This is similar to clicking 'OK. Do not
 show this again' in a dialog box seen in Firefox and similar programs.
 
