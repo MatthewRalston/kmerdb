@@ -15,12 +15,26 @@ cat <<EOF
    limitations under the License.
 EOF
 
+# cd /ffast2/kdb/
+# cd kmerdb
+# #cythonize -a -i kmerdb/distance.pyx || echo "Could not Cythonize the Pearson correlation function. Refusing to build." # Requires cython to properly build a manylinux wheel.
+# cd ..
+# python setup.py sdist bdist_wheel
+# auditwheel repair --plat linux_x86_64 dist/kmerdb-*linux_x86_64.whl
+# mv wheelhouse/* dist
+# #rm dist/*linux_x86_64.whl
+# pip install dist/kmerdb-*-linux_x86_64.whl
+
+
+# #python setup.py install || echo "'python setup.py install' died on your platform. Do you know why?"
+
+# rm -rf wheelhouse
 
 
 
-rm -rf /home/matt/.pyenv/versions/kdb/lib/python3.10/site-packages/kmerdb /home/matt/.pyenv/versions/kdb/lib/python3.10/site-packages/kmerdb-*.egg-info /ffast2/kdb/kmerdb.egg-info /ffast2/kdb/build /ffast2/kdb/dist
-rm -rf /home/matt/.pyenv/versions/3.10.1/envs/kdb/lib/python3.10/site-packages/kmerdb-*
-cd /ffast2/kdb/
-rm -rf dist build kmerdb.egg-info wheelhouse
-cd
+
+
+# cd
+
+python -m build
 
