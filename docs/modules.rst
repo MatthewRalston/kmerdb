@@ -1,5 +1,5 @@
 kmerdb
-===
+======
 
 .. toctree::
    :maxdepth: 4
