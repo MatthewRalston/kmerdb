@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
+   Copyright 2020 Matthew Ralston
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+'''
 
 import io
 import os
@@ -97,20 +113,38 @@ CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.7.0.tar.g
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = "0.7.0"
+VERSION = "0.7.2"
+KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
+CLASSIFIERS = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 # What packages are required for this module to be executed?
 
-REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
+#REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
 #REQUIRED.remove("-e git://github.com/MatthewRalston/ecopy.git#egg=ecopy")
 #REQUIRED.append("ecopy @ git+https://github.com/MatthewRalston/ecopy@master")
 
 
 # What packages are optional?
-EXTRAS = {
-    'development': [l.rstrip() for l in open('./requirements-dev.txt', 'r')]
+# EXTRAS = {
+#     'development': [l.rstrip() for l in open('./requirements-dev.txt', 'r')]
 
-    # 'fancy feature': ['django'],
-}
+#     # 'fancy feature': ['django'],
+# }
 if can_import('numpy') is not None:
     import numpy as np
     extensions = [
@@ -128,24 +162,8 @@ if can_import('numpy') is not None:
         python_requires=REQUIRES_PYTHON,
         url=URL,
         download_url=CURRENT_RELEASE,
-        keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
-        classifiers=[
-            "Development Status :: 1 - Planning",
-            "Intended Audience :: Developers",
-            "Intended Audience :: Science/Research",
-            "License :: OSI Approved :: Apache Software License",
-            "Operating System :: OS Independent",
-            "Programming Language :: Python",
-            "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.6",
-            "Programming Language :: Python :: 3.7",
-            "Programming Language :: Python :: 3.8",
-            "Programming Language :: Python :: 3.9",
-            "Programming Language :: Python :: 3.10",
-            "Topic :: Scientific/Engineering",
-            "Topic :: Scientific/Engineering :: Bio-Informatics",
-            "Topic :: Software Development :: Libraries :: Python Modules",
-        ],
+        keywords = KEYWORDS,
+        classifiers=CLASSIFIERS,
         packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
         package_dir={'kmerdb': 'kmerdb'},
         package_data={'kmerdb': ['CITATION']},
@@ -155,14 +173,14 @@ if can_import('numpy') is not None:
         entry_points={
             'console_scripts': ['kmerdb=kmerdb:cli'],
         },
-        install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
-        extras_require=EXTRAS,
+        #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
+        #extras_require=EXTRAS,
         include_package_data=True,
         license='Apache-2.0',
         test_suite='test',
         #    tests_require=['mamba', 'expect'],
-        cmdclass={'build_ext': build_ext},
-        ext_modules=cythonize(extensions),
+        #cmdclass={'build_ext': build_ext},
+        #ext_modules=cythonize(extensions),
         library_dirs=["."],
         zip_safe=False,
     )
@@ -182,24 +200,8 @@ else:
         python_requires=REQUIRES_PYTHON,
         url=URL,
         download_url=CURRENT_RELEASE,
-        keywords = ["k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
-        classifiers=[
-            "Development Status :: 1 - Planning",
-            "Intended Audience :: Developers",
-            "Intended Audience :: Science/Research",
-            "License :: OSI Approved :: Apache Software License",
-            "Operating System :: OS Independent",
-            "Programming Language :: Python",
-            "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.6",
-            "Programming Language :: Python :: 3.7",
-            "Programming Language :: Python :: 3.8",
-            "Programming Language :: Python :: 3.9",
-            "Programming Language :: Python :: 3.10",
-            "Topic :: Scientific/Engineering",
-            "Topic :: Scientific/Engineering :: Bio-Informatics",
-            "Topic :: Software Development :: Libraries :: Python Modules",
-        ],
+        keywords = KEYWORDS,
+        classifiers=CLASSIFIERS,
         packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
         package_dir={'kmerdb': 'kmerdb'},
         package_data={'kmerdb': ['CITATION']},
@@ -209,8 +211,8 @@ else:
         entry_points={
             'console_scripts': ['kmerdb=kmerdb:cli'],
         },
-        install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
-        extras_require=EXTRAS,
+        #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
+        #extras_require=EXTRAS,
         include_package_data=True,
         license='Apache-2.0',
         test_suite='test',
