@@ -66,6 +66,17 @@ pip install -e .
 
 Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kmerdb/quickstart#usage)
 
+## NOTE: Temporary usage pattern:
+Migrating the repo from setup.py to the PEP606 standard PyProject.toml is borking my current invocation pattern. Sorry for the inconveniece... it's happening right now.
+
+```bash
+python -m kmerdb [cmd] [options]
+```
+
+See `python -m kmerdb -h` for details.
+
+
+
 CLI Usage
 
 ```bash
