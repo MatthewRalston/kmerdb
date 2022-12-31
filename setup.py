@@ -170,9 +170,9 @@ if can_import('numpy') is not None:
         # If your package is a single module, use this instead of 'packages':
         #py_modules=['kmerdb'],
         #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
-        entry_points={
-            'console_scripts': ['kmerdb=kmerdb:cli'],
-        },
+        # entry_points={
+        #     'console_scripts': ['kmerdb=kmerdb:cli'],
+        # },
         #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
         #extras_require=EXTRAS,
         include_package_data=True,
@@ -208,9 +208,9 @@ else:
         # If your package is a single module, use this instead of 'packages':
         #py_modules=['kmerdb'],
         #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
-        entry_points={
-            'console_scripts': ['kmerdb=kmerdb:cli'],
-        },
+        # entry_points={
+        #     'console_scripts': ['kmerdb=kmerdb:cli'],
+        # },
         #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
         #extras_require=EXTRAS,
         include_package_data=True,
