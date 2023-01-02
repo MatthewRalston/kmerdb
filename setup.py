@@ -112,7 +112,7 @@ URL = 'https://github.com/MatthewRalston/kmerdb'
 CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.7.0.tar.gz"
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.8.0'
 VERSION = "0.7.2"
 KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
 CLASSIFIERS = [
@@ -166,13 +166,13 @@ if can_import('numpy') is not None:
         classifiers=CLASSIFIERS,
         packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
         package_dir={'kmerdb': 'kmerdb'},
-        package_data={'kmerdb': ['CITATION']},
+        package_data={'kmerdb': ['CITATION.txt']},
         # If your package is a single module, use this instead of 'packages':
         #py_modules=['kmerdb'],
         #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
-        entry_points={
-            'console_scripts': ['kmerdb=kmerdb:cli'],
-        },
+        # entry_points={
+        #     'console_scripts': ['kmerdb=kmerdb:cli'],
+        # },
         #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
         #extras_require=EXTRAS,
         include_package_data=True,
@@ -180,41 +180,9 @@ if can_import('numpy') is not None:
         test_suite='test',
         #    tests_require=['mamba', 'expect'],
         #cmdclass={'build_ext': build_ext},
-        #ext_modules=cythonize(extensions),
+        ext_modules=cythonize(extensions),
         library_dirs=["."],
         zip_safe=False,
     )
-
-
 else:
-    print("WARNING: Disabling the pyx distances")
-    # Where the magic happens:
-    setup(
-        name=NAME,
-        version=VERSION,
-        description=DESCRIPTION,
-        long_description=long_description,
-        long_description_content_type='text/markdown',
-        author=AUTHOR,
-        author_email=EMAIL,
-        python_requires=REQUIRES_PYTHON,
-        url=URL,
-        download_url=CURRENT_RELEASE,
-        keywords = KEYWORDS,
-        classifiers=CLASSIFIERS,
-        packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
-        package_dir={'kmerdb': 'kmerdb'},
-        package_data={'kmerdb': ['CITATION']},
-        # If your package is a single module, use this instead of 'packages':
-        #py_modules=['kmerdb'],
-        #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
-        entry_points={
-            'console_scripts': ['kmerdb=kmerdb:cli'],
-        },
-        #install_requires=REQUIRED,#['Cython==0.29.21', 'numpy==1.18.1'],
-        #extras_require=EXTRAS,
-        include_package_data=True,
-        license='Apache-2.0',
-        test_suite='test',
-        #    tests_require=['mamba', 'expect'],
-    )
+    raise ValueError("Could not cythonize")
