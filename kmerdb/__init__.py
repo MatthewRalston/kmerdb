@@ -1321,8 +1321,8 @@ def get_root_logger(level):
 def citation_info():
     import pkg_resources
     citation = None
-    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
-        citation = pkg_resources.resource_string('kmerdb', 'CITATION').decode('utf-8').rstrip()
+    if pkg_resources.resource_exists('kmerdb', 'CITATION.txt'):
+        citation = pkg_resources.resource_string('kmerdb', 'CITATION.txt').decode('utf-8').rstrip()
         if citation == "":
             return
         else:
