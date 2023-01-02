@@ -20,7 +20,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmerdb"
-version = "0.7.2"
+version = "0.7.3"
 description = "Yet another kmer library for Python"
 readme = "README.md"
 authors = [{name="Matt Ralston <mralston.development@gmail.com>", email="mralston.development@gmail.com"}]
@@ -120,7 +120,7 @@ dependencies = [
 	     # but s3: downloads were supported for the 'kmerdb profile' subcommand
 	     #urllib3==1.26.7
 ]
-requires-python = ">=3.6.0"
+requires-python = ">=3.8.0"
 
 [project.optional-dependencies]
 dev = [
