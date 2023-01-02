@@ -43,8 +43,8 @@ def print_argv():
 def citation(arguments):
     import pkg_resources
     citation = None
-    if pkg_resources.resource_exists('kmerdb', 'CITATION'):
-        citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION')
+    if pkg_resources.resource_exists('kmerdb', 'CITATION.txt'):
+        citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION.txt')
         with open(citation_fname, 'w') as citation_file:
             citation_file.write("")
 
