@@ -167,12 +167,13 @@ dev = [
     'twine==4.0.1'
 ]
 
-[tool.setuptools.packages.find]
-where = ["kmerdb"]
-namespaces = true
+[tool.setuptools]
+include-package-data = true
+packages = ['kmerdb']
+
 
 [tool.setuptools.package-data]
-citation = ["CITATION"]
+kmerdb = ["CITATION.txt"]
 
 
 
