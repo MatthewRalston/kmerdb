@@ -4,7 +4,8 @@
 NOTE: This project is in alpha stage. Development is ongoing. But feel free to clone the repository and play with the code for yourself.
 
 ## Development Status
-[![Downloads](https://static.pepy.tech/personalized-badge/kmerdb?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads)](https://pypi.org/project/kmerdb)
+
+[![Downloads](https://pepy.tech/badge/kmerdb)](https://pypi.org/project/kmerdb)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/kmerdb)
 [![GitHub Downloads](https://img.shields.io/github/downloads/MatthewRalston/kdb/total.svg?style=social&logo=github&label=Download)](https://github.com/MatthewRalston/kmerdb/releases)
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
