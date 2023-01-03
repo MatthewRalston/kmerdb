@@ -113,7 +113,7 @@ CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.7.0.tar.g
 EMAIL = 'mrals89@gmail.com'
 AUTHOR = 'Matthew Ralston'
 REQUIRES_PYTHON = '>=3.8.0'
-VERSION = "0.7.2"
+VERSION = "0.7.4"
 KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
 CLASSIFIERS = [
     "Development Status :: 1 - Planning",
