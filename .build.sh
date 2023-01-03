@@ -37,4 +37,6 @@ EOF
 # cd
 
 python -m build
-
+auditwheel repair --plat manylinux2014_x86_64 dist/kmerdb-*linux_x86_64.whl
+mv wheelhouse/* dist
+rm dist/kmerdb-*linux_x86_64.whl
