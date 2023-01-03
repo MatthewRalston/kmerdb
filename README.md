@@ -20,7 +20,7 @@ NOTE: This project is in alpha stage. Development is ongoing. But feel free to c
 
 ## Summary 
 
-KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. An experimental per-kmer metadata feature is included, which includes the coordinates of each k-mer w.r.t. their generating sequences. You can think of the current form as a "pre-index", as it includes all the essential information for indexing on any field in the landscape of k-mer to sequence relationships. One restriction is that k-mers with unspecified sequence residues 'N' create gaps in the k-mer to sequence relationship space, and are excluded. That said, non-standard IUPAC residues are supported.
+KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. You can think of the current form as a "pre-index", as it includes all the essential information for indexing on any field in the landscape of k-mer to sequence relationships. One restriction is that k-mers with unspecified sequence residues 'N' create gaps in the k-mer to sequence relationship space, and are excluded. That said, non-standard IUPAC residues are supported.
 
 
 Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quickstart) for more information about the format, the library, and the project.
@@ -63,20 +63,19 @@ pip install -e .
 
 ## Usage Example
 
-Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kmerdb/quickstart#usage)
+NOTE: Usage in detail can be found on the [quickstart page](https://matthewralston.github.io/kmerdb/quickstart#usage)
 
-## NOTE: Temporary usage pattern:
-Migrating the repo from setup.py to the PEP606 standard PyProject.toml is borking my current invocation pattern. Sorry for the inconveniece... it's happening right now.
+<!-- ## NOTE: Temporary usage pattern:
+Migrating the repo from setup.py to the PEP606 standard PyProject.toml is borking my current invocation pattern. Sorry for the inconveniece... it's happening right now. -->
 
-```bash
+<!-- ```bash
 python -m kmerdb [cmd] [options]
 ```
 
 See `python -m kmerdb -h` for details.
+-->
 
-
-
-CLI Usage
+## CLI Usage
 
 ```bash
 kmerdb --help
