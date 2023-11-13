@@ -11,7 +11,7 @@ jedi==0.16.0
 jupyter==1.0.0
 jupyter-client==6.0.0
 jupyter-console==6.1.0
-jupyter-core==4.6.3
+jupyter-core==4.11.2
 mamba==0.10
 memory-profiler==0.57.0
 pytest==5.3.5
