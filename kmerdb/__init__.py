@@ -1255,7 +1255,7 @@ def profile(arguments):
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     if arguments.quiet is not True:
                         print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[i], frequencies[i], json.dumps(kmer_metadata)))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
                     j += 1
         else:
             if arguments.sorted:
@@ -1266,19 +1266,19 @@ def profile(arguments):
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
                     kmer_id = int(kmer_ids[idx])
-                    logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k)
                     all_metadata.append(kmer_metadata)
                     counts[idx] = counts[idx]
                     frequencies[idx] = frequencies[idx]
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i, idx in enumerate(kmer_ids):
                     kmer_id = int(idx)
-                    logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     p = profile[i]
                     c = counts[i]
                     f = frequencies[i]
@@ -1286,8 +1286,8 @@ def profile(arguments):
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     all_metadata.append(kmer_metadata)
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[i], frequencies[i]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[i], frequencies[i], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
