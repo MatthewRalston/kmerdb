@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.7.5"
+VERSION="0.7.6"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 metadata_schema = {
