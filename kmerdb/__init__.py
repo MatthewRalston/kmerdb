@@ -916,7 +916,6 @@ def header(arguments):
             logger.warning("KDB file version is out of date, may be incompatible with current fileutil.KDBReader class")
         N = 4**kdb_in.metadata["k"]
 
-        assert kdb_in.profile.size == N, "view | read profile size did not match N from the header metadata"
         assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
         assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
         assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
@@ -985,28 +984,24 @@ def view(arguments):
                 print(config.header_delimiter)
         logger.info("Reading from file...")
         logger.debug("I cut off the json-formatted unstructured column for the main view.")
-        #logger.debug(kdb_in.profile)
         try:
             if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
                 kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
                 reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                 for i, idx in enumerate(kmer_ids_sorted_by_count):
-                    p = kdb_in.profile[i]
-                    kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
-                    logger.debug("The first is an implicit row-index. The second is the corresponding profile. The third is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                    kmer_id = kdb_in.kmer_ids[i]
+                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
 
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, kmer_id, p, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                    print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
             else:
                 for i, idx in enumerate(kdb_in.kmer_ids):
-                    p = kdb_in.profile[i]
-                    kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
+                    kmer_id = kdb_in.kmer_ids[idx]
                     logger.debug("The row in the file should follow this order:")
-                    logger.debug("The first is an implicit row-index. The second is the corresponding profile. The third is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                     try:
                         if arguments.un_sort is True:
-                            assert p == idx, "view | kmer_id {0} didn't match the loaded profile {1}".format(idx, p)
                             assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
                             assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
                         else:
@@ -1019,9 +1014,9 @@ def view(arguments):
                     logger.debug("{0} line:".format(i))
                     logger.debug("=== = = = ======= =  =  =  =  =  = |")
                     if arguments.un_sort is True:
-                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
                     else:
-                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, p, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
@@ -1042,7 +1037,6 @@ def view(arguments):
         logger.debug("Creating '{0}'...".format(arguments.kdb_out))
     if arguments.kdb_out is not None:
         with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
-            assert kdb_in.profile.size == N, "view | read profile size did not match N from the header metadata"
             assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
             assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
             assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
@@ -1052,10 +1046,8 @@ def view(arguments):
                         kmer_id = idx
                         seq = kmer.id_to_kmer(kmer_id, arguments.k)
                         kmer_metadata = kmer.neighbors(seq, arguments.k)
-                        kmer_id = kdb_in.kmer_ids[kdb_in.profile[i]]
-                        p = kdb_in.profile[j]
                         logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
-                        kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, p, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
+                        kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
                     
                 except StopIteration as e:
                     logger.error(e)
