@@ -1211,7 +1211,7 @@ def profile(arguments):
         all_metadata = []
         if arguments.all_metadata:
 
-            if arguments.sorted:
+            if arguments.sorted is True:
                 j = 0
                 list_of_duples = list(zip(kmer_ids, counts))
                 logger.debug(list_of_duples[0:3])
@@ -1237,8 +1237,9 @@ def profile(arguments):
                     assert j <= i + 1, "profile | row index was not sequential. Possibly read improperly."
                     assert idx == kmer_ids[i], "profile | row index did not match a kmer_id"
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
-                    print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                    if arguments.quiet is not True:
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
                     j += 1
             else:
                 j = 0
@@ -1253,8 +1254,8 @@ def profile(arguments):
                     frequencies[idx] = frequencies[idx]
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(i, idx, kmer_ids[i], counts[i], frequencies[i], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[i], frequencies[i], json.dumps(kmer_metadata)))
                     j += 1
         else:
             if arguments.sorted:
