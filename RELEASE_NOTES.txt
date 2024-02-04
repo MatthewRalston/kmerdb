@@ -1,0 +1,27 @@
+=============
+| v0.7.6    |
+=============
+The tabular format specification has boiled down to a 4 or 5 column design, and the metadata header has been stabilized since 0.7.4, in Jan/Feb of 2023. The header now consists of explicit Numpy dtypes, int64 most of the time. Frequency columns are included for the sake of it, but int count profiles have taken the front seat in the project.
+
+The columnar format is now: rownum, kmerid, count, frequency. 'Metadata' i.e. the 6 neighboring k-mer ids, is completely optional, and very much still in alpha. The scipy and biopython kmeans and hierarchical clustering features have been briefly tested, and the numpy distances now form the core of the distance command.
+
+I'm most proud of the profile and matrix commands, the latter may read profiles into memory in parallel, collating the count column as it goes. I'm not sure how this would perform on the sorted .kdb files.
+
+Minor bug fixes and regressions on the fileutil and __init__.py files round out 0.7.6 from 0.7.4. Basically reduces smell and tests the --sorted feature. The --re-sort and --un-sort features on the view command remain a little too untested...
+
+=============
+| v0.6.5    |
+-------------
+The numerical backbone of the project has been solidified, more sanity checks and assertions throughout runtime. The memory tends to be an issue even for mild choices of k. We are now using 'uint64' and 'float64' for indexes, counts, and frequencies. Parallelization has been improved in the matrix command for 'quick' loading of count profiles into memory. Currently KDBReader is lazy load, only reading the header metadata when file is first opened. Behavior other than the 'slurp()' and '_slurp' methods are decided only by the source and Bio.bgzf module. In principle, you could read the file line-by-line if you wanted to, but the behavior is sufficient at the moment for acceptance testing.
+
+In addition to these 'features' my focus has been mostly focused on getting the ideal Pearson and Spearman correlation coefficients to understand profile fidelity behavior.
+
+
+=============
+| v0.0.7    |
+-------------
+There have been 3 pre-releases in the codebase thus far, and we are on version number 0.0.7. The codebase has changed into a sophisticated on-disk k-mer counting strategy, with multiple parallelization options. The first of which is native OS parallelism using something like GNU parallels to run the program on many genomes or metagenomes, simultaneously. The second parallelization option use the Python3 multiprocessing library, particularly for processing fastq datasets.
+
+When I say on-disk, I mean the file format I've created is essentially an indexed database. This allows rapid access to sequential transition probabilities, on-disk, during a random walk representing a Markov process. This is a key feature for anyone who wants to seriously traverse a 4<sup>k</sup> dimensional space.
+
+The codebase also currently contains a randomization feature, distance matrices, arbitrary interoperability with Pandas dataframes, clustering features, normalization, standardization, and dimensionality reduction. The suite is currently ready for a regression feature that I've promised, and I'd like to implement this early this Spring. Next, I'd be interested in working on the following features that would make the suite ready for another beta release. 
