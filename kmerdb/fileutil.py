@@ -226,7 +226,7 @@ def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False):
 
 class KDBReader(bgzf.BgzfReader):
     """
-    A class that reads KDB files, potentially just for accessing header metadata, or for reading the entire contents into numpy arrays.
+    A class that reads .kdb files, potentially just for accessing header metadata, or for reading the entire contents into numpy arrays.
     
 
     :ivar filename: str
@@ -757,7 +757,7 @@ class KDBReader(bgzf.BgzfReader):
     
 class KDBWriter(bgzf.BgzfWriter):
     """
-    A wrapper class around Bio.bgzf.BgzfWriter to write a kdb file to disk.
+    A wrapper class around Bio.bgzf.BgzfWriter to write a .kdb file to disk.
 
     :ivar metadata: OrderedDict
     :ivar filename: str
