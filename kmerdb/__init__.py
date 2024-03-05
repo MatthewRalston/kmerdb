@@ -1058,10 +1058,187 @@ def view(arguments):
                     #kdb_out._handle.close()
                     sys.stderr.write(config.DONE)
 
+def make_kdbg(arguments):
+    """
+    Another ugly function that takes a argparse Namespace object as its only positional argument
+
+    Basically, from a fasta file, I want to generate a file format that consists of unique row ids, k-mer ids, adjacency list, 
+
+    and finally an int field (0 represents unused) representing the order of the row-kmer being used in a graph traversal.
+
+    Note, that the .kdbg format may not be easily regenerated from a k-mer count vector alone, and thus a .fasta/.fastq is needed.
+
+    The goal isn't to yet implement the traversal algorithm in this first commit. But instead I'd like to get the format specified.
+    """
+    from multiprocessing import Pool
+    
+    import numpy as np
+    
+    from kmerdb import graph, kmer, util
+    from kmerdb.config import VERSION
+
+
+    
+    logger.debug("Printing entire CLI argparse option Namespace...")
+    logger.debug(arguments)
+    
+    # The extension should be .kdb because I said so.
+    logger.info("Checking extension of output file...")
+    if os.path.splitext(arguments.kdbg)[-1] != ".kdbg":
+        raise IOError("Destination .kdbg filepath does not end in '.kdbg'")
+
+    file_metadata = []
+    total_kmers = 4**arguments.k # Dimensionality of k-mer profile
+    N = total_kmers
+
+    logger.info("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))))
+    infile = graph.Parseable(arguments) #
+
+    
+    logger.info("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
+    logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
+    logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
+    if arguments.parallel > 1:
+        with Pool(processes=arguments.parallel) as pool:
+            data = pool.map(infile.parsefile, arguments.seqfile)
+    else:
+        data = list(map(infile.parsefile, arguments.seqfile))
+    edges = list(map(lambda e: e[0], data))
+    headers = list(map(lambda d: d[1], data))
+
+    sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
+    all_observed_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], headers))))
+
+    
+    unique_kmers = int(np.sum(list(map(lambda h: h['unique_kmers'], headers))))
+    total_nullomers = total_kmers - unique_kmers
+
+
+    
+    metadata=OrderedDict({
+        "version": VERSION,
+        "metadata_blocks": 1,
+        "k": arguments.k,
+        "total_kmers": all_observed_kmers,
+        "unique_kmers": unique_kmers,
+        "unique_nullomers": total_nullomers,
+        "sorted": arguments.sorted,
+        "n1_dtype": "uint64",
+        "n2_dtype": "uint64",
+        "weight_dtype": "uint64",
+        "tags": [],
+        "files": headers
+    })
+
+    try:
+        np.dtype(metadata["n1_dtype"])
+        np.dtype(metadata["n2_dtype"])
+        np.dtype(metadata["weight_dtype"])
+    except TypeError as e:
+        logger.error(e)
+        logger.error("kmerdb encountered a type error and needs to exit")
+        raise TypeError("Incorrect dtype.")
+
+
+    N = len(edges[0].keys()) # edges is a list of dicts, where keys are a 2-tuple (e.g. (15633431, 12202077) ) representing an edge
+
+    
+    logger.debug("Initializing Numpy arrays of {0} uint zeroes for the edge lists...".format(N))
+    n1 = np.array(range(N), dtype=metadata["n1_dtype"])
+    n2 = np.array(range(N), dtype=metadata["n2_dtype"])
+    weights = np.array(range(N), dtype=metadata["weight_dtype"])
+    logger.info("Initialization of profile completed, using approximately {0} bytes per array".format(n1.nbytes))
+    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+    sys.stderr.write(yaml.dump(metadata, sort_keys=False))
+
+    logger.info("Generated metadata for .kdbg...")
+
+    """
+    At this point, unpacking should be second nature but it took about 2 minutes to get this sorted out, rebuilding, recounting k-mers, and watching dota2.
+    """
+    # print("'edges' type:'")
+    # print(type(edges))
+    # print(edges)
+    # sys.stderr.write("ALMOST DONE!!")
+    # sys.exit(1)
+
+
+    """
+    Now we process the edge list dict, so that the output
+    """
+    logger.info("Accumulating all edge weights...")
+    # Step 1: over each file's weighted edge list: initialize the result dict
+    result = {}
+
+    print
+    for es in edges:
+        for i, e in enumerate(es.keys()):
+            try:
+                result[e] = 0                
+            except KeyError as e:
+                logger.debug("Could not find a valid (empty or recorded) edge relationship in the {0}'th input file's weighted edgelist")
+                raise e
+    # Step 2: over each file's weighted edge list, accumulate all counts observed in the .fa/.fq files.
+    for es in edges:
+        for i, e in enumerate(es.keys()):
+            result[e] += es[e]
+    # Step 3: pretty print a table of results.
+
+    logger.debug("Storing all edges (node pairs) and weights in previously allocated numpy arrays")
+    for i, e in enumerate(result.keys()):
+        # Find the i'th key and unpack into variables
+        # Store the k-mer ids
+        n1[i] = e[0] # This is the result dicts i'th key's first node of the key's 2-tuple
+        n2[i] = e[1] # This is the result dicts i'th key's second node of the key's 2-tuple 
+        # Store the edge weight
+        weights[i] = result[ (n1[i], n2[i] ) ]
+
+    """
+    Cause pandas isn't edge-y enough.
+    """
+    # Convert the list of numpy arrays (the uint64 3-tuple of the edge) to pandas dataframe
+    #df = pd.DataFrame(twoD_weighted_edge_list)
+    #df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
+
+    kdbg_out = graph.open(arguments.kdbg, 'wb', metadata=metadata)
+
+
+    try:
+        sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
+        for i, node1 in enumerate(n1):
+            
+            node2 = n2[i]
+            w = weights[i]
+
+            if arguments.edges is True:
+                print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
+            # node1, node2, weight
+            kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+    finally:
+        kdbg_out._write_block(kdbg_out._buffer)
+        kdbg_out._handle.flush()
+        kdbg_out._handle.close()
+        
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
+        sys.stderr.write("="*30 + "\n")
+        sys.stderr.write(".kdbg stats:\n")
+        sys.stderr.write("-"*30 + "\n")
+        sys.stderr.write("Edges in file:  {0}\n".format(N))
+        sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
+        sys.stderr.write("\nDone\n")
+
+    logger.info("Done printing weighted edge list to .kdbg")
+
+    sys.stderr.write(config.DONE)
+
+    
             
 def profile(arguments):
     """
-    A complex, near-end user function that handles an arparse Namespace as its only positional argument
+    A complex, near-end user function that handles a argparse Namespace as its only positional argument
 
     This function handles multiprocessing, NumPy type checking and array initialization, full metadata expansion if needed.
 
@@ -1288,7 +1465,8 @@ def profile(arguments):
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
-
+        sys.stderr.write("Final stats:\n")
+        sys.stderr.write("=" * 30 + "\n")
         sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
         sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
         sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
@@ -1372,6 +1550,22 @@ def cli():
     header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
     header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     header_parser.set_defaults(func=header)
+
+    graph_parser = subparsers.add_parser("graph", help="Generate an adjacency list from .fa/.fq files")
+    graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+
+    graph_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
+
+    graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    graph_parser.add_argument("--edges", action="store_true", default=False, help="Do not list all edges to stderr")
+    graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
+    #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
+
+    graph_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
+    graph_parser.add_argument("kdbg", type=str, help=".kdbg file")
+    graph_parser.set_defaults(func=make_kdbg)
     
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
