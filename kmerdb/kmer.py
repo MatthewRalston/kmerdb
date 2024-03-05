@@ -110,21 +110,14 @@ class Kmers:
         self.all_metadata = all_metadata
         self.__permitted_chars = set("ACTGRYSWKMBDHVN")
 
-    def shred(self, seqRecord):
+    def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, quiet_iupac_warning:bool=True):
         """
-        Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
-        Doublets become replace with two counts, etc.
-
-        :param seqRecord: 
-        :type seqRecord: Bio.SeqRecord.SeqRecord
-        :returns: a parallel map 
-        :rtype: dict
-
+        Helper method for validating seqRecord and warnings for non-standard IUPAC residues.
         """
-        
-        
-        if not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
-            raise TypeError("kmerdb.kmer.Kmers expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+        if type(quiet_iupac_warning) is not bool:
+            raise TypeError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects keyword argument 'quiet_iupac_warning' to be a bool")
+        elif not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
+            raise TypeError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
         letters = set(seqRecord.seq)
         seqlen = len(seqRecord.seq)
         if seqlen < self.k:
@@ -137,10 +130,62 @@ class Kmers:
             logger.warning(list(letters - self.__permitted_chars))
             raise ValueError("Non-IUPAC symbols detected in the fasta file")
         elif len(all_iupac_symbols) > 0:
-            logger.warning("Will completely refuse to include k-mers with 'N'")
-            logger.warning("All counts for k-mers including N will be discarded")
-            logger.warning("Other IUPAC symbols will be replaced with their respective pairs/triads")
-            logger.warning("And a count will be given to each, rather than a half count")
+            if quiet_iupac_warning is False:
+                logger.warning("Will completely refuse to include k-mers with 'N'")
+                logger.warning("All counts for k-mers including N will be discarded")
+                logger.warning("Other IUPAC symbols will be replaced with their respective pairs/triads")
+                logger.warning("And a count will be given to each, rather than a half count")
+            elif quiet_iupac_warning is True:
+                logger.warning("Suppressing warning that non-standard IUPAC residues (including N) are detected.")
+        return (letters, seqlen)
+
+
+    def _shred_for_graph(self, seqRecord:Bio.SeqRecord.SeqRecord):
+        """
+        Introduced in 0.7.7, required for valid assembly. Simply omits the rejection of IUPAC non-standard residues.
+
+        """
+        kmers = []
+        
+        letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, quiet_iupac_warning=True)
+
+
+        # Iterate over *each* k-mer in the sequence by index
+        for i in range(seqlen - self.k + 1):
+            s = seqRecord.seq[i:(i+self.k)] # Creates the k-mer as a slice of a seqRecord.seq
+            # No non-standard IUPAC residues allowed for _shred for use in graph.py
+            nonstandard_iupac_symbols = list(set(s) - standard_letters)
+            non_iupac_symbols = list(set(s) - self.__permitted_chars)
+
+            if len(non_iupac_symbols) > 1:
+                logger.error("Non-IUPAC symbols:")
+                logger.error(non_iupac_symbols)
+                raise RuntimeError("Non-IUPAC symbol(s) detected...")
+            elif len(nonstandard_iupac_symbols) == 0:
+                #logger.debug("Perfect sequence content (ATCG) detected...")
+                kmers.append(kmer_to_id(s))
+            elif len(nonstandard_iupac_symbols) == 1 and iupac_symbols[0] == n:
+                #logger.debug("Only N-abnormal sequence content detected (aside from ATCG)...")
+                kmers.append(kmer_to_id(s))
+            elif len(nonstandard_iupac_symbols) > 1:
+                logger.error("Assembly cannot continue with this k-mer, and it will be discarded, possibly affecting assembly process")
+                raise RuntimeError("Non-standard IUPAC symbols detected in .fa/.fq file...")
+        return kmers
+            
+    def shred(self, seqRecord):
+        """
+        Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
+        Doublets become replace with two counts, etc.
+
+        :param seqRecord: 
+        :type seqRecord: Bio.SeqRecord.SeqRecord
+        :returns: a parallel map 
+        :rtype: dict
+
+        """
+        letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, quiet_iupac_warning=True)
+
+            
         kmers = []
         starts = []
         reverses = []
