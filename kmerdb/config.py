@@ -17,8 +17,57 @@
 
 
 
-VERSION="0.7.6"
+VERSION="0.7.7"
 header_delimiter = "\n" + ("="*24) + "\n"
+
+graph_schema = {
+    "type": "object",
+    "properties": {
+        "version": {"type": "string"},
+        "metadata_blocks": {"type": "number"},
+        "k": {"type": "number"},
+        "total_kmers": {"type": "number"},
+        "unique_kmers": {"type": "number"},
+        "unique_nullomers": {"type": "number"},
+        "sorted": {"type": "boolean"},
+        "n1_dtype": {"type": "string"},
+        "n2_dtype": {"type": "string"},
+        "weight_dtype": {"type": "string"},
+        "tags": {
+            "type": "array",
+            "items": {"type": "string"}            
+        },
+        "files": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "filename": {"type": "string"},
+                    "sha256": {
+                        "type": "string",
+                        "minLength": 64,
+                        "maxLength": 64
+                    },
+                    "md5": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 32
+                    },
+                    "total_reads": {"type": "number"},
+                    "total_kmers": {"type": "number"},
+                    "unique_kmers": {"type": "number"},
+                    "nullomers": {"type": "number"}
+                },
+                "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers"]
+            }
+        },
+        "comments": {
+            "type": "array",
+            "items": {"type": "string"}
+        }
+    },
+    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weight_dtype"]
+}
 
 metadata_schema = {
     "type": "object",
