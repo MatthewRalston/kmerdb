@@ -134,7 +134,7 @@ def _s3_file_download(self, seqpath, temporary=True):
 
 def parse_line(line):
     """
-    Parses a line according to the expected syntax, and returns the python data types expected as a tuple.
+    Parses a line according to the expected .kdb syntax, and returns the python data types expected as a tuple.
 
     :param line:
     :type line: str
@@ -284,6 +284,7 @@ class KDBReader(bgzf.BgzfReader):
         
         initial_header_data = OrderedDict(yaml.safe_load(self._buffer))
         num_header_blocks = None
+
         if type(initial_header_data) is str:
             logger.info("Inappropriate type for the header data.")
             #logger.info("Um, what the fuck is this in my metadata block?")
@@ -307,9 +308,7 @@ class KDBReader(bgzf.BgzfReader):
                         addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
                         if type(addtl_header_data) is str:
                             logger.error(addtl_header_data)
-                            logger.error("Couldn't determine yo' block.::/")
-                            #logger.error("Couldn't at you goldy.")
-                            logger.error("Sorry - Chris Brown.")
+                            logger.error("Couldn't determine this block.::/")
                             raise TypeError("kmerdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
                         elif type(addtl_header_data) is dict:
                             sys.stderr.write("\r")
@@ -414,7 +413,7 @@ class KDBReader(bgzf.BgzfReader):
             np.dtype(frequencies_dtype)
         except TypeError as e:
             logger.error(e)
-            logger.error("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing the numpy datatype '{0}'...".format(dtype))
+            logger.error("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing a numpy dtype")
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be a valid numpy data type")
         if type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the sort keyword argument to be a bool")

@@ -32,7 +32,7 @@ graph_schema = {
         "sorted": {"type": "boolean"},
         "n1_dtype": {"type": "string"},
         "n2_dtype": {"type": "string"},
-        "weight_dtype": {"type": "string"},
+        "weights_dtype": {"type": "string"},
         "tags": {
             "type": "array",
             "items": {"type": "string"}            
