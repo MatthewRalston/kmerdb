@@ -944,7 +944,7 @@ def view(arguments):
     """
     
     import numpy as np
-    from kmerdb import fileutil, config, util, kmer
+    from kmerdb import fileutil, config, util, kmer, graph
     import json
     metadata = None
     N = None
@@ -967,97 +967,184 @@ def view(arguments):
                 return header_dict
 
     assert type(arguments.kdb_in) is str, "kdb_in must be a str"
-    if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
-        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
-    elif not os.path.exists(arguments.kdb_in):
-        raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
-        metadata = kdb_in.metadata
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
-        N = 4**metadata["k"]
-        if metadata["version"] != config.VERSION:
-            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
-            if arguments.header:
-                yaml.add_representer(OrderedDict, util.represent_ordereddict)
-                print(yaml.dump(metadata, sort_keys=False))
-                print(config.header_delimiter)
-        logger.info("Reading from file...")
-        logger.debug("I cut off the json-formatted unstructured column for the main view.")
-        try:
-            if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
-                kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
-                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
-                for i, idx in enumerate(kmer_ids_sorted_by_count):
-                    kmer_id = kdb_in.kmer_ids[i]
-                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+    sfx = os.path.splitext(arguments.kdb_in)[-1]
 
-                    print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-            else:
-                for i, idx in enumerate(kdb_in.kmer_ids):
-                    kmer_id = kdb_in.kmer_ids[idx]
-                    logger.debug("The row in the file should follow this order:")
-                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-                    try:
-                        if arguments.un_sort is True:
-                            assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
-                            assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
-                        else:
-                            #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
-                            pass
-                    except AssertionError as e:
-                        logger.warning(e)
-                        logger.warning("K-mer id {0} will be printed in the {1} row".format(idx, i))
+
+
+
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdb_in):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
+    if sfx == ".kdb":
+        with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
+            metadata = kdb_in.metadata
+            kmer_ids_dtype = metadata["kmer_ids_dtype"]
+            N = 4**metadata["k"]
+            if metadata["version"] != config.VERSION:
+                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+                if arguments.header:
+                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    print(yaml.dump(metadata, sort_keys=False))
+                    print(config.header_delimiter)
+            logger.info("Reading from file...")
+            logger.debug("I cut off the json-formatted unstructured column for the main view.")
+            try:
+                if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
+                    kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
+                    reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
+                    for i, idx in enumerate(kmer_ids_sorted_by_count):
+                        kmer_id = kdb_in.kmer_ids[i]
+                        logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                else:
+                    for i, idx in enumerate(kdb_in.kmer_ids):
+                        kmer_id = kdb_in.kmer_ids[idx]
+                        logger.debug("The row in the file should follow this order:")
+                        logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                        try:
+                            if arguments.un_sort is True:
+                                assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
+                                assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
+                            else:
+                                #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
+                                pass
+                        except AssertionError as e:
+                            logger.warning(e)
+                            logger.warning("K-mer id {0} will be printed in the {1} row".format(idx, i))
                         #raise e
-                    logger.debug("{0} line:".format(i))
-                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
-                    if arguments.un_sort is True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
-                    else:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                        logger.debug("{0} line:".format(i))
+                        logger.debug("=== = = = ======= =  =  =  =  =  = |")
+                        if arguments.un_sort is True:
+                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                        else:
+                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
                 # I need to demonstrate a capacity for graph based learning.
                 # (:-|X) The dread pirate roberts got me.
                 # :)
-        except BrokenPipeError as e:
-            logger.error(e)
-            raise e
-    if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
-        logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
-        sys.exit(1)
-    elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
-        raise ValueError("Cannot write a file to an argument that isn't a string")
-    elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
-        logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
-    elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
-        logger.debug("Creating '{0}'...".format(arguments.kdb_out))
-    if arguments.kdb_out is not None:
-        with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
-            assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
-            assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
-            assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
-            with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
-                try:
-                    for i, idx in enumerate(kdb_in.kmer_ids):
-                        kmer_id = idx
-                        seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                        kmer_metadata = kmer.neighbors(seq, arguments.k)
-                        logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
-                        kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
+        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
+            sys.exit(1)
+        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
+            raise ValueError("Cannot write a file to an argument that isn't a string")
+        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
+            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
+        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
+            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
+            if arguments.kdb_out is not None:
+                with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
+                    assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
+                    assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
+                    assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
+                    with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                        try:
+                            for i, idx in enumerate(kdb_in.kmer_ids):
+                                kmer_id = idx
+                                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                                kmer_metadata = kmer.neighbors(seq, arguments.k)
+                                logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
+                                kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
                     
-                except StopIteration as e:
-                    logger.error(e)
-                    raise e
-                finally:
-                    #kdb_out._write_block(kdb_out._buffer)
-                    #kdb_out._handle.flush()
-                    #kdb_out._handle.close()
-                    sys.stderr.write(config.DONE)
+                        except StopIteration as e:
+                            logger.error(e)
+                            raise e
+                        finally:
+                            #kdb_out._write_block(kdb_out._buffer)
+                            #kdb_out._handle.flush()
+                            #kdb_out._handle.close()
+                            sys.stderr.write(config.DONE)
+    elif sfx == ".kdbg":
+        with graph.open(arguments.kdb_in, mode='r', slurp=True) as kdbg_in:
+            metadata = kdbg_in.metadata
 
+            print(metadata)
+            sys.exit(1)
+            
+            n1_dtype      = metadata["n1_dtype"]
+            n2_dtype      = metadata["n2_dtype"]
+            weights_dtype = metadata["weights_dtype"]
+
+
+
+            
+            if metadata["version"] != config.VERSION:
+                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+                if arguments.header:
+                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    print(yaml.dump(metadata, sort_keys=False))
+                    print(config.header_delimiter)
+            logger.info("Reading from file...")
+            logger.debug("I cut off the json-formatted unstructured column for the main view.")
+            try:
+
+
+                """
+                FIXME!
+
+
+
+                """
+                
+
+
+                for i in range(len(kdbg_in.n1)):
+                    n1 = kdbg_in.n1[i]
+                    n2 = kdbg_in.n2[i]
+                    w  = kdbg_in.weights[i]
+                    logger.debug("The row in the file should follow this order:")
+                    logger.debug("The first is an implicit row-index. The second and third are k-mer ids, then edge weight")
+                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+                    logger.debug("{0} line:".format(i))
+                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
+                    print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+                    # I don't think anyone cares about the graph representation.
+                    # I don't think this actually matters because I can't figure out what the next data structure is.
+                    # Is it a Cypher query and creation node set?
+                    # I need to demonstrate a capacity for graph based learning.
+                    # (:-|X) The dread pirate roberts got me.
+                    # :)
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
+        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
+            sys.exit(1)
+        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
+            raise ValueError("Cannot write a file to an argument that isn't a string")
+        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
+            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
+        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
+            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
+            if arguments.kdb_out is not None:
+                with fileutil.graph(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdbg:
+                    with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                        try:
+                            for i in range(len(kdbg.n1)):
+                                kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg.n1[i], kdbg.n2[i],  kdbg.w[i]))
+                    
+                        except StopIteration as e:
+                            logger.error(e)
+                            raise e
+                        finally:
+                            #kdb_out._write_block(kdb_out._buffer)
+                            #kdb_out._handle.flush()
+                            #kdb_out._handle.close()
+                            sys.stderr.write(config.DONE)
+
+
+                                              
 def make_kdbg(arguments):
     """
     Another ugly function that takes a argparse Namespace object as its only positional argument
@@ -1125,7 +1212,7 @@ def make_kdbg(arguments):
         "sorted": arguments.sorted,
         "n1_dtype": "uint64",
         "n2_dtype": "uint64",
-        "weight_dtype": "uint64",
+        "weights_dtype": "uint64",
         "tags": [],
         "files": headers
     })
@@ -1133,7 +1220,7 @@ def make_kdbg(arguments):
     try:
         np.dtype(metadata["n1_dtype"])
         np.dtype(metadata["n2_dtype"])
-        np.dtype(metadata["weight_dtype"])
+        np.dtype(metadata["weights_dtype"])
     except TypeError as e:
         logger.error(e)
         logger.error("kmerdb encountered a type error and needs to exit")
@@ -1146,7 +1233,7 @@ def make_kdbg(arguments):
     logger.debug("Initializing Numpy arrays of {0} uint zeroes for the edge lists...".format(N))
     n1 = np.array(range(N), dtype=metadata["n1_dtype"])
     n2 = np.array(range(N), dtype=metadata["n2_dtype"])
-    weights = np.array(range(N), dtype=metadata["weight_dtype"])
+    weights = np.array(range(N), dtype=metadata["weights_dtype"])
     logger.info("Initialization of profile completed, using approximately {0} bytes per array".format(n1.nbytes))
     yaml.add_representer(OrderedDict, util.represent_ordereddict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
