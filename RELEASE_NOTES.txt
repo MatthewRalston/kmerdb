@@ -1,4 +1,24 @@
 =============
+| v0.7.8    |
+=============
+Still fixing a lot of issue wrt the interface (logging info) and stepping through neighbor list creation/validations, adjacencies format specification, other issues w.r.t main __init__.py profile and graph subcommands (profile, make_kdbg in __init__.py, [ALL] fileutil.py )
+
+Major issues. ick.
+
+
+
+
+=============
+| v0.7.7    |
+=============
+New basic format spec (.kdbg) released for weighted edge list. IUPAC warning setting abstracted for two base methods for k-mer counter: validate_seqRecoard_and_detect_IUPAC. _shred method needed for edge list, performance assessment needed vs vanilla k counter.
+
+graph format has 3 numpy columns: 2,3,4 and those are the n1, n2, edge_weight vars. added to metadata config. solver solution still unformed.
+
+Needs README.md and website description.
+
+
+=============
 | v0.7.6    |
 =============
 The tabular format specification has boiled down to a 4 or 5 column design, and the metadata header has been stabilized since 0.7.4, in Jan/Feb of 2023. The header now consists of explicit Numpy dtypes, int64 most of the time. Frequency columns are included for the sake of it, but int count profiles have taken the front seat in the project.
