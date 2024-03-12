@@ -46,6 +46,64 @@ logger = logging.getLogger(__file__)
 
 
 
+def create_edges(kmer_id_pairs:list, neighbors:dict, neighbor_structure:list):
+
+
+    if type(kmer_id_pairs) is not list:
+        raise TypeError("hum")
+    elif type(neighbors) is not dict:
+        if [type(val) is tuple for val in neighbors.keys()] and [  len(f) == 3 for f in neighbors.keys() ]:
+        elif [ len(e) == 3 and (type(e[0) is int ) for i, e in neighbors.keys()] is all True:
+            if not list(map(lambda x: type(x) is int, e)) is all True:
+                raise("RUHROH! CANNOT CONTINUE. BSRRRSBzRS")
+            else:
+                raise("typecheck completed")
+                if [ p[0] > p[1] for p in neighbors.keys()] is all True:
+                    logger.debug("GREAT JOB. EACH NEIGHBOR PAIR IS arrainged into DESCENDING ORDER")
+                    logger.debug("MEGASORT COMPLETED")
+                    logger.debug("lol")
+
+
+                for i, edge in kmer_id_pairs:
+
+                    """
+                    Is edge list (at all) sorted?
+                    """
+                else:
+                    logger.debug("Needs {0} edges sorted".format(len(kmer_id_pairs)))
+
+                    logger.info("This is the level of the edge graph")
+
+
+
+                    logger.debug("Is this a neighbor structure?")
+
+
+                    '''
+                    # Needs to be either a adjacency in the fasta file, or pair of neighbor structure
+                    '''
+                    logger.error(pair_ids) 
+                    logger.error("======= edge # ( ( \'{0}\' , \'{1}\' )".format(edge[0], edge[1]) )
+                    
+                    
+                    print("adjaencies") if [  if e[3] == "adjacency" for i, e in neighbors.keys() is all True]
+                    logger.debug("int neighbors")
+    elif [type(e[0])
+
+
+
+
+    for e in kmer_id_pairs:
+    
+        forward = neighbors[(e[0], out_pair_one[i])]:
+        reverse = neighbors[(out_pair_one[i], e[0])]
+            
+        
+
+        for k_id in kmer_id_pairs] is all True
+        raise TypeError("kmerdb.graph.create_edges ah")
+    
+
 def open(filepath, mode="r", metadata=None, slurp:bool=False):
     """
     Opens a file for reading or writing. Valid modes are 'xrwbt'. 
@@ -534,7 +592,7 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
         """
         #r = {"kmer_id": k_id, "left_neighbors": lneighbors_ids, "right_neighbors": rneighbors_ids}
         neighbors_current_to_last = list(map(lambda x: (k_id, x), char_last_ids))
-        neighbors_first_to_current = list(map(lambda x: (x, k_id), char_first_ids))
+        neighbors_first_to_current = list(map(lambda x: (k_id, x), char_first_ids))
         just_eight_edges = []
         for one,two in (neighbors_current_to_last + neighbors_first_to_current):
             just_eight_edges.append((one, two))
@@ -559,8 +617,9 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
         
         if k_id == 15633431 or k_id == 12202077:
             logger.debug("-"*11)
+            
             logger.debug("K-mer {0} and all (non-self) neighbors:".format(k_id))
-            logger.debug(current_kmer)
+            logger.debug("{0}  -  {1}".format(current_kmer, "k1 + c"))
             logger.debug("-"*11)
             logger.debug("<:" + ",".join(char_first) + " |||| " + common_seq + "  ||||  " + ",".join(char_last) + ">:")
             logger.debug(",".join(list(map(str, char_first_ids))) + " |||| " + ",".join(list(map(str, char_last_ids))))
@@ -581,18 +640,20 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
         """
 
         missing_key = (15633431, 12202077)
-        if missing_key in all_edges_in_kspace.keys():
-            print("ITS THERE! LIAR")
-            print("EDGE OF KSPACE")
-            print("{0} : {1}".format(missing_key, all_edges_in_kspace[missing_key]))
-            logger.error(" |||| =========     + = || = - = || = + = || = - = || + =          =========")
+        # if missing_key in all_edges_in_kspace.keys():
+        #     print("ITS THERE! LIAR")
+        #     print("EDGE OF KSPACE")
+        #     print("{0} : {1}".format(missing_key, all_edges_in_kspace[missing_key]))
+        #     logger.error(" |||| =========     + = || = - = || = + = || = - = || + =          =========")
         
-        if (15633431, 12202077) in just_eight_edges.keys():
-            print("Sequence:")
-            print(current_kmer)
-            print("SUCCESS")
-            print(edges)
-            sys.exit(1)
+        # if (15633431, 12202077) in just_eight_edges:
+        #     print("Sequence:")
+        #     print(current_kmer)
+        #     print(just_eight_edges)
+            
+        #     print("SUCCESS. This k-mer, current k-mer : {0}|{1} has 8 neighbors. {2} . None should be self".format(k_id, current_kmer, just_eight_edges))
+        #     #print(all_edges_in_kspace)
+        #     sys.exit(1)
     """
     At this point, the adjacency structure is a simple list of tuples. Redundant tuples may exist in disparate parts of the graph.
 
@@ -647,6 +708,11 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
             k1 = current_kmer[1:] # 11 characters (k - 1) remove the left most char, so new char goes on end to make the neighbor
             # not_the_king_but_the_rook = None
             k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
+
+
+
+
+            # homeroon assertions
             assert len(k1) == k-1
             assert len(k2) == k-1
             
@@ -705,7 +771,7 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
             # 
             #r = {"kmer_id": k_id, "left_neighbors": lneighbors_ids, "right_neighbors": rneighbors_ids}
             neighbors_c_to_n = list(map(lambda x: (k_id, x), char_last_ids))
-            neighbors_next_to_current = list(map(lambda x: (x, k_id), char_first_ids))
+            neighbors_next_to_current = list(map(lambda x: (k_id, x), char_first_ids))
             neighbors = (neighbors_next_to_current + neighbors_c_to_n) # Order doesn't matter
 
 
@@ -753,6 +819,7 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
             k1, k2 = pair
             k1 = k1[1:]
             k2 = k2[:-1]
+            pair = list(map(kmer.kmer_id_to_kmer, ( k1, k2 ))
             common_seq = current_kmer[1:-1]
 
             
@@ -781,40 +848,65 @@ def make_graph(kmer_ids, k:int=None, quiet:bool=True):
                 banner2 = """
                 (15633431, 12202077)
                 """
-                
-                print(banner1)
-                print(banner2)
+
+
+
+                '''
+                #print(banner1)
+                #print(banner2)
+                '''
                 # k1 = current_kmer[1:] # 11 characters (k - 1) remove the left most char, so new char goes on end to make the neighbor
                 # not_the_king_but_the_rook = None
                 # k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
 
 
+                print("pair_id is consistent?")
+                print(pair)
 
 
 
-
-
+                print(list(map(str , pair)).join(" ,") + "received")
+                
 
                 
                 """
                 ACCUMULATOR           --------- DONE
                 """
                 all_edges_in_kspace[pair_ids] += 1
+
+                print("PPPPPPPppPapapapPPapPpaPPa pair kmerids")
+
+                print(pair)
+
+                print(pair)
+                
+                        
             except KeyError as e:
                 logger.error("Invalid key(pair) used to access edge list")
                 sys.stderr.write("PAIR: {0} => {1}\n".format(pair[0], pair[1]))
                 sys.stderr.write("pair ids: {0}\n".format(pair_ids))
                 logger.error(30*"=")
                 for i, p in enumerate(all_edges_in_kspace.keys()):
-                    if 156 in p or pair[1] in p:
+                    if 15633431 in p or 12202077 in p:
                         logger.error(p)
                 raise e
 
 
+            print(pair_ids, p, "wow thans prin funshun")
 
 
+            print("print funshun you're so smart and tall")
 
 
+            print("print funshun why did you sit next to me")
+
+            print("function")
+
+
+            print("k1 x k2 " + list(map(str, (k1, k2))).join(('), ('))
+
+
+            print(k_id, k1
 
 
     # This variable is unrestricted. A larger k may inflate this var beyond the memory limits of the computer where the observed k-space can be represented with enough resolution through enough profile diversity.

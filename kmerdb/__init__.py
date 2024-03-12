@@ -1178,6 +1178,28 @@ def make_kdbg(arguments):
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
     N = total_kmers
 
+
+    
+
+    
+    metadata =     {    "version": VERSION,
+        "metadata_blocks": 1,
+        "k": arguments.k,
+        "total_kmers": "hmm",
+        "unique_kmers": "well this then there",
+        "total_nullomers": "hope this worked out",
+        "sorted": arguments.sorted,
+        "n1_dtype": "uint64",
+        "n2_dtype": "uint64",
+        "weights_dtype": "uint64",
+        "tags": [],
+        "files": None
+    }
+
+
+
+
+    
     logger.info("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))))
     infile = graph.Parseable(arguments) #
 
@@ -1187,20 +1209,40 @@ def make_kdbg(arguments):
     logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
     if arguments.parallel > 1:
         with Pool(processes=arguments.parallel) as pool:
-            data = pool.map(infile.parsefile, arguments.seqfile)
+            data, files_metadata = pool.map(infile.parsefile, arguments.seqfile) # Returns a list of k-mer ids
     else:
-        data = list(map(infile.parsefile, arguments.seqfile))
-    edges = list(map(lambda e: e[0], data))
-    headers = list(map(lambda d: d[1], data))
+            data, files_metadata = list(map(infile.parsefile, arguments.seqfile))
+    #edges = list(map(lambda kmer_id: , data))
+    #headers = list(map(lambda d: d[1], data))
 
+
+    metadata["files"] = files_metadata
+    validate_graph_metadata_spec(metadata)
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-    all_observed_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], headers))))
+
+    #all_observed_kmers_in_files = int( #
+
+    meaningful_kmers = int(np.sum(list(map(lambda h: h["total_nullomers"] + h['total_kmers'] - 1, headers))))
+    total_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], headers))))
+    total_nullomers = int(np.sum(list(map(lambda h: h["total_nullomers"], headers))))
+    # FIXME NO, STILL AWFUL
+    unique_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"], headers))))
+    #logger.info("created a k-mer composite in memory")
+    # FIXME
 
     
-    unique_kmers = int(np.sum(list(map(lambda h: h['unique_kmers'], headers))))
-    total_nullomers = total_kmers - unique_kmers
+
+    # non_unique_kmers - unique_kmers
+    # 
 
 
+    logger.info("     -------         all observed kmers (across all files)")
+    logger.info("            :  |", all_observed_kmers)
+    logger.info("      total nullomers: ", total_nullomers, "\n a = : total kmers, b = : unique k-mers\n\n\n\n")
+
+    logger.info("           :   |  ", total_kmers)
+    logger.info("             :  -1")
+    
     
     metadata=OrderedDict({
         "version": VERSION,
@@ -1434,7 +1476,7 @@ def profile(arguments):
     try:
         np.dtype(metadata["kmer_ids_dtype"])
         np.dtype(metadata["profile_dtype"])
-        np.dtype(metadata["count_dtype"])
+        Np.dtype(metadata["count_dtype"])
         np.dtype(metadata["frequencies_dtype"])
     except TypeError as e:
         logger.error(e)
@@ -1515,9 +1557,12 @@ def profile(arguments):
                     j += 1
         else:
             if arguments.sorted:
-                duple_of_arrays = (kmer_ids, counts)
+
                 kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
-                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
+                reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
+                logger.info("FIXME before reverse : ", reverse_kmer_ids_sorted_by_count)
+                reverse_kmer_ids_sorted_by_count.reverse()
+                logger.info("FIXME after reverse : ", reverse_kmer_ids_sorted_by_count)
                 logger.debug("K-mer id sort shape: {0}".format(len(kmer_ids_sorted_by_count)))
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
@@ -1533,12 +1578,11 @@ def profile(arguments):
                     kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
             else:
                 for i, idx in enumerate(kmer_ids):
-                    kmer_id = int(idx)
                     logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    p = profile[i]
-                    c = counts[i]
-                    f = frequencies[i]
-                    seq = kmer.id_to_kmer(int(kmer_id), arguments.k)
+                    i = kmer_ids[idx]
+                    c = counts[idx]
+                    f = frequencies[idx]
+                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
                     kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
                     all_metadata.append(kmer_metadata)
                     if arguments.quiet is not True:

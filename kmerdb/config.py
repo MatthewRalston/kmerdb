@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.7.7"
+VERSION="0.7.8"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 graph_schema = {
@@ -28,7 +28,7 @@ graph_schema = {
         "k": {"type": "number"},
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
-        "unique_nullomers": {"type": "number"},
+        "total_nullomers": {"type": "number"},
         "sorted": {"type": "boolean"},
         "n1_dtype": {"type": "string"},
         "n2_dtype": {"type": "string"},
@@ -77,7 +77,7 @@ metadata_schema = {
         "k": {"type": "number"},
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
-        "unique_nullomers": {"type": "number"},
+        "total_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
         "profile_dtype": {"type": "string"},
