@@ -372,7 +372,6 @@ def id_to_kmer(id, k):
 
 def neighbors(kmer, kmer_id,  k):
     """
-    Create the basic neighbors kmer_metadata dictionary. Soon to be deprecated. 
 
     3/11/24 revived. given a k-mer of length k, give its neighbors.
 
@@ -381,18 +380,20 @@ def neighbors(kmer, kmer_id,  k):
     But rock on :
     
 
-    :param s: The sequence as a string that will be sliced for k-mers
-    :type s: str
+    :param kmer: The sequence as a string that will be sliced for k-mers
+    :type kmer: str
+    :param kmer_id: The k-mer id for neighbor generation
+    :type kmer_id: int
     :param k: The int k 
     :type k: int
-    :returns: The neighbors for a certain sequence s as a str
+    :returns: The neighbors for the input sequence as a str
     :rtype: dict
     """
-    if not isinstance(s, str):
+    if not isinstance(kmer, str):
         raise TypeError("kmerdb.kmer.neighbors expects a Biopython Seq object as its first positional argument")
     elif type(k) is not int:
         raise TypeError("kmerdb.kmer.neighbors expects an int as its second positional argument")
-    elif len(s) != k:
+    elif len(kmer) != k:
         raise TypeError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
     else:
         import copy
@@ -411,45 +412,60 @@ def neighbors(kmer, kmer_id,  k):
 
         # TYPE 2: [["A", "C", "G", "T"] : c + last char removed  ]
         """
-        new_type1_ids = list(map(kmer.kmer_to_id, new_type1))
-        new_type2_ids = list(map(kmer.kmer_to_id, new_type2))
+        new_type1_ids = list(map(kmer_to_id, new_type1))
+        new_type2_ids = list(map(kmer_to_id, new_type2))
 
         logger.info("kmerdb.kmer.neighbors creating neighbors...")
-        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + list(map(str, new_type1_ids).join('\n')))
-        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + list(map(str, new_type2_ids).join('\n')))
+        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type1_ids))))
+        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type2_ids))))
 
 
-        print(""" flower garden - joan G. Stark
+#         print(""" flower garden - joan G. Stark
 
-                                    wWWWw
-   vVVVv (___) wWWWw  wWWWw  (___)  vVVVv
-   (___)  ~Y~  (___)  vVVVv   ~Y~   (___)
-    ~Y~   \|    ~Y~   (___)    |/    ~Y~
-    \|   \ |/   \| /  \~Y~/   \|    \ |/
-   \\|// \\|// \\|/// \\|//  \\|// \\\|///
-jgs^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#                                     wWWWw
+#    vVVVv (___) wWWWw  wWWWw  (___)  vVVVv
+#    (___)  ~Y~  (___)  vVVVv   ~Y~   (___)
+#     ~Y~   \|    ~Y~   (___)    |/    ~Y~
+#     \|   \ |/   \| /  \~Y~/   \|    \ |/
+#    \\|// \\|// \\|/// \\|//  \\|// \\\|///
+# jgs^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-            """,
+#             """,
 
-            "   the UWU neighbor structure ...
+#             """   the UWU neighbor structure ...
 
-                  _(_)_                          wWWWw   _
-      @@@@       (_)@(_)   vVVVv     _     @@@@  (___) _(_)_
-     @@()@@ wWWWw  (_)\    (___)   _(_)_  @@()@@   Y  (_)@(_)
-      @@@@  (___)     `|/    Y    (_)@(_)  @@@@   \|/   (_)\
-       /      Y       \|    \|/    /(_)    \|      |/      |
-    \ |     \ |/       | / \ | /  \|/       |/    \|      \|/
-jgs \\|//   \\|///  \\\|//\\\|/// \|///  \\\|//  \\|//  \\\|// 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-",
-              "print more structure",
+#                   _(_)_                          wWWWw   _
+#       @@@@       (_)@(_)   vVVVv     _     @@@@  (___) _(_)_
+#      @@()@@ wWWWw  (_)\    (___)   _(_)_  @@()@@   Y  (_)@(_)
+#       @@@@  (___)     `|/    Y    (_)@(_)  @@@@   \|/   (_)\
+#        /      Y       \|    \|/    /(_)    \|      |/      |
+#     \ |     \ |/       | / \ | /  \|/       |/    \|      \|/
+# jgs \\|//   \\|///  \\\|//\\\|/// \|///  \\\|//  \\|//  \\\|// 
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# """,
+#               "print more structure",
 
-        )
+#         )
 
         logger.info("kmerdb.kmer.neighbors creating neighbors...")
-        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + list(map(str, new_type1_ids).join('\n')))
-        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + list(map(str, new_type2_ids).join('\n')))
+        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type1_ids))))
+        logger.info("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type2_ids))))
+
+        print("""
+        k-id : {0}
+        kmer : \"    {1}        \"
+
+        'neighbors'
 
 
-        
-        return {"appended_first_char_all_ommitted": new_type1_ids, "prepended_last_char_all_omitted": new_type2_ids}
+        {2}
+        {3}
+
+
+        'ids':
+        {4}
+""".format(kmer_id, kmer, new_type1, new_type2, new_type1_ids))
+        print(new_type1_ids)
+        print(new_type2_ids)
+        #return {"appended_first_char_all_ommitted": new_type1_ids, "prepended_last_char_all_omitted": new_type2_ids}
+        return new_type1_ids + new_type2_ids

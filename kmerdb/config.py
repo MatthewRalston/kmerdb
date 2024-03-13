@@ -176,11 +176,6 @@ Copyright 2020 Matt Ralston (mrals89@gmail.com)
 https://matthewralston.github.io/kmerdb
 
 ===========================================
-|     P y P I                             |
-===========================================
-https://pypi.org/project/kmerdb/
-
-===========================================
 |          G i t h u b                    |
 ===========================================
 https://github.com/MatthewRalston/kmerdb
@@ -191,17 +186,55 @@ https://github.com/MatthewRalston/kmerdb
 |   N o t   Very   H u m e r u s           |
 
 ============================================
-https://matthewralston.github.io/blog/kmer-database-format-part-1
+
 
 Please cite my repository in your work!
 
 Feel free to e-mail me or reach out!
 
 Please check the README.md for more details.
-https://github.com/MatthewRalston/kmerdb
+https://matthewralston.github.io/kmerdb/
 
 """
+
+
+
+
+
+
+
+
+SPONGEBOB = """
+⢀⣠⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
+⣿⡋⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢙⣿
+⣿⡇⠀⠀⠀⣠⣴⠾⠿⠷⣦⡀⢀⣴⠾⠿⠷⣦⣄⠀⠀⠀⢸⣿
+⢸⡇⠀⠀⢰⡟⠁⠀⣀⣀⠈⢿⡿⠁⣀⣀⠀⠈⢻⡆⠀⠀⢸⡇
+⢸⣷⠀⠀⢸⡇⠀⠀⠿⠿⠁⣸⣇⠈⠿⠿⠀⠀⢸⡇⠀⠀⣾⡇
+⠘⣿⠀⠀⠈⠻⣦⣄⣀⣤⣾⠛⠛⣷⣤⣀⣠⣴⠟⠁⠀⠀⣿⠃
+⠀⣿⠀⠘⢷⣄⠀⠉⠉⠙⢿⠄⠠⡿⠋⠉⠉⠀⣠⡾⠃⠀⣿⠀
+⠀⣿⠀⠀⠀⠙⠻⢶⣦⣤⣤⣤⣤⣤⣤⣴⡶⠟⠋⠀⠀⠀⣿⠀
+⠀⣿⡄⠀⠀⠀⠀⠀⣿⣀⣹⡇⢸⣏⣀⣿⠀⠀⠀⠀⠀⢠⣿⠀
+⠀⢿⡇⠀⠀⠀⠀⠀⠉⠉⠉⠁⠈⠉⠉⠉⠀⠀⠀⠀⠀⢸⡿⠀
+⠀⢸⣿⣿⣿⣿⣟⠛⠛⠛⣻⡿⢿⣟⠛⠛⠛⣻⣿⣿⣿⣿⡇⠀
+⠀⢸⣿⣿⣿⣿⣿⣷⣤⣾⣿⣶⣶⣿⣷⣤⣾⣿⣿⣿⣿⣿⡇⠀
+⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀
+⠀⠀⠉⠉⠉⠉⠉⠉⠉⠉⠻⣧⣼⠟⠉⠉⠉⠉⠉⠉⠉⠉⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀
+
+"""
+
+
+
 DONE = """
+
+
+"@->- -|>" ... @->- 
+
+... '"(---)"' , "-|> ?"'->
+
+fax
+
+- idlethoughts
 
 ==========================================
 ----------------D O N E-------------------
@@ -250,6 +283,61 @@ Matrix will be written to STDOUT as this is the first step of the pipeline.
 """
 # for i in range(42, 1, -1):
 #     MATRIX_MASTHEAD += i*"=" + "\n"
+
+
+GRAPH_MASTHEAD = """
+
+==========================================
+           kmerdb graph
+==========================================
+kmerdb graph example.fa example.kdbg --prefix temp_output
+-----
+.
+.
+.
+output.kdbg
+output.kdb
+output.kdbi
+output.kdb.gi
+error.log
+debug.log
+output.kdbg.stats.neighbors.txt
+output.kdbg.stats.edges.txt
+output.kdbg.stats.adjacency.txt
+---jk
+output.kdbg.stats_txt
+---------------------
+distribution.txt
+quick_stats.txt
+---------------
+kmers-per-file (array ok)
+
+kmers-total  :
+kmers-avg   :
+singletons :
+doublets :
+triplets :
+
+
+'meaningful_kmers = unique_kmers + total_kmers'  (per file)     :  {0}      =    ' {1} '  ' + ' ' {2} '       |
+grand_total_of_kmers     :    
+--------------------------------------------------------------------------------------
+
+(table structure
+
+kmer_totals  :  (array okay)  (per file)
+unique kmers :  (array okay)  (per file)
+nullomers    :  (array okay)  (per file)
+
+output.kdbg.stats.doublets
+output.kdbg.stats.triplets
+output.kdb.stats.average
+output.k
+output.kdbg.stats.paths.txt
+
+
+"""
+
 
 
 KMEANS_MASTHEAD = """
@@ -325,18 +413,8 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 
 
 
+I make no disclaimers.
 
-################################
-# W A R N I N G :  M E M O R Y #
-################################
-# The following is some 'basic' guesses about expected memory usage.
-# I believe this is an oversimplification of the memory profile for technical language and representation issues.
-# The profile loading function reads the array into memory from the file, assuming a certain data encoding.
-# The coding is now set to 'uint64' by default, which in theory allows us to only be limited by numpy array size.
-# Now that we have that out of the way.
-# The integer depth we have is large.
-#
-#
 #
 ##################
 # dimensionality reduction + kmeans
