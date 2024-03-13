@@ -1209,20 +1209,36 @@ def make_kdbg(arguments):
     logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
     if arguments.parallel > 1:
         with Pool(processes=arguments.parallel) as pool:
-            data, files_metadata = pool.map(infile.parsefile, arguments.seqfile) # Returns a list of k-mer ids
+            # data files_metadata
+            data = pool.map(infile.parsefile, arguments.seqfile) # Returns a list of k-mer ids
     else:
-            data, files_metadata = list(map(infile.parsefile, arguments.seqfile))
+            # data files_metadata
+            data = list(map(infile.parsefile, arguments.seqfile))
     #edges = list(map(lambda kmer_id: , data))
     #headers = list(map(lambda d: d[1], data))
 
+    # data should be list
+    # data = edges
 
+
+    print(data)
+    sys.exit(1)
+    
     metadata["files"] = files_metadata
+    
     validate_graph_metadata_spec(metadata)
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-
+    sys.stderr.write("nice")
     #all_observed_kmers_in_files = int( #
 
-    meaningful_kmers = int(np.sum(list(map(lambda h: h["total_nullomers"] + h['total_kmers'] - 1, headers))))
+
+    """
+    aggregate counts across files for .kdbg metadata header
+    """
+    # Aggregate k-mer metadata across all input files.
+    
+    meaningful_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"] + h['total_nullomers'] - 1, headers))))
+    all_kmers = int(np.sum(list(map(lambda h: h["total_nullomers"] + h["total_kmers"], headers))))
     total_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], headers))))
     total_nullomers = int(np.sum(list(map(lambda h: h["total_nullomers"], headers))))
     # FIXME NO, STILL AWFUL
@@ -1259,14 +1275,16 @@ def make_kdbg(arguments):
         "files": headers
     })
 
-    try:
-        np.dtype(metadata["n1_dtype"])
-        np.dtype(metadata["n2_dtype"])
-        np.dtype(metadata["weights_dtype"])
-    except TypeError as e:
-        logger.error(e)
-        logger.error("kmerdb encountered a type error and needs to exit")
-        raise TypeError("Incorrect dtype.")
+
+    # # um
+    # try:
+    #     np.dtype(metadata["n1_dtype"])
+    #     np.dtype(metadata["n2_dtype"])
+    #     np.dtype(metadata["weights_dtype"])
+    # except TypeError as e:
+    #     logger.error(e)
+    #     logger.error("kmerdb encountered a type error and needs to exit")
+    #     raise TypeError("Incorrect dtype.")
 
 
     N = len(edges[0].keys()) # edges is a list of dicts, where keys are a 2-tuple (e.g. (15633431, 12202077) ) representing an edge
@@ -1282,14 +1300,17 @@ def make_kdbg(arguments):
 
     logger.info("Generated metadata for .kdbg...")
 
+    edges = graph.create_edges(kmer_ids)
+    
+    graph = graph.make_graph(arguments)
     """
     At this point, unpacking should be second nature but it took about 2 minutes to get this sorted out, rebuilding, recounting k-mers, and watching dota2.
     """
-    # print("'edges' type:'")
-    # print(type(edges))
-    # print(edges)
-    # sys.stderr.write("ALMOST DONE!!")
-    # sys.exit(1)
+    print("'edges' type:'")
+    print(type(edges))
+    print(edges)
+    sys.stderr.write("ALMOST DONE!!")
+    sys.exit(1)
 
 
     """
@@ -1299,18 +1320,6 @@ def make_kdbg(arguments):
     # Step 1: over each file's weighted edge list: initialize the result dict
     result = {}
 
-    print
-    for es in edges:
-        for i, e in enumerate(es.keys()):
-            try:
-                result[e] = 0                
-            except KeyError as e:
-                logger.debug("Could not find a valid (empty or recorded) edge relationship in the {0}'th input file's weighted edgelist")
-                raise e
-    # Step 2: over each file's weighted edge list, accumulate all counts observed in the .fa/.fq files.
-    for es in edges:
-        for i, e in enumerate(es.keys()):
-            result[e] += es[e]
     # Step 3: pretty print a table of results.
 
     logger.debug("Storing all edges (node pairs) and weights in previously allocated numpy arrays")
@@ -1329,35 +1338,54 @@ def make_kdbg(arguments):
     #df = pd.DataFrame(twoD_weighted_edge_list)
     #df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
 
-    kdbg_out = graph.open(arguments.kdbg, 'wb', metadata=metadata)
+    with graph.open(arguments.kdbg, 'wb', metadata=metadata) as kdbg_out:
 
 
-    try:
-        sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
-        for i, node1 in enumerate(n1):
+        try:
+            sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
+            for i, node1 in enumerate(n1):
             
-            node2 = n2[i]
-            w = weights[i]
+                node2 = n2[i]
+                w = weights[i]
 
-            if arguments.edges is True:
-                print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
-            # node1, node2, weight
-            kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
-    finally:
-        kdbg_out._write_block(kdbg_out._buffer)
-        kdbg_out._handle.flush()
-        kdbg_out._handle.close()
-        
-        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
-        sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
-        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-        sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
-        sys.stderr.write("="*30 + "\n")
-        sys.stderr.write(".kdbg stats:\n")
-        sys.stderr.write("-"*30 + "\n")
-        sys.stderr.write("Edges in file:  {0}\n".format(N))
-        sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
-        sys.stderr.write("\nDone\n")
+                tupley = (i, node1, node2, w)
+                tupley_dl = np.array(tupley, dtype="uint64")
+                if arguments.edges is True:
+                    print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
+                # node1, node2, weight
+                kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+        finally:
+            kdbg_out._write_block(kdbg_out._buffer)
+            kdbg_out._handle.flush()
+            kdbg_out._handle.close()
+
+
+            """
+            Done around nicoles birfday
+
+
+
+
+
+ahhhh toopley
+
+
+
+ahhaahahaha toopley
+
+
+            3/12/24
+            """
+            sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+            sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
+            sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+            sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
+            sys.stderr.write("="*30 + "\n")
+            sys.stderr.write(".kdbg stats:\n")
+            sys.stderr.write("-"*30 + "\n")
+            sys.stderr.write("Edges in file:  {0}\n".format(N))
+            sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
+            sys.stderr.write("\nDone\n")
 
     logger.info("Done printing weighted edge list to .kdbg")
 
