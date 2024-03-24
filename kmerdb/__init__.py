@@ -1158,6 +1158,9 @@ def make_kdbg(arguments):
     The goal isn't to yet implement the traversal algorithm in this first commit. But instead I'd like to get the format specified.
     """
     from multiprocessing import Pool
+
+
+    import jsonschema
     
     import numpy as np
     
@@ -1175,33 +1178,11 @@ def make_kdbg(arguments):
         raise IOError("Destination .kdbg filepath does not end in '.kdbg'")
 
     file_metadata = []
-    total_kmers = 4**arguments.k # Dimensionality of k-mer profile
-    N = total_kmers
-
-
-    
-
-    
-    metadata =     {    "version": VERSION,
-        "metadata_blocks": 1,
-        "k": arguments.k,
-        "total_kmers": "hmm",
-        "unique_kmers": "well this then there",
-        "total_nullomers": "hope this worked out",
-        "sorted": arguments.sorted,
-        "n1_dtype": "uint64",
-        "n2_dtype": "uint64",
-        "weights_dtype": "uint64",
-        "tags": [],
-        "files": None
-    }
-
-
-
+    theoretical_kmers_number = 4**arguments.k # Dimensionality of k-mer profile
 
     
     logger.info("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))))
-    infile = graph.Parseable(arguments) #
+    infile = graph.Parseable(arguments) # NOTE: Uses the kmerdb.graph module
 
     
     logger.info("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
@@ -1214,51 +1195,29 @@ def make_kdbg(arguments):
     else:
             # data files_metadata
             data = list(map(infile.parsefile, arguments.seqfile))
-    #edges = list(map(lambda kmer_id: , data))
-    #headers = list(map(lambda d: d[1], data))
-
-    # data should be list
-    # data = edges
-
-
-    print(data)
-    sys.exit(1)
-    
-    metadata["files"] = files_metadata
-    
-    validate_graph_metadata_spec(metadata)
-    sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-    sys.stderr.write("nice")
-    #all_observed_kmers_in_files = int( #
-
-
     """
-    aggregate counts across files for .kdbg metadata header
+    Summary statistics and metadata structure
     """
-    # Aggregate k-mer metadata across all input files.
+
+    nullomer_ids = []
+    counts = []
+    for d in data:
+        nullomer_ids.extend(d[3])
+        counts.extend(d[2])
+        file_metadata.append(d[1])
+    N = 4**arguments.k
+
     
-    meaningful_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"] + h['total_nullomers'] - 1, headers))))
-    all_kmers = int(np.sum(list(map(lambda h: h["total_nullomers"] + h["total_kmers"], headers))))
-    total_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], headers))))
-    total_nullomers = int(np.sum(list(map(lambda h: h["total_nullomers"], headers))))
-    # FIXME NO, STILL AWFUL
-    unique_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"], headers))))
+    all_observed_kmers = int(np.sum(counts))
+        
+    unique_nullomers = len(set(nullomer_ids))
+    
+    unique_kmers = int(np.count_nonzero(counts))
+    
+    # Key assertion
+    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
     #logger.info("created a k-mer composite in memory")
-    # FIXME
 
-    
-
-    # non_unique_kmers - unique_kmers
-    # 
-
-
-    logger.info("     -------         all observed kmers (across all files)")
-    logger.info("            :  |", all_observed_kmers)
-    logger.info("      total nullomers: ", total_nullomers, "\n a = : total kmers, b = : unique k-mers\n\n\n\n")
-
-    logger.info("           :   |  ", total_kmers)
-    logger.info("             :  -1")
-    
     
     metadata=OrderedDict({
         "version": VERSION,
@@ -1266,71 +1225,99 @@ def make_kdbg(arguments):
         "k": arguments.k,
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
-        "unique_nullomers": total_nullomers,
+        "unique_nullomers": unique_nullomers,
         "sorted": arguments.sorted,
         "n1_dtype": "uint64",
         "n2_dtype": "uint64",
         "weights_dtype": "uint64",
         "tags": [],
-        "files": headers
+        "files": file_metadata
     })
 
+    
+    logger.info("Validating aggregated metadata structure for .kdbg header...")
+    try:
+        np.dtype(metadata["n1_dtype"])
+        np.dtype(metadata["n2_dtype"])
+        np.dtype(metadata["weights_dtype"])
+    except TypeError as e:
+        logger.error(metadata)
+        logger.error(e)
+        logger.error("kmerdb encountered a type error and needs to exit")
+        raise TypeError("Incorrect dtype detected in metadata structure. Internal error.")
+    
+    try:
+        jsonschema.validate(instance=metadata, schema=config.graph_schema)
+    except jsonschema.ValidationError as e:
+        logger.debug(e)
+        logger.error("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML")
+        raise e
 
-    # # um
-    # try:
-    #     np.dtype(metadata["n1_dtype"])
-    #     np.dtype(metadata["n2_dtype"])
-    #     np.dtype(metadata["weights_dtype"])
-    # except TypeError as e:
-    #     logger.error(e)
-    #     logger.error("kmerdb encountered a type error and needs to exit")
-    #     raise TypeError("Incorrect dtype.")
-
-
-    N = len(edges[0].keys()) # edges is a list of dicts, where keys are a 2-tuple (e.g. (15633431, 12202077) ) representing an edge
+    logger.debug("Validation complete.")
 
     
-    logger.debug("Initializing Numpy arrays of {0} uint zeroes for the edge lists...".format(N))
-    n1 = np.array(range(N), dtype=metadata["n1_dtype"])
-    n2 = np.array(range(N), dtype=metadata["n2_dtype"])
-    weights = np.array(range(N), dtype=metadata["weights_dtype"])
+    sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
+
+
+
+    """
+    ACCUMULATE ALL EDGE WEIGHTS ACROSS ALL FILES
+    """
+    """
+    Step 1: initialize the final edge datastructure, a hashmap, keyed on a pair of k-mer ids, and containing only an integer weight
+    """
+    # Initialize empty data structures
+    all_edges_in_kspace = {}
+    n1 = []
+    n2 = []
+    weights = []
+    # Loop over the input files and initialize the dictionary on the valid pairs, setting them to 0.
+    for d in data:
+        edges, h, counts, nullomers = d
+        pair_ids = edges.keys()
+        for p in pair_ids:
+            all_edges_in_kspace[p] = 0
+    """
+    Step 2: Accumulate all edge weights across all files
+    """
+    for d in data:
+        edges, h, counts, nullomers = d
+        pair_ids = edges.keys()
+        
+        for p in pair_ids:
+            try:
+                all_edges_in_kspace[p] += edges[p]
+            except KeyError as e:
+                logger.error("Unknown edge detected, evaded prepopulation. Internal error.")
+                raise e
+    """
+    Step 3: Add edges (2 k-mer ids) and weight to lists for conversion to NumPy array.
+    """
+    for e in all_edges_in_kspace.keys():
+        n1.append(e[0])
+        n2.append(e[1])
+        weights.append(all_edges_in_kspace[e])
+    """
+    N would be the number of edges, pairs of nodes, and weights.
+    """
+    N = len(n1)
+    
+    logger.debug("Initializing Numpy arrays of {0} uint for the edges and corresponding weight...".format(N))
+    n1 = np.array(n1, dtype=metadata["n1_dtype"])
+    n2 = np.array(n2, dtype=metadata["n2_dtype"])
+    weights = np.array(weights, dtype=metadata["weights_dtype"])
     logger.info("Initialization of profile completed, using approximately {0} bytes per array".format(n1.nbytes))
-    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+
+    """
+    Write the YAML metadata header to the .kdbg file
+    """
+    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
 
-    logger.info("Generated metadata for .kdbg...")
+    sys.stderr.write("\n\n\n")
+    logger.info("Wrote metadata header to .kdbg...")
 
-    edges = graph.create_edges(kmer_ids)
     
-    graph = graph.make_graph(arguments)
-    """
-    At this point, unpacking should be second nature but it took about 2 minutes to get this sorted out, rebuilding, recounting k-mers, and watching dota2.
-    """
-    print("'edges' type:'")
-    print(type(edges))
-    print(edges)
-    sys.stderr.write("ALMOST DONE!!")
-    sys.exit(1)
-
-
-    """
-    Now we process the edge list dict, so that the output
-    """
-    logger.info("Accumulating all edge weights...")
-    # Step 1: over each file's weighted edge list: initialize the result dict
-    result = {}
-
-    # Step 3: pretty print a table of results.
-
-    logger.debug("Storing all edges (node pairs) and weights in previously allocated numpy arrays")
-    for i, e in enumerate(result.keys()):
-        # Find the i'th key and unpack into variables
-        # Store the k-mer ids
-        n1[i] = e[0] # This is the result dicts i'th key's first node of the key's 2-tuple
-        n2[i] = e[1] # This is the result dicts i'th key's second node of the key's 2-tuple 
-        # Store the edge weight
-        weights[i] = result[ (n1[i], n2[i] ) ]
-
     """
     Cause pandas isn't edge-y enough.
     """
@@ -1338,54 +1325,48 @@ def make_kdbg(arguments):
     #df = pd.DataFrame(twoD_weighted_edge_list)
     #df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
 
-    with graph.open(arguments.kdbg, 'wb', metadata=metadata) as kdbg_out:
 
-
-        try:
-            sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
-            for i, node1 in enumerate(n1):
+    """
+    Write the dataset (weighted edge list) to a file with '.kdbg' as its suffix.
+    """
+    kdbg_out = graph.open(arguments.kdbg, mode='wb', metadata=metadata)
+    try:
+        sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
+        for i, node1 in enumerate(n1):
             
-                node2 = n2[i]
-                w = weights[i]
+            node2 = n2[i]
+            w = weights[i]
 
-                tupley = (i, node1, node2, w)
-                tupley_dl = np.array(tupley, dtype="uint64")
-                if arguments.edges is True:
-                    print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
-                # node1, node2, weight
-                kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
-        finally:
-            kdbg_out._write_block(kdbg_out._buffer)
-            kdbg_out._handle.flush()
-            kdbg_out._handle.close()
-
-
-            """
-            Done around nicoles birfday
+            tupley = (i, node1, node2, w)
+            tupley_dl = np.array(tupley, dtype="uint64")
+            if arguments.quiet is False:
+                print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
+            # i, node1, node2, weight
+            kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+    finally:
+        kdbg_out._write_block(kdbg_out._buffer)
+        kdbg_out._handle.flush()
+        kdbg_out._handle.close()
 
 
+        """
+        Done around n birfday
+        3/20/24        
 
-
-
-ahhhh toopley
-
-
-
-ahhaahahaha toopley
-
-
-            3/12/24
-            """
-            sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
-            sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
-            sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-            sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
-            sys.stderr.write("="*30 + "\n")
-            sys.stderr.write(".kdbg stats:\n")
-            sys.stderr.write("-"*30 + "\n")
-            sys.stderr.write("Edges in file:  {0}\n".format(N))
-            sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
-            sys.stderr.write("\nDone\n")
+        Final statistics to stderr
+        """
+        sys.stderr.write("\n\n\nFinal stats:\n\n\n")
+        
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        sys.stderr.write("="*30 + "\n")
+        sys.stderr.write(".kdbg stats:\n")
+        sys.stderr.write("-"*30 + "\n")
+        sys.stderr.write("Edges in file:  {0}\n".format(N))
+        sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
+        sys.stderr.write("\nDone\n")
 
     logger.info("Done printing weighted edge list to .kdbg")
 
@@ -1440,6 +1421,7 @@ def profile(arguments):
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
     N = total_kmers
+    theoretical_kmers_number = N
 
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
@@ -1460,7 +1442,7 @@ def profile(arguments):
 
     # 'data' is now a list of 4-tuples
     # Each 4-tuple represents a single file
-    # (counts<numpy.array>, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
+    # (edges, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
     # Construct a final_counts array for the composite profile across all inputs
     logger.debug("Initializing large list for extended metadata")
@@ -1477,9 +1459,54 @@ def profile(arguments):
             all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
 
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-    unique_kmers = int(np.count_nonzero(counts))
-    total_nullomers = total_kmers - unique_kmers
+    # unique_kmers = int(np.count_nonzero(counts))
+    # #total_nullomers = total_kmers - unique_kmers
+
+    # nullomer_ids = list(map(lambda n: n[2], data))
+    # all_observed_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], file_metadata))))
+
+
+
+    
+    """
+    3/20/24
+    *Massive* nullomer and count validation regression.
+    """
+
+    """
+    Summary statistics and metadata structure
+    """
+
+    nullomer_ids = []
+    counts = []
+    file_metadata = []
+    for d in data:
+        nullomer_ids.extend(d[2])
+        counts.extend(d[0])
+        file_metadata.append(d[1])
+    
     all_observed_kmers = int(np.sum(counts))
+    unique_nullomers = len(set(nullomer_ids))
+    unique_kmers = int(np.count_nonzero(counts))
+
+    
+    # Key assertion
+    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
+    #logger.info("created a k-mer composite in memory")
+
+
+    # nullomer_ids = []
+
+    # for ns in file_metadata:
+    #     nullomer_ids.extend(ns["nullomer_array"])
+    
+    # unique_nullomers = len(set(nullomer_ids))
+    # # 
+    # unique_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"], file_metadata))))
+
+    # assert unique_kmers + unique_nullomers == N, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, N, unique_kmers + unique_nullomers)
+    
+    # all_observed_kmers = int(np.sum(counts))
 
     logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
     logger.info("Formatting master metadata dictionary...")
@@ -1490,7 +1517,7 @@ def profile(arguments):
         "k": arguments.k,
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
-        "unique_nullomers": total_nullomers,
+        "unique_nullomers": unique_nullomers,
         "metadata": arguments.all_metadata,
         "sorted": arguments.sorted,
         "kmer_ids_dtype": "uint64",
@@ -1498,13 +1525,13 @@ def profile(arguments):
         "count_dtype": "uint64",
         "frequencies_dtype": "float64",
         "tags": [],
-        "files": [d[1] for d in data]
+        "files": file_metadata
     })
         
     try:
         np.dtype(metadata["kmer_ids_dtype"])
         np.dtype(metadata["profile_dtype"])
-        Np.dtype(metadata["count_dtype"])
+        np.dtype(metadata["count_dtype"])
         np.dtype(metadata["frequencies_dtype"])
     except TypeError as e:
         logger.error(e)
@@ -1517,7 +1544,7 @@ def profile(arguments):
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
     logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))
-    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
 
     
@@ -1545,7 +1572,10 @@ def profile(arguments):
                 reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
                     seq = kmer.id_to_kmer(idx, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                    kmer_id = int(idx)
+
+                    
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
                     reads = []
                     starts = []
                     reverses = []
@@ -1570,18 +1600,20 @@ def profile(arguments):
             else:
                 j = 0
                 for i, idx in enumerate(kmer_ids):
-                    kmer_id = int(idx)
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                    kmer_id = int(idx)
+
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
                     #logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[kmer_id], frequencies[kmer_id]))
                     
-                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+
                     all_metadata.append(kmer_metadata)
-                    counts[idx] = counts[idx]
-                    frequencies[idx] = frequencies[idx]
+                    c = counts[idx]
+                    f = frequencies[idx]
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
                     j += 1
         else:
             if arguments.sorted:
@@ -1595,27 +1627,32 @@ def profile(arguments):
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
                     kmer_id = int(kmer_ids[idx])
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
+
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     all_metadata.append(kmer_metadata)
-                    counts[idx] = counts[idx]
-                    frequencies[idx] = frequencies[idx]
+                    c[idx] = counts[idx]
+                    f[idx] = frequencies[idx]
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
             else:
                 for i, idx in enumerate(kmer_ids):
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    i = kmer_ids[idx]
+
+
+                    kmer_id = int(kmer_ids[idx])
+                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
                     c = counts[idx]
                     f = frequencies[idx]
-                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+
                     all_metadata.append(kmer_metadata)
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
@@ -1624,15 +1661,22 @@ def profile(arguments):
         kdb_out._write_block(kdb_out._buffer)
         kdb_out._handle.flush()
         kdb_out._handle.close()
-        sys.stderr.write("Final stats:\n")
-        sys.stderr.write("=" * 30 + "\n")
-        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
-        sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
-        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-        sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
-    
 
+        """
+        Done around n birfday
+        3/20/24        
+
+        Final statistics to stderr
+        """
+        sys.stderr.write("\n\n\nFinal stats:\n\n\n")
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        sys.stderr.write("="*30 + "\n")
         sys.stderr.write("\nDone\n")
+
+
     
         
 def get_root_logger(level):
@@ -1718,7 +1762,7 @@ def cli():
 
     graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    graph_parser.add_argument("--edges", action="store_true", default=False, help="Do not list all edges to stderr")
+    graph_parser.add_argument("--quiet", action="store_true", default=False, help="Do not list all edges and neighboring relationships to stderr")
     graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
 
