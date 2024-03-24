@@ -85,6 +85,9 @@ kmerdb profile -k 8 example1.fq.gz example2.fq.gz profile.8.kdb
 # Note: zlib compatibility
 zcat profile.8.kdb
 
+# Build a weighted edge list
+kmerdb graph -k 12 example1.fq.gz example2.fq.gz edges.kdbg
+
 # View the raw data
 kmerdb view profile.8.kdb # -H for full header
 
