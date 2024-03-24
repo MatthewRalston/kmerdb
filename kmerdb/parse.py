@@ -79,7 +79,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []
-    total_kmers = 4**k
+    N = 4**k
     nullomers = set()
     # Build fasta/fastq parser object to stream reads into memory
     logger.debug("Initializing parser...")
@@ -88,13 +88,13 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
 
     # Initialize the kmer array
     try:
-        counts = np.zeros(total_kmers, dtype="uint64")
+        counts = np.zeros(N, dtype="uint64")
     except TypeError as e:
         logger.error("Invalid dtype for numpy array instantiation")
         logger.error(e)
         raise e
 
-    logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(total_kmers, counts.nbytes))
+    logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(N, counts.nbytes))
         # Instantiate the kmer class
     Kmer = kmer.Kmers(k, strand_specific=not both_strands, verbose=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
 
@@ -105,7 +105,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     else:
         logger.debug("Skipping the block size assertion for fasta files")
     logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
-    all_kmer_metadata = list([] for x in range(total_kmers))
+    all_kmer_metadata = list([] for x in range(N))
     while len(recs): # While the seqprsr continues to produce blocks of reads
 
         num_recs = len(recs)
@@ -234,18 +234,29 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     # Get nullomers
     # only nullomer counts
     unique_kmers = int(np.count_nonzero(counts))
-    num_nullomers = total_kmers - unique_kmers
+
+
+    all_theoretical_kmer_ids = list(range(N))
+
+    
+    
+    # FIXME
+    num_nullomers = N - unique_kmers
     is_nullomer = np.where(counts == 0)
-    nullomers = []
-    for i, j in enumerate(is_nullomer):
-        if j is True:
-            nullomers.append(i)
+
+
+    assert num_nullomers == len(is_nullomer[0]), "kmerdb.parse module find inconsistencies between two ways of counting nullomers. Internal error."
+    
     seqprsr.total_kmers = int(np.sum(counts))
     seqprsr.unique_kmers = unique_kmers
     seqprsr.nullomers = num_nullomers
+
+
+    
+    seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
     sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
 
-    return counts, seqprsr.header_dict(), nullomers, all_kmer_metadata
+    return counts, seqprsr.header_dict(), seqprsr.nullomer_array, all_kmer_metadata
 
 
 

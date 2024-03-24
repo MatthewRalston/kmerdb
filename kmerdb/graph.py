@@ -29,10 +29,12 @@ import yaml, json
 from collections import deque, OrderedDict
 import math
 import re
+from itertools import chain
+
 
 from builtins import open as _open
 
-import jsonschema
+#import jsonschema
 from Bio import SeqIO, Seq, bgzf
 
 
@@ -46,56 +48,6 @@ logger = logging.getLogger(__file__)
 
 
 
-def create_edges(kmer_id_pairs:list, neighbors:dict):
-
-    adjacencies = []
-    
-    if type(kmer_id_pairs) is not list:
-        raise TypeError("hum")
-    elif type(neighbors) is not dict:
-        if [type(val) is tuple and len(val) == 2 for i, val in enumerate(neighbors.keys())] and [  len(f) == 3 for f in neighbors.keys() ]:
-            
-            if not all(list(map(lambda x: type(x) is int, e))): # is True
-                raise("RUHROH! CANNOT CONTINUE. BSRRRSBzRS")
-            else:
-                raise("typecheck completed")
-                if all([ p[0] > p[1] for p in neighbors.keys()]): # is True
-                    logger.debug("GREAT JOB. EACH NEIGHBOR PAIR IS arrainged into DESCENDING ORDER")
-                    logger.debug("MEGASORT COMPLETED")
-                    logger.debug("lol")
-
-
-                for i, edge in kmer_id_pairs:
-
-                    """
-                    Is edge list (at all) sorted?
-                    """
-                else:
-                    logger.debug("Needs {0} edges sorted".format(len(kmer_id_pairs)))
-
-                    logger.info("This is the level of the edge graph")
-
-
-
-                    logger.debug("Is this a neighbor structure?")
-
-
-                    '''
-                    # Needs to be either a adjacency in the fasta file, or pair of neighbor structure
-                    '''
-                    logger.error(pair_ids) 
-                    logger.error("======= edge # ( ( \'{0}\' , \'{1}\' )".format(edge[0], edge[1]) )
-                    
-
-
-    for i, e in enumerate(kmer_id_pairs):
-    
-        forward = neighbors[(e[0], e[1])]
-        reverse = neighbors[(e[1], e[0])]
-        print(forward + reverse)
-        
-        raise TypeError("kmerdb.graph.create_edges ah")
-    
 
 def open(filepath, mode="r", metadata=None, slurp:bool=False):
     """
@@ -249,14 +201,6 @@ def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=Fal
         linesplit = kdbg_table_line.rstrip().split("\t")
 
 
-
-
-
-
-
-
-
-
         """
         .kdbg
 
@@ -268,41 +212,6 @@ def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=Fal
         node1_id         uint64
         node2_id         uint64
         w          uint64
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
         """
@@ -384,8 +293,8 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     elif type(both_strands) is not bool:
         raise TypeError("kmerdb.graph.parsefile expects the keyword argument 'both_strands' to be a bool")
 
-    
-
+    N = 4**k
+    counts = np.zeros(N, dtype="uint64")
     
     logger.debug("Initializing edge list fileparser...")
     seqprsr = seqparser.SeqParser(filepath, b, k)
@@ -405,30 +314,32 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
         logger.debug("\n\nAcquiring list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
 
 
-
-
+        list_of_dicts = list(map(Kmer._shred_for_graph, recs))
 
         
         logger.info("k-mer shredding a block of {0} reads/sequences".format(num_recs))
+        kmer_ids = list(chain.from_iterable(list_of_dicts))
 
-        # Flatmap to 'kmer_ids', the dictionary of {'id': read_id, 'kmers': [ ... ]}
-        kmer_ids = [x for y in list(map(Kmer._shred_for_graph, recs)) for x in y]
+        
+        logger.debug("Successfully allocated linked-list for all k-mer ids read.")
 
+        num_kmers = len(kmer_ids)
 
-        logger.info("Got like {0} k-mers i think".format(len(kmer_ids)))
-
-
+        if num_kmers == 0:
+            raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
+        else:
+            sys.stderr.write("\nAccumulating all k-mers from this set of records...")
+            for kmer in kmer_ids:
+                counts[kmer] += 1
+        
 
         # END WHILE routine
-
         # load_more_records, according to 'block size'. Legacy syntax
         recs = [r for r in seqprsr] # The next block of exactly 'b' reads
         # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
         #sys.stderr("\n")
-
         # JUST LOGGING
         logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
-
 
 
 
@@ -444,57 +355,75 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     logger.info("Number of k-mers: {0}".format(len(kmer_ids)))
     sys.stderr.write("\n\n\n")
 
+    
     logger.info("Constructing weighted edge list...")
+    edge_list = make_graph(kmer_ids, k, quiet=quiet)
+    logger.info("Number of edges: {0}".format(len(edge_list)))
+    sys.stderr.write("\n\nEdge list generation completed...\n")
+
+    unique_kmers = int(np.count_nonzero(counts))
+    # FIXME
+    num_nullomers = int(len(list(np.where(counts == 0)[0])))
 
 
-
-
-
-
-
-
-
-
-
-
-
+    all_kmer_ids = list(range(N))
+    is_nullomer = np.where(counts == 0)
+    kmer_ids_np = np.array(all_kmer_ids, dtype="uint64")
+    
+    nullomer_array = list(kmer_ids_np[is_nullomer])
+    
+    assert num_nullomers == N - unique_kmers, "kmerdb.parse module find inconsistencies between two ways of counting nullomers. Internal error."
 
     
-    edge_list = make_graph(kmer_ids, list(map(lambda l: kmer.id_to_kmer , kmer_ids)), k, quiet=quiet)
-    logger.info("Number of edges: {0}".format(len(edge_list)))
-    sys.stderr.write("Edge list generation completed...")
+    seqprsr.total_kmers = int(np.sum(counts))
+    seqprsr.unique_kmers = unique_kmers
+    seqprsr.nullomers = num_nullomers
+    seqprsr.nullomer_array = nullomer_array
 
+    
+    return (edge_list, seqprsr.header_dict(), counts, seqprsr.nullomer_array)
 
-    return (edge_list, seqprsr.header_dict())
-
-def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
+def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     """
     Make a neighbor graph from a k-mer id list.
 
     More specifically, this is a edge list
 
+    Even more so, an edge list of technically adjacent k-mers in a .fa or .fq file.
+
+    Taks from that what you will. It means its a 1D list with implicit, i.e. testable order, and no metadata.
+
     This particular adjacency list will have redundant relationships:
 
+    i.e. they have been observed again elsewhere in the .fa sequence (1 or multiple) or the .fq file (millions of reads)
 
-
-
-
-    
+    So they are simply tallied.
 
     """
 
 
+    """
+    DEBUG
+
+    bad_pair
+
+    A debugging parameter for assessing specific k-mer ids. The debugging process for self-assessing the k-mer pairs and the nature of the non-adjacency is not developed.
+    
+    3/18/24
+
+    More specifically, i am still encountering the bug and haven't developed the algorithm beyond this point yet. 
+    I'm still working on developing logging and processing throughout based on this debug variable set at this point in the variable namespace, and lexical order of the code.
+    """
+
     bad_pair = (3050519, 3908357) # A debugging constant used throughout
 
 
-    
-    if k is None or type(k) is not int:
+    if kmer_ids is not None and type(kmer_ids) is not list:
+        raise TypeError("kmerdb.graph.make_graph expects a list as its only positional argument")
+    elif k is None or type(k) is not int:
         raise TypeError("kmerdb.graph.make_graph expects the keyword argument k to be an int")
-
-
-    if type(edges) is not list:
-        raise TypeError("kmerdb.graph.make_graph needs a list of 2-tuples")
-
+    elif quiet is not None and type(quiet) is not bool:
+        raise TypeError("kmerdb.graph.make_graph expects the keyword argument quiet to be a bool")
 
     # Initialize total_list of possible k-mer neighbor pairs from the edge list.
     # Step 1. Complete
@@ -509,7 +438,6 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
 
 
     # # this is an accumulator for lesser edges (edges where both count/frequency is exceedingly exceedingly rare.) air.air.
-
     
     # for e in edges_ids:
     #     if (arrangements[e] == 1):
@@ -519,19 +447,21 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
     #     elif (arrangements[e] == max(arrangements.values())):
     #         maxes = max(arrangements.values())
 
-
     #     all_neighbors[e] = 0
-
-
-        
 
     # all_all_all_neighbors = None    
     # """
     # Iterate over all k-mer ids, creating lists of neighbors derived from the kmer.
     # Omit the self relationship, as the kmer is not a neighbor of itself.
+
+    # 3/18/24
+
+    # BACKLOG
+    # TODO item
+    # this isn't complete, as prepopulating the possible edges in k-space, is still in process among other things.
     # Convert to k-mer ids and add the adjacency tuple to the output
 
-    # A minimal neighbor graph is 
+    # A minimal neighbor graph is a dictionary, keyed by the pair
     # """
 
     all_edges_in_kspace = {}
@@ -566,7 +496,9 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
         current_kmer = kmer.id_to_kmer(kmer_ids[i], k)
         common_seq = current_kmer[1:-1]
 
-        neighbors[k_id] = kmer.neighbors(current_kmer, k_id, k)
+        local_neighbors = kmer.neighbors(current_kmer, k_id, k, quiet=quiet)
+        
+        neighbors[k_id] = local_neighbors
 
 
         # logger.error("             ----------------- 15633431 + 12202077 --------------- END ")
@@ -574,7 +506,11 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
 
         # logger.error(" |||| =========     + = || = - = || = + = || = - = || + =          =========")
 
+        # 3/18/24
+        # LEGACY
 
+
+        # marked as legacy
         
         # if k_id == 15633431 or k_id == 12202077:
         #     logger.debug("-"*11)
@@ -615,11 +551,14 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
         #     print("SUCCESS. This k-mer, current k-mer : {0}|{1} has 8 neighbors. {2} . None should be self".format(k_id, current_kmer, just_eight_edges))
         #     #print(all_edges_in_kspace)
         #     sys.exit(1)
+        logger.info("adjacency space completed...")
+        continue
+
+        
     """
     At this point, the adjacency structure is a simple list of tuples. Redundant tuples may exist in disparate parts of the graph.
 
     The structure of the neighbor_graph is [(from_node_id, to_node_id), ...]
-    The 'minimal neighbor graph' is provided by the variable 'min_neighbor_graph' from the preceding code block
     """
 
     """
@@ -662,23 +601,25 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
 
 
             
-            local_neighbors = neighbors[
+            #local_neighbors = kmer.neighbors[
             
             # pair = (the current k-mer and its nearest neighbor in the sequence file i.e. whether or not it was adjacenct in the 'sequence' proper or whether the k-mer is in a list with multiple sequences, as in given from a .fq file, such that adjacent *reads* in the file produce a k-mer input list that has k-mer ids in a list that represents residue positions in both a .fa and a .fq file. Implicit order is understood by the programmer using this, but the computer itself still has no knowledge of whether a k-mer (or residue) in the file is adjacent in the genome coordinates to its literal neihbor in the list, vs on a subsequent chromosome, or Illumina read in the case of .fq input.
 
-            logger.info("Kmer_id: = kmer_ids[i] = |||                {0}".format(kmer_id))
+
             current_kmer_id = kmer_ids[i]
             current_kmer = kmer.id_to_kmer(current_kmer_id, k)
-            pair = (current_kmer_id, kmer_ids[i+1]) # This pair could have many types of input kmer id pairs, with which we are now tasked with assessing and capturing in the result data structure
+            pair = (current_kmer, kmer.id_to_kmer(kmer_ids[i+1], k)) # This pair could have many types of input kmer id pairs, with which we are now tasked with assessing and capturing in the result data structure
+            pair_ids = tuple(map(kmer.kmer_to_id, pair))
+            
             common_seq = current_kmer[1:-1]
-
+            logger.debug("Kmer_id: = kmer_ids[i] = |||                {0}".format(current_kmer_id))
+            logger.debug(" -----pair: = {0}  <-> {1}".format(pair[0], pair[1]))
+            
             """
             Initialize the k-mer pair (duple of ids) in the all_edges_in_kspace var, capturing the pair_id space in the keys iterable from the .keys()
             """
             all_edges_in_kspace[pair_ids] = 0
             # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
-
-
 
             """
             BOGUS ASSERTIONS AND NONGUARANTEES
@@ -686,22 +627,31 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             assert len(current_kmer) == k
             assert len(common_seq) == k-2
             # not_zero_but_the_right-most_k1mer = None
-            # homeroon assertions
-            assert len(k1) == k-1
-            assert len(k2) == k-1
-
 
 
             # 3/18/24
             # I mean
             # most_stuckup_oldie_without_the_swag
-            assert -10 == 1-1, "Basically at this point we haven't guaranteed anything about the input k-mer list. It's just been parsed and passed in from either a .fa or .fq file."
+            assert 0 == (1 - 1), "Basically at this point we haven't guaranteed anything about the input k-mer list. It's just been parsed and passed in from either a .fa or .fq file."
 
-            assert 0 == 74, "Okay so now we're creating an artificial pair of k-mers, a relationship between two ids, that also constitutes a 11-mer in common."
+            assert 1 == 1, "Okay so now we're creating an artificial pair of k-mers, a relationship between two ids, that also constitutes a 11-mer in common."
 
 
+            """
 
-                
+            INFO
+
+            ########################
+            # Declarations
+            pair 
+            all_edges_in_kspace[pair_ids] = 0
+            # A k-2 mer of the sequence in common between the k1 and k2 k-1mers
+            common_seq
+
+            """
+            
+            logger.debug("Validations completed for k-mer {0}.".format(current_kmer_id))
+
             
                 
             # the_know-it-all-but-the-basics = None
@@ -711,6 +661,9 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
             # Do we even assert these?
             #assert k1[:somethingidk]
+            # homeroon assertions
+            #assert len(k1) == k-1
+            #assert len(k2) == k-1
 
             # Name: char_first ()
             
@@ -718,20 +671,15 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             # k1 is a k-mer, (k len str): end char removed, receives residues on its left
             
             # k2 is a k-mer, (k len str): start char removed, gives appends on its right
-            assert -115 == 115, "Okay so now we are packaging everything up as a variable named 'pair'"
-            pair = (k1, k2)
-            pair_ids = tuple(map(kmer.kmer_to_id, pair))
+            #assert 115 == 115, "Okay so now we are packaging everything up as a variable named 'pair'"
+            #assert 116 == 116, "Okay so we're definitely not."
+            #assert 117 == 117, "Because k1 and k2 are k-1mers, and we don't want to backcompute ids for 11mers just because that feature is friendly"
+            #
+            #pair = (k1, k2)
+            #pair_ids = tuple(map(kmer.kmer_to_id, pair))
             
-            assert 0 == 0, "still haven't proved anything"
+            #assert 0 == 0, "still haven't proved anything"
             # so this function begins to create a local neighborhood for k-mer relationships
-            """
-            # neighbors
-            """
-            new_neighbors = kmer.neighbors(current_kmer, k_id, k)
-
-            print(new_neighbors)
-                
-            neighbors.update(new_neighbors)
             
             # ACTGACTG
             # k1 = CTGACTG (k-1 mer with first char removed. k-1 mer that receives appends.
@@ -744,45 +692,21 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             # we call char_first 'childless' because it is assigned responsibility for the 4 interchangables on its prepend, while it's oldest parent is removed.
 
 
-            
+            """
+            current_kmer
+            pair : the pair of adjacent k-mers with the k-1mer as identical sequence
+            pair_ids  : ids
+            k1 : k-1mer   current_kmer[1:] left-most char ommitted, neighbors get appended to right side
+            k2 : k-1mer   current_kmer[:-1] right-most char ommitted, neighbors prepended
+
+
+            DECLARATIONS FINISHED
+            """
             # # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
-            # '''
-
-            # '''
             # char_first = list(map(lambda c: k1 + c, kmer.binaryToLetter))
-
-
-            # '''
-            # Name: char_last is the first_chacter_removed k-mer with a character appended to the end,
-            # making a new, noticeably similar k-mer of the same length, and the nearest neighbor in the c'th dimension of k-mer space.
-            # '''
-            # char_last = list(map(lambda c: c + k2, kmer.binaryToLetter))
-
-            # # Simple map
-            # char_first_ids = list(map(kmer.kmer_to_id, char_first))
-            # char_last_ids = list(map(kmer.kmer_to_id, char_last))
             # """
             # 3/7/24ish... life has been hectic, sometimes better....sometime
             
-            # this is where the neighbor structure came from
-
-
-            # # Comment:
-
-            # # Char_last
-            # CTTATATTTTATAAATAAAAAAT
-            # # Remove its prepend
-            # TTATATTTTATTAAATAAAAAAT
-            
-            # """
-
-            # # neighbors
-            # # 
-            # #r = {"kmer_id": k_id, "left_neighbors": lneighbors_ids, "right_neighbors": rneighbors_ids}
-            # neighbors_c_to_n = list(map(lambda x: (k_id, x), char_last_ids))
-            # neighbors_next_to_current = list(map(lambda x: (k_id, x), char_first_ids))
-            # neighbors = (neighbors_next_to_current + neighbors_c_to_n) # Order doesn't matter
-
             """
             ###################
 
@@ -805,8 +729,6 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             # neighbors_char_last_ids = kmer.neighbors list(map(lambda x: (i, x), char_last_ids))
             # neighbors_char_first_ids = list(map(lambda x: (x, i), char_first_ids))
             # neighbors = (neighbors_char_first_ids + neighbors_char_last_ids)
-            # print(pair)
-            # sys.exit(1)
             # neighbor_slash_edge = edges[pair] 
             # neighbor_is_a_vector = np.array(neighbor_slash_edge)
 
@@ -817,27 +739,34 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
             # k2 = k2[:-1]
             # common_seq = current_kmer[1:-1]
 
-            """
 
+            # Working on some bills, then back to the drawing board.
+            # I mean, aside from a lab job, if i could wfh or work localish then taking a month or so off to go to the mountains for soil sampling.
+            # I'd really want to go with a guide or expert.
+            # That way I could sample the most diverse ecosystems for sampling
+            # But prior to that I'd need the go-kit prototype.
+            # Maybe a soil sampling protocol, expert backpack, sampling fluids/solvents, portable lab cooler.
+            # Then run the samples off of some grant.
+
+
+
+            
+            
+            """
+            LOCAL
 
             B A D         P A I R S
-
-
 
 
             debuging problematic pair of k-mer ids
             """
 
 
-            print("WTF IS GOING ON...\n\n\n")
-
-            print(bad_pair)
-
             if pair_ids == bad_pair:
-                logger.error("\n\n\nSUCCESS\n\n\n")
+                logger.error("Problematic pair of k-mer ids identified...")
+                logger.error("Pair: ({0})".format(", ".join(pair_ids)))
                 sys.exit(1)
 
-            sys.exit(1)
             
             try:
                 """
@@ -852,15 +781,18 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
 
                 Right now its code. and its hella code. but its not software, not everyone could do this and i have no whitepaper.
                 """
-                assert pair[0][:-1] == pair[1][1:], "kmerdb.graph expects neighboring k-mers to have at least k-1 residues in common. Must be from a fastq file."
+                
+
+                
+                assert pair[0][1:] == pair[1][:-1], "kmerdb.graph expects neighboring k-mers to have at least k-1 residues in common. Must be from a fastq file."
                 assert (common_seq in k1) and (common_seq in k2), "kmerdb.graph expects the common seq to at least be in both sequences."
 
                 
             except AssertionError as e:
 
-                print(pair)
-                print("Should have this in common: {0}".format(common_seq))
-                print("k1: '{0}'           k2: '{1}'".format(k1, k2))
+                logger.error(pair)
+                logger.error("Should have this in common: {0}".format(common_seq))
+                logger.error("k1: '{0}'           k2: '{1}'".format(k1, k2))
                 
                 logger.error("must be fastq")
                 logger.error("mhmm")
@@ -872,7 +804,7 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
                 # Accumulate for each edge pair
                 #if (15633431, 12202077) == pair_ids:
                 if bad_pair == pair_ids:
-                    print("in accumulator... cannot identify the problem for this pairing again. It is in the wrong order in the key submission, and can't be recovered for some reason")
+                    logger.error("\n\nin accumulator... cannot identify the problem for this pairing again. It is in the wrong order in the key submission, and can't be recovered for some reason\n\n")
                     logger.error("BAD KEY PAIR DETECTED")
 
                     logger.error(bad_pair)
@@ -887,8 +819,6 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
                 (15633431, 12202077)
                 """
 
-
-
                 '''
                 print(banner1)
                 print(banner2)
@@ -897,37 +827,19 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
                 # not_the_king_but_the_rook = None
                 # k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
 
-
-
-
-
-
-                print(" ,".join(list(map(str , pair))) + " received")
-                
-
-
-
-
-
-
+                #logger.info(" ,".join(list(map(str , pair))) + " received")
                 
                 """
                 ACCUMULATOR           --------- DONE
                 """
-                #all_edges_in_kspace[pair_ids] += 1
+                all_edges_in_kspace[pair_ids] += 1
 
-                print("""
+                logger.debug("""
   ╱|、
 (˚ˎ 。7  
  |、˜〵          
 じしˍ,)ノ
 """)
-                print("                        1     +      1")
-                print("PPPPPPPppPapapapPPapPpaPPa pair kmerids")
-
-                print(pair)
-
-                print(pair)
                 
                         
             except KeyError as e:
@@ -937,27 +849,34 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
                 sys.stderr.write("pair ids: {0}\n".format(pair_ids))
                 logger.error(30*"=")
                 for i, p in enumerate(all_edges_in_kspace.keys()):
-                    if 15633431 in p or 12202077 in p:
-                        logger.error(p)
+
+                    if bad_pair == pair_ids:
+                        logger.error("Debugging the 'bad pair', problematic k-mer id pair...")
+                        logger.error(pair_ids)
                 raise e
-
-            print("heeeeeey, wow thens doo the prin funshen")
-
-            print(pair_ids, p, "wow thans prin funshun ( ---------)_______________________prin fun-shun_______________________________________(    --------------)")
-
-
-            print("print funshun you're so smart and tall")
+            # print("heeeeeey, wow thens doo the prin funshen")
+            # print(pair_ids, pair, "wow thans prin funshun ( ---------)_______________________prin fun-shun_______________________________________(    --------------)")
+            # print("print funshun you're so smart and tall")
+            # print("print funshun why did you sit next to me")
+            # print("function")
 
 
-            print("print funshun why did you sit next to me")
+            maxlen = 15 # Placeholder
+            p1str = str(pair_ids[0])
+            p2str = str(pair_ids[1])
+            p1str = p1str + (maxlen - len(p1str))*" "
+            p2str = p2str + (maxlen - len(p2str))*" "
+            
+            sys.stderr.write("k-mer 'pair' ({0}, {1}) adjacency from input file(s) verified".format(p1str, p2str))
+            sys.stderr.write("\r")
 
-            print("function")
 
-
-            print("k1 x k2 " + list(map(str, (k1, k2))).join(('), (')))
-
-
-            # heeeyyyy, create_edges
+            continue
+            #print("k1 x k2 " + "), (".join(list(map(str, (k1, k2)))))
+    logger.debug("NOTE: this adjacency may not always be present in multi-sequence .fa/.fq files, such as k-mers in the array from the end of one seq/read and the beginning of the next")
+    sys.stderr.write("\n\n\n")
+    sys.stderr.write("All edges populated *and* accumulated across k-mer id arrays from inputs.\n")
+    logger.info("'Graph' generation complete")
 
             
     # This variable is unrestricted. A larger k may inflate this var beyond the memory limits of the computer where the observed k-space can be represented with enough resolution through enough profile diversity.
@@ -967,7 +886,7 @@ def make_graph(kmer_ids, edges:list=None, k:int=None, quiet:bool=True):
 
     Depending on inputs, this may become large.
     """
-    return
+    return all_edges_in_kspace
 
 def w_lexer():
     pass
@@ -1443,21 +1362,30 @@ class KDBGWriter(bgzf.BgzfWriter):
     :ivar compresslevel: int
     """
     
-    def __init__(self, metadata:OrderedDict, filename=None, both_strands:bool=False, mode="w", fileobj=None, compresslevel=6):
+    def __init__(self, filename:str=None, mode:str="w", metadata:OrderedDict=None, both_strands:bool=False, fileobj=None, compresslevel:int=6):
         """Initilize the class."""
-
+        if str is None or type(filename) is not str:
+            raise TypeError("kmerdb.graph.KDBGWriter expects the filename to be a str")
+        elif mode is None or type(mode) is not str:
+            raise TypeError("kmerdb.graph.KDBGWriter expects the mode to be a str")
+        elif metadata is None or type(metadata) is not OrderedDict:
+            raise TypeError("kmerdb.graph.KDBGWrite: invalid metadata argument")
+        
+        
         if fileobj:
             assert filename is None, "kmerdb.graph expects filename to be None is fileobj handle is provided"
             handle = fileobj
         else:
             if "w" not in mode.lower() and "a" not in mode.lower():
                 raise ValueError("Must use write or append mode, not %r" % mode)
-            if "a" in mode.lower():
+            elif "wb" == mode:
+                pass
+            elif "a" in mode.lower():
                 raise NotImplementedError("Append mode is not implemented yet")
                 # handle = _open(filename, "ab")
             else:
-
-                raise RuntimeError()
+                logger.error("Mode = {0}".format(mode))
+                raise RuntimeError("Unknown mode for .kdbg file writing class kmerdb.graph.KDBGWriter")
         self._text = "b" not in mode.lower()
         self._handle = _open(filename, "wb")
         self._buffer = b"" if "b" in mode.lower() else ""
@@ -1495,7 +1423,7 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, quiet=not self.arguments.edges, b=self.arguments.fastq_block_size, both_strands=self.arguments.both_strands)
+        return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet, b=self.arguments.fastq_block_size, both_strands=self.arguments.both_strands)
 
 
 

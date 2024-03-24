@@ -29,16 +29,27 @@ from kmerdb import config
 
 
 
-def validate_graph_metadata(metadata):
+def neighbor_printing(current_kmer:str, current_kmer_id:int, char_first:tuple, char_last:tuple):
+    if type(char_first) is not tuple or len(char_first) != 4:
+        raise TypeError("yep")
+    elif type(char_last) is not tuple or len(char_last) != 4:
+        raise TypeError("true")
+
+
+def validate_graph_metadata_spec(metadata):
     """
     This function can be abstracted for only using jsonschema non-builtin...
 
     needs jsonschema
 
     """
-    jsonschema.validate(instance=dict(metadata), schema=config.graph_schema)
 
+    try:
+        jsonschema.validate(instance=dict(metadata), schema=config.graph_schema)
+        
+    except jsonschema.ValidationError as e:
 
+        raise e
 
 
 

@@ -803,7 +803,7 @@ class KDBWriter(bgzf.BgzfWriter):
 
         
         logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
-        yaml.add_representer(OrderedDict, util.represent_ordereddict)
+        yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
         if "b" in mode.lower():
             metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
             metadata_plus_delimiter_in_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')

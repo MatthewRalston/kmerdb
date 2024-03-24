@@ -66,7 +66,7 @@ graph_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weight_dtype"]
+    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weights_dtype"]
 }
 
 metadata_schema = {
@@ -224,23 +224,16 @@ SPONGEBOB = """
 """
 
 
-
+# "@->- -|>" ... (@->-)
+# "..., -|> ?"
 DONE = """
 
-
-"@->- -|>" ... @->- 
-
-... '"(---)"' , "-|> ?"'->
-
-fax
-
-- idlethoughts
 
 ==========================================
 ----------------D O N E-------------------
 ==========================================
 
-Thanks for checking out k-mer db.
+Thanks for checking out kmerdb.
 Accept the citation notice with 'kmerdb citation'
 Use 'kmerdb [cmd] -h' for more details.
 """

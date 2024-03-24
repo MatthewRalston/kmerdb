@@ -60,6 +60,7 @@ class SeqParser:
         self.total_kmers = 0
         self.unique_kmers = 0
         self.nullomers = 0
+        self.nullomer_array = []
         self.compressed = False
         self.fastq = False
         exts = os.path.splitext(filepath)
