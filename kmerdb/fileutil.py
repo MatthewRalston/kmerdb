@@ -423,7 +423,6 @@ class KDBReader(bgzf.BgzfReader):
         N = 4**self.k # The dimension of the k-space, or the number of elements for the array
         num_bytes = 4 * N
         logger.info("Approximately {0} bytes".format(num_bytes))
-        logger.info("Fly.")
         vmem = psutil.virtual_memory()
         self.kmer_ids = np.zeros(N, dtype=column_dtypes)
         self.counts = np.zeros(N, dtype=count_dtypes)
