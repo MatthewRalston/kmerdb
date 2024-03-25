@@ -40,7 +40,7 @@ from Bio import SeqIO, Seq, bgzf
 
 import numpy as np
 
-from kmerdb import fileutil, seqparser, kmer, config, util
+from kmerdb import fileutil, parse, kmer, config, util
 
 # Logging configuration
 import logging
@@ -101,6 +101,8 @@ def open(filepath, mode="r", metadata=None, slurp:bool=False):
     :type metadata: dict
     :param slurp: Immediately load all data into KDBGReader
     :type slurp: bool
+    :raise ValueError: mode parameter related errors
+    
     :returns: kmerdb.fileutil.KDBGReader/kmerdb.fileutil.KDBGWriter
     :rtype: kmerdb.fileutil.KDBGReader
     """
@@ -152,16 +154,28 @@ def bytesize_of_metadata(metadata):
     """
     return util.bytessize_of_metadata
 
-
-
-
     
-def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=False, row_dtype:str="uint64"):
+def parse_kdbg_table_line(kdbg_table_line:str, sort_arr:bool=False, row_dtype:str="uint64"):
     """
     Parses a line according to the expected .kdbg syntax, and returns the python data types expected as a tuple.
 
+    .kdbg
+
+
+    table def
+    =========================
+    vector 'e'
+
+    i          uint64
+    node1_id         uint64
+    node2_id         uint64
+    w          uint64
+
     :param line:
     :type kdbg_table_line: str
+    :raise TypeError: .kdbg table line was not str
+    :raise TypeError: sort_arr was not bool
+    :raise ValueError: .kdbg table has 4 columns - index, node1_id, node2_id, edge_weight
     :returns: node1_id, node2_id, weight
     :rtype: tuple
     """
@@ -170,27 +184,11 @@ def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=Fal
         raise TypeError("kmerdb.graph.parse_line expects a str as its first positional argument")
     elif type(kdbg_table_line) is str and kdbg_table_line == "":
         raise StopIteration("empty table line")
-
-
-
-
-
     
-    if type(delimiter) is str:
-
-        if len(delimiter) == 1:
-            pass
-        else:
-            raise IOError("delimiter error")
-    else:
-        raise TypeError("kmerdb.graph expects 'delimiter' as string of length 1")
     if type(sort_arr) is not bool:
-        raise TypeError("kmerdb.graph needs 'sort_arr' to be bool")
-
+        raise TypeError("kmerdb.graph.parse_kdbg_table_line needs 'sort_arr' to be bool")
     try:
         np.dtype(row_dtype)
-
-
     except TypeError as e:
         logger.error("Invalid numpy dtype")
         raise e
@@ -199,26 +197,10 @@ def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=Fal
 
 
         linesplit = kdbg_table_line.rstrip().split("\t")
-
-
-        """
-        .kdbg
-
-
-        table def
-        =========================
-        vector 'e'
-
-        node1_id         uint64
-        node2_id         uint64
-        w          uint64
-
-
-        """
         
         if len(linesplit) != 4:
             logger.error("Full line:\n{0}".format(line))
-            raise ValueError("kmerdb.fileutil.parse_line() encountered a .kdbg line without 3 columns. Invalid format error")
+            raise ValueError("kmerdb.graph.parse_kdbg_table_line encountered a .kdbg line without 4 columns. Invalid format for edge list")
         else:
             i, node1_id, node2_id, weight = linesplit
             i, node1_id, node2_id, weight = int(i), int(node1_id), int(node2_id), int(weight)
@@ -226,22 +208,10 @@ def parse_kdbg_table_line(kdbg_table_line, delimiter:str="\t", sort_arr:bool=Fal
             e = np.array([node1_id, node2_id, weight], dtype=row_dtype)
             
             # Still needs the sort_array default functionality as switchable.
-        
-        
-            # Still needs either the index availability for both .kdb and .kdbg
-            
-            
-            # Still needs the edge traversal delegation (function)
-            
-            
-            # Still needs the accumulator
-            
-            
             # Still needs the solver (ss-sp, or bfs)
             
             # # TODO: bfs would necessitate the objective
             # vanilla cpu implementation
-            
             
             # # TODO:
             # Needs the node delexer.
@@ -267,14 +237,16 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     :type b: int
     :param both_strands: Strand specificity argument for k-mer shredding process
     :type both_strands: bool
-    :returns: (graph, header_dictionary) header_dictionary is the file's metadata for the header block
-    :rtype: (numpy.ndarray, dict)
+    :raise TypeError: first argumentshould be a valid filepath
+    :raise TypeError: second argument k should be an int
+    :raise TypeError: quiet keyword arg should be a bool
+    :raise TypeError: *unimplemented* - both_strands should be a bool
+    :raise ValueError: Invalid length-of-0 kmer_id array produced during k-mer shredding
+    :raise AssertionError: relationship 4^k = unique_kmers + (unique_)nullomers found invalid
+    :returns: (edge_list, header, counts, nullomer_array) header_dictionary is the file's metadata for the header block
+    :rtype: (numpy.ndarray, dict, list, list)
 
     """
-
-
-    
-
 
     """
     Type Checking
@@ -297,7 +269,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     counts = np.zeros(N, dtype="uint64")
     
     logger.debug("Initializing edge list fileparser...")
-    seqprsr = seqparser.SeqParser(filepath, b, k)
+    seqprsr = parse.SeqParser(filepath, b, k)
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
     
     # Initialize the kmer class for sequence shredding activities
@@ -336,7 +308,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
         # END WHILE routine
         # load_more_records, according to 'block size'. Legacy syntax
         recs = [r for r in seqprsr] # The next block of exactly 'b' reads
-        # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of seqparser.py (in the _next_fasta() and _next_fastq() methods)
+        # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of parse.py (in the _next_fasta() and _next_fastq() methods)
         #sys.stderr("\n")
         # JUST LOGGING
         logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
@@ -372,7 +344,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     
     nullomer_array = list(kmer_ids_np[is_nullomer])
     
-    assert num_nullomers == N - unique_kmers, "kmerdb.parse module find inconsistencies between two ways of counting nullomers. Internal error."
+    assert num_nullomers == N - unique_kmers, "kmerdb.graph.parsefile found inconsistencies between two ways of counting nullomers. Internal error."
 
     
     seqprsr.total_kmers = int(np.sum(counts))
@@ -399,6 +371,21 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
 
     So they are simply tallied.
 
+
+    :param kmer_ids: list of k-mer ids
+    :type kmer_ids: list
+    :param k: Choice of k to shred k-mers with
+    :type k: int
+    :param quiet: Verbosity parameter
+    :type quiet: bool
+    :raise TypeError: first argument was not a list
+    :raise TypeError: keyword argument k was not an inteer
+    :raise TypeError: quiet keyword arg should be a bool
+    :raise AssertionError: A *suppressed* error indicating whether two subsequent ids in the kmer_ids array were found to be unrelated by their sequences. Suppressed to support multi-sequence .fa/.fq files.
+    :returns: An edge list, keyed on a k-mer id 2-tuple e.g. edges[(kmer_id1, kmer_id2)] = weight
+    :rtype: dict
+
+
     """
 
 
@@ -418,11 +405,11 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     bad_pair = (3050519, 3908357) # A debugging constant used throughout
 
 
-    if kmer_ids is not None and type(kmer_ids) is not list:
+    if kmer_ids is None or type(kmer_ids) is not list:
         raise TypeError("kmerdb.graph.make_graph expects a list as its only positional argument")
     elif k is None or type(k) is not int:
         raise TypeError("kmerdb.graph.make_graph expects the keyword argument k to be an int")
-    elif quiet is not None and type(quiet) is not bool:
+    elif quiet is None or type(quiet) is not bool:
         raise TypeError("kmerdb.graph.make_graph expects the keyword argument quiet to be a bool")
 
     # Initialize total_list of possible k-mer neighbor pairs from the edge list.
@@ -482,7 +469,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
 
 
     """
-    ["ACTGGTCA"] = ["
+    ["Actggtca"] = ["
     """
     neighbors = {}
 
@@ -647,7 +634,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             if pair_ids == bad_pair:
                 logger.error("Problematic pair of k-mer ids identified...")
                 logger.error("Pair: ({0})".format(", ".join(pair_ids)))
-                sys.exit(1)
+                raise ValueError("DEBUGGING PURPOSES ONLY: Identified a pair of k-mers noted as problematic. If you see this error, file an issue at https://github.com/MatthewRalston/kmerdb")
+
             try:
                 """
                 This is real concise. performance focused, not too much style. 
@@ -722,7 +710,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     if error_count > 0:
         logger.warning("\n")
         logger.warning("\n")
-        logger.warning("\n\n\nNOTE: ADJACENCY ERRORS DETECTED: Found {0} k-mer pairs/adjacencies from the input file(s),\n where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.\n These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.\n".format(error_count))
+        logger.warning("\n\n\nNOTE: ADJACENCY ERRORS DETECTED: Found {0} 'improper' k-mer pairs/adjacencies from the input file(s),\n where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.\n These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.\n".format(error_count))
     sys.stderr.write("\n\n\n")
     sys.stderr.write("All edges populated *and* accumulated across k-mer id arrays from inputs.\n")
     logger.info("'Graph' generation complete")
@@ -741,14 +729,14 @@ def w_lexer():
     pass
 
             
-def v_order_lexer(e:list, asc:bool=False):
+def v_order_lexer(e:tuple, asc:bool=False):
     """
-    node order occupies 2 rows
+    Uh.
     """
     if type(asc) is not bool:
         raise TypeError("kmerdb.graph requires valid bool keyword arg 'asc'")
     
-    if type(e) is not list:
+    if type(e) is not tuple:
         logger.error("kmerd.graph.threetuple_v_order_lexer needs a valid tuple")
         
         sys.exit(1)
@@ -761,9 +749,6 @@ def v_order_lexer(e:list, asc:bool=False):
     elif asc is False:
         raise RuntimeError("requires the order")
 
-
-
-
     
     if len(e) != 3:
         logger.error("kmerdb.graph invalid input")
@@ -771,12 +756,9 @@ def v_order_lexer(e:list, asc:bool=False):
 
     n1, n2, w = e
 
-
     # Maybe...
     n1 = int(n1)
     n2 = int(n2)
-
-
 
     # This ... smh
     if asc is True:
@@ -845,20 +827,42 @@ class KDBGReader(bgzf.BgzfReader):
     sort
     slurp
 
+    :ivar filename: The choice of k to shred with
+    :ivar fileobj: An existing fileobject from io.IOBase
+    :ivar mode: read/write mode
+    :ivar n1_dtype: NumPy dtype
+    :ivar n2_dtype: NumPy dtype
+    :ivar weights_dtype: NumPy dtype
+    :ivar sort: *unimplemented* - uh.. sort the .kdbg edges somehow
+    :ivar slurp: Autoload the .kdbg file
 
     
     """
     def __init__(self, filename:str, fileobj:io.IOBase=None, mode:str="r", n1_dtype:str="uint64", n2_dtype:str="uint64", weights_dtype:str="uint64", sort:bool=False, slurp:bool=False):
+        """
+        A wrapper around Bio.bgzf.BgzfReader
 
+        :param filename: A valid filepath
+        :type filename: str
+        :param fileobj: An existing fileobject from io.IOBase
+        :type fileobj: io.IOBase
+        :param mode: read/write mode
+        :type mode: str
+        :param n1_dtype: NumPy dtype
+        :type n1_dtype: str
+        :param n2_dtype: NumPy dtype
+        :type n2_dtype: str
+        :param weights_dtype: NumPy dtype
+        :type weights_dtype: str
+        :param sort: *unimplemented* - uh.. sort the .kdbg edges somehow
+        :type sort: bool
+        :param slurp: Autoload the .kdbg file
+        :type slurp: bool
+        :raise TypeError: fileobj was not a file-type interface, inheriting from io.IOBase
+        :raise TypeError: filename was not a str
+        :
 
-
-
-
-
-
-
-
-
+        """
         """
 
          fileobj type checking
@@ -866,34 +870,22 @@ class KDBGReader(bgzf.BgzfReader):
 
 
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
-            raise TypeError("kmerdb.graph.KDBReader expects the keyword argument 'fileobj' to be a file object")
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'fileobj' to be a file object")
+        if filename is not None and type(filename) is not str:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'filename' to be a str")
+        elif mode is not None and type(mode) is not bool:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'mode' to be a bool")
+        elif n1_dtype is not None and type(n1_dtype) is not str:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'n1_dtype' to be a str")
+        elif n2_dtype is not None and type(n2_dtype) is not str:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'n2_dtype' to be a str")
+        elif weights_dtype is not None and type(weights_dtype) is not str:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'weights_dtype' to be a str")
 
-
-        """
-        __init__ keyword arg type checking
-
-
-        filename     : str
-        fileobj     : io.IOBase
-        mode     : str (1char)
-        max
-
-
-
-
-        sort     : bool
-        """
-
-        
-        if type(filename) is not str:
-            raise TypeError("kmerdb.graph.KDBReader expects the keyword argument 'filename' to be a str")
-        elif type(sort) is not bool:
-            raise TypeError("kmerdb.graph.KDBReader expects the keyword argument 'sort' to be a bool")
-
-
-
-
-
+        elif sort is not None and type(sort) is not bool:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'sort' to be a bool")
+        elif slurp is not None and type(slurp) is not bool:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'slurp' to be a bool")
 
         """
 
@@ -917,24 +909,12 @@ class KDBGReader(bgzf.BgzfReader):
         self._handle       = handle
         self._filepath     = self._handle.name
 
-
-
         #       Placeholder
         self.max_cache     = 100
-
-
-
         
         self._buffers      = {}
         self._block_start_offset = None
         self._block_raw_length = None
-
-
-
-
-
-
-
 
 
         """
@@ -946,8 +926,6 @@ class KDBGReader(bgzf.BgzfReader):
         weights
 
         """
-
-
         
         self.n1         = None
         self.n1_dtype   = None
@@ -961,9 +939,6 @@ class KDBGReader(bgzf.BgzfReader):
         if slurp is True:            
             self.slurp(n1_dtype=n1_dtype, n2_dtype=n2_dtype, weights_dtype=weights_dtype)
 
-
-
-            
         self.is_int = True
         handle.close()
         self._handle.close()
@@ -972,25 +947,14 @@ class KDBGReader(bgzf.BgzfReader):
         fileobj=None
         return
 
-
-
-
     def read_and_validate_kdbg_header(self):
 
         """
 
         KDBGReader PyYAML                metadata ingestion
 
-        
-
         """
 
-
-
-
-
-
-        
         '''
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
@@ -1001,12 +965,6 @@ class KDBGReader(bgzf.BgzfReader):
         self._buffer = self._buffer.rstrip(config.header_delimiter)
         
         initial_header_data = OrderedDict(yaml.safe_load(self._buffer))
-
-
-
-
-
-
 
         # Placeholder
         num_header_blocks = None
@@ -1019,12 +977,6 @@ class KDBGReader(bgzf.BgzfReader):
             logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
             logger.info("Assuming YAML blocks until delimiter reached.")
 
-
-
-
-
-
-
         """
 
         KDBGReader
@@ -1036,17 +988,9 @@ class KDBGReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.graph.KDBGReader couldn't validate the header YAML")
         elif "metadata_blocks" not in initial_header_data.keys():
             raise TypeError("kmerdb.graph.KDBGReader couldn't validate the header YAML")
-
-
-
-
-
-
-
-
-
             
         logger.debug(initial_header_data)
+        
         if initial_header_data["metadata_blocks"] != 1:
             logger.error("More than 1 metadata block: uhhhhh are we loading any additional blocks")
             raise IOError("Cannot read more than 1 metadata block yet")
@@ -1070,7 +1014,6 @@ class KDBGReader(bgzf.BgzfReader):
                 raise RuntimeError("kmerdb.graph.KDBGReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
 
         #raise RuntimeError("kmerdb.graph.KDBGReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
-
 
     
         logger.info("Reading additional blocks as YAML...")
@@ -1112,14 +1055,11 @@ class KDBGReader(bgzf.BgzfReader):
 
     def read_line(self):
         """
+        Read and parse a single line from the .kdbg file
+
+        :returns: node1_id, node2_id, weight
+        :rtype: tuple
         
-        """
-
-
-        
-
-        """
-        .readline
         """
         
         line = self.readline()
@@ -1133,14 +1073,24 @@ class KDBGReader(bgzf.BgzfReader):
 
 
     def slurp(self, n1_dtype:str="uint64", n2_dtype:str="uint64", weights_dtype:str="uint64"):
+        """
+        Autoload the .kdbg file into memory
 
+        :param n1_dtype: NumPy dtype
+        :type str:
+        :param n2_dtype: NumPy dtype
+        :type str:
+        :param weights_dtype: NumPy dtype
+        :type str:
+
+        """
+        
         if type(n1_dtype) is not str:
             raise TypeError("kmerdb.graph.KDBGReader.slurp expects n1_dtype to be a str")
         if type(n2_dtype) is not str:
             raise TypeError("kmerdb.graph.KDBGReader.slurp expects n2_dtype to be a str")
         if type(weights_dtype) is not str:
             raise TypeError("kmerdb.graph.KDBGReader.slurp expects weights_dtype to be a str")
-
 
         try:
             np.dtype(n1_dtype)
@@ -1204,22 +1154,50 @@ class KDBGWriter(bgzf.BgzfWriter):
     """
     A wrapper class around Bio.bgzf.BgzfWriter to write a .kdbg file to disk.
 
-    :ivar metadata: OrderedDict
-    :ivar filename: str
-    :ivar mode: str
+
+    :ivar filename: valid filepath
+    :ivar mode: read/write mode
+    :ivar metadata: header information
+    :ivar both_strands: *unimplemented*
     :ivar fileobj: io.IOBase
-    :ivar compresslevel: int
+    :ivar compresslevel: compression parameter
     """
     
-    def __init__(self, filename:str=None, mode:str="w", metadata:OrderedDict=None, both_strands:bool=False, fileobj=None, compresslevel:int=6):
-        """Initilize the class."""
-        if str is None or type(filename) is not str:
+    def __init__(self, filename:str=None, mode:str="w", metadata:OrderedDict=None, both_strands:bool=False, fileobj:io.IOBase=None, compresslevel:int=6):
+        """
+        A wrapper around Bio.bgzf.BgzfWriter
+
+        :param filename: A valid filepath
+        :type filename: str
+        :param mode: read/write mode
+        :type mode: str
+        :param metadata: A metadata header for the .kdbg file
+        :type metadata: collections.OrderedDict
+        :param both_strands: *unimplemented*
+        :type both_strands: bool
+        :param compresslevel: compression parameter
+        :type compresslevel: int
+        :raise TypeError: filename was not a str
+        :raise TypeError: mode was invalid
+        :raise TypeError: both_strands was invalid
+        :raise TypeError: fileobj was invalid
+        :raise TypeError: compresslevel was invalid
+        :raise ValueError: mode was invalid
+        :raise NotImplementedError: append mode was invalid
+        """
+        
+        if filename is None or type(filename) is not str:
             raise TypeError("kmerdb.graph.KDBGWriter expects the filename to be a str")
         elif mode is None or type(mode) is not str:
             raise TypeError("kmerdb.graph.KDBGWriter expects the mode to be a str")
         elif metadata is None or type(metadata) is not OrderedDict:
-            raise TypeError("kmerdb.graph.KDBGWrite: invalid metadata argument")
-        
+            raise TypeError("kmerdb.graph.KDBGWriter - invalid metadata argument")
+        elif both_strands is None or type(both_strands) is not bool:
+            raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'both_strands' to be a bool")
+        elif fileobj is not None and not isinstance(fileobj, io.IOBase):
+            raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'fileobj' to be an instance of io.IOBase")
+        elif compresslevel is None or type(compresslevel) is not int:
+            raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'compresslevel' to be an int")
         
         if fileobj:
             assert filename is None, "kmerdb.graph expects filename to be None is fileobj handle is provided"
@@ -1268,9 +1246,8 @@ class Parseable:
     def parsefile(self, filename):
         """Wrapper function for graph.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
             
-        :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with parsefile -> seqparser
+        :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with kmerdb.graph.parsefile
         :type filename: str
-        :returns: (db, m, n)
         """
         return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet, b=self.arguments.fastq_block_size, both_strands=self.arguments.both_strands)
 
