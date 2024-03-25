@@ -559,20 +559,11 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     At this point, the adjacency structure is a simple list of tuples. Redundant tuples may exist in disparate parts of the graph.
 
     The structure of the neighbor_graph is [(from_node_id, to_node_id), ...]
-    """
 
-    """
     Next, the redundant k-mer id pairs are tallied, so that the edge weights are calculated
     """
 
-
-
-
-
-
-
-    
-    # n1 dim should be 8xthe4kconstant when completely populated, could reach a maximum of 
+    error_count = 0
 
     for i in range(len(kmer_ids)):
         if i+1 == len(kmer_ids):
@@ -583,163 +574,63 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             the k-mers are sequential in the original k-mer id list (implicitly sorted by virtue of the orientation of the read in the .fasta/.fastq file) 
             this list of k-mers actual neighbors can be validated by inspecting debug level output below (-vv).
             """
-
-
             # 3/18/24
             # premature optimization found. not gonna discuss.
             # 3/18/24
             # actually not? the point of the 'adjacency' in the simple list form from the KDBGReader invocation of the kmers structure from the /.fa/ format...
-
             # so its capturing the raw kmer array (of ids) from .fa and/or .fq data by virtue of some existing features
             # and it's collecting the proper ordering of the k-mer relationship integrity across the lines of the .fq
-            # therefore it 
-            
-            # pair = (kmer.id_to_kmer(kmer_ids[i], k), kmer.id_to_kmer(kmer_ids[i+1], k))
-
-            # # Actual pair 
-            # pair_ids = (kmer_ids[i], kmer_ids[i+1]) # pair of 'neighboring' k-mer ids
-
-
-            
-            #local_neighbors = kmer.neighbors[
-            
             # pair = (the current k-mer and its nearest neighbor in the sequence file i.e. whether or not it was adjacenct in the 'sequence' proper or whether the k-mer is in a list with multiple sequences, as in given from a .fq file, such that adjacent *reads* in the file produce a k-mer input list that has k-mer ids in a list that represents residue positions in both a .fa and a .fq file. Implicit order is understood by the programmer using this, but the computer itself still has no knowledge of whether a k-mer (or residue) in the file is adjacent in the genome coordinates to its literal neihbor in the list, vs on a subsequent chromosome, or Illumina read in the case of .fq input.
+            """
+            Basically at this point we haven't guaranteed anything about the input k-mer list. It's just been parsed and passed in from either a .fa or .fq file.
+            Okay so now we're creating an artificial pair of k-mers, a relationship between two ids, that also constitutes a k-1-mer in common, regardless of the orientation of the 'neighbor' relationship. Additional assert statements below
 
+            Essentially, this guarantees that, by having the k-2-mer in common, that the current_kmer and any of its 8 possible neighbors have at least a k-2mer in common among all types of neighbor relaionships.
+            In addition, the 'neighbor' relationship between the current_kmer and a single neighbor, also has a k-1-mer in common.
+            Initialize the k-mer pair (duple of ids) in the all_edges_in_kspace var, capturing the pair_id space in the keys iterable from the .keys()
+            """
 
             current_kmer_id = kmer_ids[i]
             current_kmer = kmer.id_to_kmer(current_kmer_id, k)
-            pair = (current_kmer, kmer.id_to_kmer(kmer_ids[i+1], k)) # This pair could have many types of input kmer id pairs, with which we are now tasked with assessing and capturing in the result data structure
+            pair = (current_kmer, kmer.id_to_kmer(kmer_ids[i+1], k)) 
             pair_ids = tuple(map(kmer.kmer_to_id, pair))
             
-            common_seq = current_kmer[1:-1]
+            common_seq = current_kmer[1:]
             logger.debug("Kmer_id: = kmer_ids[i] = |||                {0}".format(current_kmer_id))
-            logger.debug(" -----pair: = {0}  <-> {1}".format(pair[0], pair[1]))
-            
-            """
-            Initialize the k-mer pair (duple of ids) in the all_edges_in_kspace var, capturing the pair_id space in the keys iterable from the .keys()
-            """
+            logger.debug(" -----pair: = '{0}'  <-> '{1}'".format(pair[0], pair[1]))
             all_edges_in_kspace[pair_ids] = 0
             # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
-
             """
-            BOGUS ASSERTIONS AND NONGUARANTEES
+            BOGUS ASSERTIONS AND NONGUARANTEES...
             """
             assert len(current_kmer) == k
-            assert len(common_seq) == k-2
-            # not_zero_but_the_right-most_k1mer = None
-
-
-            # 3/18/24
-            # I mean
-            # most_stuckup_oldie_without_the_swag
-            assert 0 == (1 - 1), "Basically at this point we haven't guaranteed anything about the input k-mer list. It's just been parsed and passed in from either a .fa or .fq file."
-
-            assert 1 == 1, "Okay so now we're creating an artificial pair of k-mers, a relationship between two ids, that also constitutes a 11-mer in common."
-
-
-            """
-
-            INFO
-
-            ########################
-            # Declarations
-            pair 
-            all_edges_in_kspace[pair_ids] = 0
-            # A k-2 mer of the sequence in common between the k1 and k2 k-1mers
-            common_seq
-
-            """
+            assert len(common_seq) == k-1
             
             logger.debug("Validations completed for k-mer {0}.".format(current_kmer_id))
-
-            
-                
-            # the_know-it-all-but-the-basics = None
-            # 
             k1 = current_kmer[1:] # 11 characters (k - 1) remove the left most char, so new char goes on end to make the neighbor
             # not_the_king_but_the_rook = None
             k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
             # Do we even assert these?
-            #assert k1[:somethingidk]
-            # homeroon assertions
-            #assert len(k1) == k-1
-            #assert len(k2) == k-1
-
-            # Name: char_first ()
-            
-            # c is a character (len 1 str): (config.py) one of : A C T G
-            # k1 is a k-mer, (k len str): end char removed, receives residues on its left
-            
-            # k2 is a k-mer, (k len str): start char removed, gives appends on its right
-            #assert 115 == 115, "Okay so now we are packaging everything up as a variable named 'pair'"
-            #assert 116 == 116, "Okay so we're definitely not."
-            #assert 117 == 117, "Because k1 and k2 are k-1mers, and we don't want to backcompute ids for 11mers just because that feature is friendly"
-            #
-            #pair = (k1, k2)
-            #pair_ids = tuple(map(kmer.kmer_to_id, pair))
-            
-            #assert 0 == 0, "still haven't proved anything"
-            # so this function begins to create a local neighborhood for k-mer relationships
-            
-            # ACTGACTG
-            # k1 = CTGACTG (k-1 mer with first char removed. k-1 mer that receives appends.
-            # k2 = ACTGACT (k-1 mer with last char removed. k-1 mer that proposes redacts at its prepend.
 
             # Comments:
             # The char_last requires its first char deleted.
             # Then a character is prepended to the beginning to the reverse of the sequence, or appending to the forward sequence.
             # The char_first requires its terminal char deleted, and then 4 residue characters are prepended to the forward sequence, or appended to the childless reverse
             # we call char_first 'childless' because it is assigned responsibility for the 4 interchangables on its prepend, while it's oldest parent is removed.
-
-
             """
             current_kmer
             pair : the pair of adjacent k-mers with the k-1mer as identical sequence
             pair_ids  : ids
-            k1 : k-1mer   current_kmer[1:] left-most char ommitted, neighbors get appended to right side
+            k1 : k-1mer   current_kmer[1:] left-most char ommitted, (neighbors *will* get appended to right side)
             k2 : k-1mer   current_kmer[:-1] right-most char ommitted, neighbors prepended
 
+            # e.g. ACTGACTG
+            # pair0 = CTGACTG (k-1 mer via first char removed. k-1 mer that receives appends.
+            # pair1 = ACTGACT (k-1 mer via last char removed. k-1 mer that gets at its prepend.
 
             DECLARATIONS FINISHED
             """
-            # # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
-            # char_first = list(map(lambda c: k1 + c, kmer.binaryToLetter))
-            # """
-            # 3/7/24ish... life has been hectic, sometimes better....sometime
-            
-            """
-            ###################
-
-            8-tuple
-
-            ###################
-            """
-            # # the k-1 mer k1
-            # # 8-tuple
-            # char_first = list(map(lambda c: c + k2, kmer.binaryToLetter))
-            # char_last = list(map(lambda c: k1 + c, kmer.binaryToLetter))
-
-
-            # # 8-tuple int
-            # # Simpler map
-            # char_first_ids = list(map(kmer.kmer_to_id, char_first))
-            # char_last_ids = list(map(kmer.kmer_to_id, char_last))
-            # #r = {"kmer_id": k_id, "left_neighbors": lneighbors_ids, "right_neighbors": rneighbors_ids}
-
-            # neighbors_char_last_ids = kmer.neighbors list(map(lambda x: (i, x), char_last_ids))
-            # neighbors_char_first_ids = list(map(lambda x: (x, i), char_first_ids))
-            # neighbors = (neighbors_char_first_ids + neighbors_char_last_ids)
-            # neighbor_slash_edge = edges[pair] 
-            # neighbor_is_a_vector = np.array(neighbor_slash_edge)
-
             # Commented 3/11/24 ish thanks nic
-            # 
-            # k1, k2 = pair
-            # k1 = k1[1:]
-            # k2 = k2[:-1]
-            # common_seq = current_kmer[1:-1]
-
-
             # Working on some bills, then back to the drawing board.
             # I mean, aside from a lab job, if i could wfh or work localish then taking a month or so off to go to the mountains for soil sampling.
             # I'd really want to go with a guide or expert.
@@ -747,59 +638,37 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             # But prior to that I'd need the go-kit prototype.
             # Maybe a soil sampling protocol, expert backpack, sampling fluids/solvents, portable lab cooler.
             # Then run the samples off of some grant.
-
-
-
-            
-            
             """
             LOCAL
 
             B A D         P A I R S
-
-
             debuging problematic pair of k-mer ids
             """
-
-
             if pair_ids == bad_pair:
                 logger.error("Problematic pair of k-mer ids identified...")
                 logger.error("Pair: ({0})".format(", ".join(pair_ids)))
                 sys.exit(1)
-
-            
             try:
                 """
-                this is real concise.
-
-                performance focused not too much style. 
-
+                This is real concise. performance focused, not too much style. 
                 but this is the best way in python to concisely assert that the string slice is equivalent from k-mer to k-mer neighbor. Ensuring this throughout is damn routine.
-
-                But it should be performant in a rust version of this library if the future demanded a non-pythonic implementation for performance limit testing. 
-
-
-                Right now its code. and its hella code. but its not software, not everyone could do this and i have no whitepaper.
+                essentially, this code block is added as indication that these assertions hold on a single sequence .fa file
+                by ensuring that sequential k-mer ids retrieved (via sliding window) from a single sequence .fa are, in fact, related by a common sequence.
+                when the assertion error is triggered, it is most likely that this is due to subsequent reads in a .fastq file, resulting in an erroneous 'pair' of k-mers from the algorithm above, targeting the n'th and n+1'th k-mers in the kmer_id array.
                 """
-                
-
-                
                 assert pair[0][1:] == pair[1][:-1], "kmerdb.graph expects neighboring k-mers to have at least k-1 residues in common. Must be from a fastq file."
-                assert (common_seq in k1) and (common_seq in k2), "kmerdb.graph expects the common seq to at least be in both sequences."
-
-                
+                assert (common_seq in pair[0]) and (common_seq in pair[1]), "kmerdb.graph expects the common_seq be in both sequences of the pair."
             except AssertionError as e:
-
+                error_count += 1
                 logger.error(pair)
-                logger.error("Should have this in common: {0}".format(common_seq))
-                logger.error("k1: '{0}'           k2: '{1}'".format(k1, k2))
-                
-                logger.error("must be fastq")
-                logger.error("mhmm")
-                raise e
-            
-            if quiet is False:
-                logger.debug("Edge: {0} => {1}".format(pair[0], pair[1]))
+                logger.warning("This k-mer pair should have this subsequence in common: {0}".format(common_seq))
+                logger.warning("k1: '{0}'           k2: '{1}'".format(k1, k2))
+                logger.warning("It is explicitly assumed this is from .fastq input")
+                #logger.debug("Types: pair[0] : {0} pair[1] : {1}".format(type(pair[0]), type(pair[1])))
+                logger.debug("'{0}' == '{1}'".format(pair[0][1:], pair[1][:-1]))
+                logger.debug("Is pair0[1:] == pair1[:-1]? : {0}".format(pair[0][1:] == pair[1][:-1]))
+                logger.debug(e)
+                pass
             try:
                 # Accumulate for each edge pair
                 #if (15633431, 12202077) == pair_ids:
@@ -808,48 +677,26 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
                     logger.error("BAD KEY PAIR DETECTED")
 
                     logger.error(bad_pair)
-                    logger.error("WHAT IS GOING ON")
+
                     sys.exit(1)
-
-                banner1 = """
-                --------------- k1 v k2      |        [1:] == k1 == append         [:-1] == prepend == k2
-                """
-
-                banner2 = """
-                (15633431, 12202077)
-                """
-
-                '''
-                print(banner1)
-                print(banner2)
-                '''
-                # k1 = current_kmer[1:] # 11 characters (k - 1) remove the left most char, so new char goes on end to make the neighbor
-                # not_the_king_but_the_rook = None
-                # k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
-
-                #logger.info(" ,".join(list(map(str , pair))) + " received")
-                
                 """
                 ACCUMULATOR           --------- DONE
                 """
                 all_edges_in_kspace[pair_ids] += 1
-
-                logger.debug("""
+                if quiet is False:
+                    logger.debug("Edge: {0} => {1}".format(pair[0], pair[1]))
+                    logger.debug("""
   ╱|、
 (˚ˎ 。7  
  |、˜〵          
 じしˍ,)ノ
-""")
-                
-                        
+""")                        
             except KeyError as e:
-                logger.info("WTF\n\n\n\n")
                 logger.error("Invalid key(pair) used to access edge list")
                 sys.stderr.write("PAIR: {0} => {1}\n".format(pair[0], pair[1]))
                 sys.stderr.write("pair ids: {0}\n".format(pair_ids))
                 logger.error(30*"=")
                 for i, p in enumerate(all_edges_in_kspace.keys()):
-
                     if bad_pair == pair_ids:
                         logger.error("Debugging the 'bad pair', problematic k-mer id pair...")
                         logger.error(pair_ids)
@@ -869,11 +716,13 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             
             sys.stderr.write("k-mer 'pair' ({0}, {1}) adjacency from input file(s) verified".format(p1str, p2str))
             sys.stderr.write("\r")
-
-
             continue
-            #print("k1 x k2 " + "), (".join(list(map(str, (k1, k2)))))
-    logger.debug("NOTE: this adjacency may not always be present in multi-sequence .fa/.fq files, such as k-mers in the array from the end of one seq/read and the beginning of the next")
+
+
+    if error_count > 0:
+        logger.warning("\n")
+        logger.warning("\n")
+        logger.warning("\n\n\nNOTE: ADJACENCY ERRORS DETECTED: Found {0} k-mer pairs/adjacencies from the input file(s),\n where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.\n These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.\n".format(error_count))
     sys.stderr.write("\n\n\n")
     sys.stderr.write("All edges populated *and* accumulated across k-mer id arrays from inputs.\n")
     logger.info("'Graph' generation complete")

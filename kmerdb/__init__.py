@@ -1339,7 +1339,7 @@ def make_kdbg(arguments):
 
             tupley = (i, node1, node2, w)
             tupley_dl = np.array(tupley, dtype="uint64")
-            if arguments.quiet is False:
+            if arguments.quiet is False and 1 == 0:
                 print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
             # i, node1, node2, weight
             kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
