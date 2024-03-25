@@ -95,7 +95,7 @@ def markov_probability(arguments):
     """
     import pandas as pd
     import numpy as np
-    from kmerdb import fileutil, index, probability, seqparser
+    from kmerdb import fileutil, index, probability, parse
     from kmerdb.config import DONE
 
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
@@ -109,7 +109,7 @@ def markov_probability(arguments):
         with fileutil.open(arguments.kdb, 'r', slurp=True) as kdb:
             k = kdb.metadata['k']
             with index.open(arguments.kdbi, 'r') as kdbi:
-                with seqparser.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
+                with parse.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
                     recs = [r for r in seqprsr]
                     if seqprsr.fastq:
                         logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
@@ -129,7 +129,7 @@ def markov_probability(arguments):
                         else:
                             np.append(profiles, markov_probs, axis=0)
 
-                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the seqparser.SeqParser class
+                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the parse.SeqParser class
         df = pd.DataFrame(profiles, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
         df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
 
@@ -1339,7 +1339,7 @@ def make_kdbg(arguments):
 
             tupley = (i, node1, node2, w)
             tupley_dl = np.array(tupley, dtype="uint64")
-            if arguments.quiet is False and 1 == 0:
+            if arguments.quiet is False:
                 print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
             # i, node1, node2, weight
             kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
