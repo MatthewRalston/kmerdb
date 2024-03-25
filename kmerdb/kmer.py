@@ -451,7 +451,7 @@ def neighbors(kmer, kmer_id,  k, quiet:bool=True):
         logger.debug("kmerdb.kmer.neighbors creating neighbors...")
         logger.debug("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type1_ids))))
         logger.debug("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type2_ids))))
-        if quiet is not True:
+        if quiet is not True and 1 == 0:
             sys.stderr.write("""
         k-id : {0}
         kmer : \"    {1}        \"
