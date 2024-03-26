@@ -12,9 +12,10 @@ toc: true
 * [Install](#install)
 * [Usage](#usage)
     * [kmerdb profile](#kmerdb-profile)
-    * [kmerdb view](#kmerdb-view)
-    * [kmerdb distance](#kmerdb-distance)
+    * [kmerdb view](#kmerdb-view-and-kmerdb-header)
     * [kmerdb matrix](#kmerdb-matrix)
+	* [kmerdb distance](#kmerdb-distance)
+	* [kmerdb graph](#kmerdb-graph)
     * [kmerdb kmeans](#kmerdb-kmeans)
 	* [kmerdb hierarchical](#kmerdb-hierarchical)
     * [kmerdb probability](#kmerdb-probability)
@@ -37,6 +38,8 @@ The K-mer database (.kdb) is a file format, a minimal python module (kmerdb) and
 .kdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a header or metadata section, much like .bam files. It is essentially a tab-delimited format with the last column unstructured for k-mer specific metadata. Input files and total k-mer counts are stored in the metadata block at the top of the file
 
 Please visit the [Install](#/install) page for details on installation.
+
+Visit the [Format](#/format) page for details on the `.kdb` format specification.
 
 See the commands in the [Usage](#/usage) section for an idea of what functionality is built in to kdb.
 
@@ -92,27 +95,27 @@ Use '-h' to view detailed usage information about the subcommands
 
 ```bash
 >kmerdb -h
-usage: kmerdb [-h] {profile,header,view,matrix,kmeans,hierarchical,distance,index,shuf,probability,citation} ...
+usage: kmerdb [-h] {profile,header,graph,view,matrix,kmeans,hierarchical,distance,index,shuf,probability,citation} ...
 
 positional arguments:
-{profile,header,view,matrix,kmeans,hierarchical,distance,index,shuf,probability,citation}
-Use --help with sub-commands
-profile             Parse data into the database from one or more sequence files
-header              Print the YAML header of the .kdb file and exit
-view                View the contents of the .kdb file
-matrix              Generate a reduced-dimensionality matrix of the n * 4^k (sample x k-mer) data matrix.
-kmeans              Cluster the files according to their k-mer profile
-hierarchical        Use scipy.cluster.hierarchy to generate a dendrogram from a distance matrix
-distance            Calculate various distance metrics between profiles
-index               Create a index file that can be held in memory
-shuf                Create a shuffled .kdb file
-probability         Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)),
-given the entire k-mer profile of a species. See https://matthewralston.github.io/quickstart#kmerdb-probability for more details. 1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G.,
-1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
-citation            Silence the citation notice on further runs
+  {profile,header,graph,view,matrix,kmeans,hierarchical,distance,index,shuf,probability,citation}
+                        Use --help with sub-commands
+    profile             Parse data into the database from one or more sequence files
+    header              Print the YAML header of the .kdb file and exit
+    graph               Generate an adjacency list from .fa/.fq files
+    view                View the contents of the .kdb file
+    matrix              Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.
+    kmeans              Cluster the files according to their k-mer profile
+    hierarchical        Use scipy.cluster.hierarchy to generate a dendrogram from a distance matrix
+    distance            Calculate various distance metrics between profiles
+    index               Create a index file that can be held in memory
+    shuf                Create a shuffled .kdb file
+    probability         Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)), given the entire k-mer profile of a species. See https://matthewralston.github.io/quickstart#kmerdb-
+                        probability for more details. 1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G., 1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
+    citation            Silence the citation notice on further runs
 
-optional arguments:
--h, --help            show this help message and exit
+options:
+  -h, --help            show this help message and exit
 ```
 
 ## kmerdb profile
@@ -150,11 +153,13 @@ The following command will generate multiple profiles at `$K`-mer resolution sim
 parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
 ```
 
-## kmerdb view
+## kmerdb view and kmerdb header
 
 As mentioned before under [KDB format](#kdb-is-a-file-format), the kdb file consists of a header or metadata section, followed by data blocks until the end of the file. The header is YAML formatted and the data blocks are formatted as tab-separated value files (.tsv), with the last/right-most column being a JSON formatted metadata column. For developers, the YAML schema can be found in the config.py file.
 
 It is worth noting that the 'files' attribute contains an array of file metadata for each file used to construct the profile, including total and unique k-mers per file *and* in aggregate. Note that you cannot sum unique k-mers across all files to retrieve the total unique count, rather an extra pass is required after the counts are summed to acquire the true nullomer/unique k-mer counts.
+
+The view command also works on `.kdbg` files
 
 ```bash
 # This should display the entire header of most files
@@ -162,6 +167,7 @@ It is worth noting that the 'files' attribute contains an array of file metadata
 # This will also display just the header
 >kmerdb header test/data/Cdiff.8.kdb
 # The -H flag includes the header in the uncompressed output
+# otherwise the command below produces just the tabular info.
 >kmerdb view -H test/data/Cdiff.8.kdb
 count_dtype: uint64
 files:
@@ -202,40 +208,6 @@ version: 0.6.3
 ...
 ```
 
-## kmerdb distance
-
-Suppose you want a distance matrix between profiles; this is made easy with the distance command. The distance command supports all distance metrics used by `scipy.spatial.distance.pdist` to create the distance matrix/DataFrame and print it to STDOUT.
-
-```bash
->kmerdb distance -h
-usage: kmerdb distance [-h] [-v] [--output-delimiter OUTPUT_DELIMITER]
-                    [-d DELIMITER] [-k K]
-                    {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule}
-                    <kdbfile1 kdbfile2 ...> [<kdbfile1 kdbfile2 ...> ...]
-															
-positional arguments:
-  {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule}
-                            Choice of distance metric between two profiles
-  <kdbfile1 kdbfile2 ...>
-                            Two or more .kdb files
-																												
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --verbose         Prints warnings to the console by default
-  --output-delimiter OUTPUT_DELIMITER
-                        The output delimiter of the final csv/tsv to write.
-  -d DELIMITER, --delimiter DELIMITER
-                        The delimiter to use when printing the csv.
-  -k K                  The k-dimension that the files have in common
-
->kmerdb distance spearman test/data/*.$K.kdb
->kmerdb distance correlation test/data/*.$K.kdb # Actually the Pearson correlation coefficient
-```
-
-The result is a symmetric matrix in tsv format with column headers formed from the filenames minus their extensions. It is presumed that to properly analyze the distance matrix, you would name the files after their sample name or their species, or some other identifying features. This naming convention holds for the `kdb matrix` command as well.
-
-
-
 ## kmerdb matrix
 
 The kmerdb matrix command generates the count matrix either un-normalized, normalized (via DESeq2), or with PCA or t-SNE dimensionality reduction applied. Note that default behavior of PCA if -n is not specified is to generate an elbow graph for the user to pick the appropriate choice of principal components for downstream analyses. The -n parameter is passed to the n_components parameter of sklearn.decomposition.PCA, which is commonly used for PCA in Python.
@@ -274,6 +246,67 @@ options:
 >kmerdb matrix -n 3 PCA test/data/*.$K.kdb
 >kmerdb matrix Normalized test/data/*.$k.kdb
 ```
+
+
+
+## kmerdb distance
+
+Suppose you want a distance matrix between profiles; this is made easy with the distance command. The distance command supports all distance metrics used by `scipy.spatial.distance.pdist` to create the distance matrix/DataFrame and print it to STDOUT.
+
+```bash
+>kmerdb distance -h
+usage: kmerdb distance [-h] [-v] [--output-delimiter OUTPUT_DELIMITER]
+                    [-d DELIMITER] [-k K]
+                    {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule}
+                    <kdbfile1 kdbfile2 ...> [<kdbfile1 kdbfile2 ...> ...]
+															
+positional arguments:
+  {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule}
+                            Choice of distance metric between two profiles
+  <kdbfile1 kdbfile2 ...>
+                            Two or more .kdb files
+																												
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         Prints warnings to the console by default
+  --output-delimiter OUTPUT_DELIMITER
+                        The output delimiter of the final csv/tsv to write.
+  -d DELIMITER, --delimiter DELIMITER
+                        The delimiter to use when printing the csv.
+  -k K                  The k-dimension that the files have in common
+
+>kmerdb distance spearman test/data/*.$K.kdb
+>kmerdb distance correlation test/data/*.$K.kdb # Actually the Pearson correlation coefficient
+```
+
+The result is a symmetric matrix in tsv format with column headers formed from the filenames minus their extensions. It is presumed that to properly analyze the distance matrix, you would name the files after their sample name or their species, or some other identifying features. This naming convention holds for the `kdb matrix` command as well.
+
+## kmerdb graph
+
+Alternatively, you may want to see the edge list generated from one or more .fa/.fq files. This is the edge list generated by adjacencies supported by the provided data. It does not include all theoretically possible connections between all k-mers (i.e. the adjacency matrix is sparse). In fact, the `.kdbg` format is a (skinny) list of edges and their weights. Edge weights are calculated as the number of times the edge/k-mer pair was observed in the provided file(s). In the future, support for assembly may be available.
+
+
+
+```bash
+usage: kmerdb graph [-h] [-v] [-k K] [-p PARALLEL] [-b FASTQ_BLOCK_SIZE] [--both-strands] [--quiet] <.fasta|.fastq> [<.fasta|.fastq> ...] kdbg
+
+positional arguments:
+  <.fasta|.fastq>       Fasta or fastq files
+  kdbg                  .kdbg file
+
+options:
+  -h, --help            show this help message and exit
+  -v, --verbose         Prints warnings to the console by default
+  -k K                  Choose k-mer size (Default: 12)
+  -p PARALLEL, --parallel PARALLEL
+                        Shred k-mers from reads in parallel
+  -b FASTQ_BLOCK_SIZE, --fastq-block-size FASTQ_BLOCK_SIZE
+                        Number of reads to load in memory at once for processing
+  --both-strands        Retain k-mers from the forward strand of the fast(a|q) file only
+  --quiet               Do not list all edges and neighboring relationships to stderr
+
+```
+
 
 
 ## kmerdb kmeans
