@@ -17,8 +17,57 @@
 
 
 
-VERSION="0.7.6"
+VERSION="0.7.8"
 header_delimiter = "\n" + ("="*24) + "\n"
+
+graph_schema = {
+    "type": "object",
+    "properties": {
+        "version": {"type": "string"},
+        "metadata_blocks": {"type": "number"},
+        "k": {"type": "number"},
+        "total_kmers": {"type": "number"},
+        "unique_kmers": {"type": "number"},
+        "total_nullomers": {"type": "number"},
+        "sorted": {"type": "boolean"},
+        "n1_dtype": {"type": "string"},
+        "n2_dtype": {"type": "string"},
+        "weights_dtype": {"type": "string"},
+        "tags": {
+            "type": "array",
+            "items": {"type": "string"}            
+        },
+        "files": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "filename": {"type": "string"},
+                    "sha256": {
+                        "type": "string",
+                        "minLength": 64,
+                        "maxLength": 64
+                    },
+                    "md5": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 32
+                    },
+                    "total_reads": {"type": "number"},
+                    "total_kmers": {"type": "number"},
+                    "unique_kmers": {"type": "number"},
+                    "nullomers": {"type": "number"}
+                },
+                "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers"]
+            }
+        },
+        "comments": {
+            "type": "array",
+            "items": {"type": "string"}
+        }
+    },
+    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weights_dtype"]
+}
 
 metadata_schema = {
     "type": "object",
@@ -28,7 +77,7 @@ metadata_schema = {
         "k": {"type": "number"},
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
-        "unique_nullomers": {"type": "number"},
+        "total_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
         "profile_dtype": {"type": "string"},
@@ -127,11 +176,6 @@ Copyright 2020 Matt Ralston (mrals89@gmail.com)
 https://matthewralston.github.io/kmerdb
 
 ===========================================
-|     P y P I                             |
-===========================================
-https://pypi.org/project/kmerdb/
-
-===========================================
 |          G i t h u b                    |
 ===========================================
 https://github.com/MatthewRalston/kmerdb
@@ -142,23 +186,54 @@ https://github.com/MatthewRalston/kmerdb
 |   N o t   Very   H u m e r u s           |
 
 ============================================
-https://matthewralston.github.io/blog/kmer-database-format-part-1
+
 
 Please cite my repository in your work!
 
 Feel free to e-mail me or reach out!
 
 Please check the README.md for more details.
-https://github.com/MatthewRalston/kmerdb
+https://matthewralston.github.io/kmerdb/
 
 """
+
+
+
+
+
+
+
+
+SPONGEBOB = """
+⢀⣠⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
+⣿⡋⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢙⣿
+⣿⡇⠀⠀⠀⣠⣴⠾⠿⠷⣦⡀⢀⣴⠾⠿⠷⣦⣄⠀⠀⠀⢸⣿
+⢸⡇⠀⠀⢰⡟⠁⠀⣀⣀⠈⢿⡿⠁⣀⣀⠀⠈⢻⡆⠀⠀⢸⡇
+⢸⣷⠀⠀⢸⡇⠀⠀⠿⠿⠁⣸⣇⠈⠿⠿⠀⠀⢸⡇⠀⠀⣾⡇
+⠘⣿⠀⠀⠈⠻⣦⣄⣀⣤⣾⠛⠛⣷⣤⣀⣠⣴⠟⠁⠀⠀⣿⠃
+⠀⣿⠀⠘⢷⣄⠀⠉⠉⠙⢿⠄⠠⡿⠋⠉⠉⠀⣠⡾⠃⠀⣿⠀
+⠀⣿⠀⠀⠀⠙⠻⢶⣦⣤⣤⣤⣤⣤⣤⣴⡶⠟⠋⠀⠀⠀⣿⠀
+⠀⣿⡄⠀⠀⠀⠀⠀⣿⣀⣹⡇⢸⣏⣀⣿⠀⠀⠀⠀⠀⢠⣿⠀
+⠀⢿⡇⠀⠀⠀⠀⠀⠉⠉⠉⠁⠈⠉⠉⠉⠀⠀⠀⠀⠀⢸⡿⠀
+⠀⢸⣿⣿⣿⣿⣟⠛⠛⠛⣻⡿⢿⣟⠛⠛⠛⣻⣿⣿⣿⣿⡇⠀
+⠀⢸⣿⣿⣿⣿⣿⣷⣤⣾⣿⣶⣶⣿⣷⣤⣾⣿⣿⣿⣿⣿⡇⠀
+⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀
+⠀⠀⠉⠉⠉⠉⠉⠉⠉⠉⠻⣧⣼⠟⠉⠉⠉⠉⠉⠉⠉⠉⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀
+
+"""
+
+
+# "@->- -|>" ... (@->-)
+# "..., -|> ?"
 DONE = """
+
 
 ==========================================
 ----------------D O N E-------------------
 ==========================================
 
-Thanks for checking out k-mer db.
+Thanks for checking out kmerdb.
 Accept the citation notice with 'kmerdb citation'
 Use 'kmerdb [cmd] -h' for more details.
 """
@@ -201,6 +276,61 @@ Matrix will be written to STDOUT as this is the first step of the pipeline.
 """
 # for i in range(42, 1, -1):
 #     MATRIX_MASTHEAD += i*"=" + "\n"
+
+
+GRAPH_MASTHEAD = """
+
+==========================================
+           kmerdb graph
+==========================================
+kmerdb graph example.fa example.kdbg --prefix temp_output
+-----
+.
+.
+.
+output.kdbg
+output.kdb
+output.kdbi
+output.kdb.gi
+error.log
+debug.log
+output.kdbg.stats.neighbors.txt
+output.kdbg.stats.edges.txt
+output.kdbg.stats.adjacency.txt
+---jk
+output.kdbg.stats_txt
+---------------------
+distribution.txt
+quick_stats.txt
+---------------
+kmers-per-file (array ok)
+
+kmers-total  :
+kmers-avg   :
+singletons :
+doublets :
+triplets :
+
+
+'meaningful_kmers = unique_kmers + total_kmers'  (per file)     :  {0}      =    ' {1} '  ' + ' ' {2} '       |
+grand_total_of_kmers     :    
+--------------------------------------------------------------------------------------
+
+(table structure
+
+kmer_totals  :  (array okay)  (per file)
+unique kmers :  (array okay)  (per file)
+nullomers    :  (array okay)  (per file)
+
+output.kdbg.stats.doublets
+output.kdbg.stats.triplets
+output.kdb.stats.average
+output.k
+output.kdbg.stats.paths.txt
+
+
+"""
+
 
 
 KMEANS_MASTHEAD = """
@@ -276,18 +406,8 @@ parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fast
 
 
 
+I make no disclaimers.
 
-################################
-# W A R N I N G :  M E M O R Y #
-################################
-# The following is some 'basic' guesses about expected memory usage.
-# I believe this is an oversimplification of the memory profile for technical language and representation issues.
-# The profile loading function reads the array into memory from the file, assuming a certain data encoding.
-# The coding is now set to 'uint64' by default, which in theory allows us to only be limited by numpy array size.
-# Now that we have that out of the way.
-# The integer depth we have is large.
-#
-#
 #
 ##################
 # dimensionality reduction + kmeans

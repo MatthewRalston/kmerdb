@@ -16,11 +16,7 @@ cat <<EOF
 EOF
 
 
-
-
-rm -rf /home/matt/.pyenv/versions/kdb/lib/python3.11/site-packages/kmerdb /home/matt/.pyenv/versions/kdb/lib/python3.11/site-packages/kmerdb-*.egg-info /home/matt/Projects/kdb/kmerdb.egg-info /home/matt/Projects/kdb/build /home/matt/Projects/kdb/dist
-rm -rf /home/matt/.pyenv/versions/3.11.7/envs/kdb/lib/python3.11/site-packages/kmerdb-*
-cd /home/matt/Projects/kdb/
-rm -rf dist build kmerdb.egg-info wheelhouse
-cd
+rm -rf dist/*
+python setup.py sdist
+twine upload dist/*
 

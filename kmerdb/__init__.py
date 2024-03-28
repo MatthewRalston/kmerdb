@@ -95,7 +95,7 @@ def markov_probability(arguments):
     """
     import pandas as pd
     import numpy as np
-    from kmerdb import fileutil, index, probability, seqparser
+    from kmerdb import fileutil, index, probability, parse
     from kmerdb.config import DONE
 
     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
@@ -109,7 +109,7 @@ def markov_probability(arguments):
         with fileutil.open(arguments.kdb, 'r', slurp=True) as kdb:
             k = kdb.metadata['k']
             with index.open(arguments.kdbi, 'r') as kdbi:
-                with seqparser.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
+                with parse.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
                     recs = [r for r in seqprsr]
                     if seqprsr.fastq:
                         logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
@@ -129,7 +129,7 @@ def markov_probability(arguments):
                         else:
                             np.append(profiles, markov_probs, axis=0)
 
-                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the seqparser.SeqParser class
+                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the parse.SeqParser class
         df = pd.DataFrame(profiles, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
         df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
 
@@ -906,26 +906,40 @@ def header(arguments):
     Another end-user function that takes an argparse Namespace object.
     This function just reads the metadata header, can print in json.
     """
-    from kmerdb import fileutil, config, util
+    from kmerdb import fileutil, config, util, graph
 
-    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
-        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
+    sfx = os.path.splitext(arguments.kdb)[-1]
+    metadata = None
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdb):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
 
-    with fileutil.open(arguments.kdb, mode='r') as kdb_in:
-        if kdb_in.metadata["version"] != config.VERSION:
+    if sfx == ".kdb":
+        kdb = fileutil.open(arguments.kdb, mode='r', sort=arguments.re_sort, slurp=True)
+        metadata = kdb.metadata
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
+        N = 4**metadata["k"]
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        assert kdb.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
+        assert kdb.counts.size == N, "view | read counts size did not match N from the header metadata"
+        assert kdb.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
+        metadata = kdb.metadata
+    elif sfx == ".kdbg":
+        kdb = graph.open(arguments.kdb, mode='r')
+        if kdb.metadata["version"] != config.VERSION:
             logger.warning("KDB file version is out of date, may be incompatible with current fileutil.KDBReader class")
-        N = 4**kdb_in.metadata["k"]
+        N = 4**kdb.metadata["k"]
+        metadata = kdb.metadata
 
-        assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
-        assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
-        assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
-
-        if arguments.json:
-            print(dict(kdb_in.metadata))
-        else:
-            yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(kdb_in.metadata))
-            print(config.header_delimiter)
+    if arguments.json:
+        print(dict(kdb.metadata))
+    else:
+        yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+        print(yaml.dump(metadata))
+        print(config.header_delimiter)
             
 def view(arguments):
     """
@@ -944,7 +958,7 @@ def view(arguments):
     """
     
     import numpy as np
-    from kmerdb import fileutil, config, util, kmer
+    from kmerdb import fileutil, config, util, kmer, graph
     import json
     metadata = None
     N = None
@@ -967,101 +981,454 @@ def view(arguments):
                 return header_dict
 
     assert type(arguments.kdb_in) is str, "kdb_in must be a str"
-    if os.path.splitext(arguments.kdb_in)[-1] != ".kdb": # A filepath with invalid suffix
-        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
-    elif not os.path.exists(arguments.kdb_in):
-        raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
-    with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
-        metadata = kdb_in.metadata
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
-        N = 4**metadata["k"]
-        if metadata["version"] != config.VERSION:
-            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
-        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
-            if arguments.header:
-                yaml.add_representer(OrderedDict, util.represent_ordereddict)
-                print(yaml.dump(metadata, sort_keys=False))
-                print(config.header_delimiter)
-        logger.info("Reading from file...")
-        logger.debug("I cut off the json-formatted unstructured column for the main view.")
-        try:
-            if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
-                kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
-                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
-                for i, idx in enumerate(kmer_ids_sorted_by_count):
-                    kmer_id = kdb_in.kmer_ids[i]
-                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+    sfx = os.path.splitext(arguments.kdb_in)[-1]
 
-                    print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-            else:
-                for i, idx in enumerate(kdb_in.kmer_ids):
-                    kmer_id = kdb_in.kmer_ids[idx]
-                    logger.debug("The row in the file should follow this order:")
-                    logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
-                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
-                    try:
-                        if arguments.un_sort is True:
-                            assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
-                            assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
-                        else:
-                            #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
-                            pass
-                    except AssertionError as e:
-                        logger.warning(e)
-                        logger.warning("K-mer id {0} will be printed in the {1} row".format(idx, i))
+
+
+
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdb_in):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
+    if sfx == ".kdb":
+        with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
+            metadata = kdb_in.metadata
+            kmer_ids_dtype = metadata["kmer_ids_dtype"]
+            N = 4**metadata["k"]
+            if metadata["version"] != config.VERSION:
+                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+                if arguments.header:
+                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    print(yaml.dump(metadata, sort_keys=False))
+                    print(config.header_delimiter)
+            logger.info("Reading from file...")
+            logger.debug("I cut off the json-formatted unstructured column for the main view.")
+            try:
+                if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
+                    kmer_ids_sorted_by_count = np.lexsort((kdb_in.counts, kdb_in.kmer_ids))
+                    reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
+                    for i, idx in enumerate(kmer_ids_sorted_by_count):
+                        kmer_id = kdb_in.kmer_ids[i]
+                        logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                else:
+                    for i, idx in enumerate(kdb_in.kmer_ids):
+                        kmer_id = kdb_in.kmer_ids[idx]
+                        logger.debug("The row in the file should follow this order:")
+                        logger.debug("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.")
+                        logger.debug("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                        try:
+                            if arguments.un_sort is True:
+                                assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
+                                assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
+                            else:
+                                #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
+                                pass
+                        except AssertionError as e:
+                            logger.warning(e)
+                            logger.warning("K-mer id {0} will be printed in the {1} row".format(idx, i))
                         #raise e
-                    logger.debug("{0} line:".format(i))
-                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
-                    if arguments.un_sort is True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
-                    else:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                        logger.debug("{0} line:".format(i))
+                        logger.debug("=== = = = ======= =  =  =  =  =  = |")
+                        if arguments.un_sort is True:
+                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                        else:
+                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
                 # I need to demonstrate a capacity for graph based learning.
                 # (:-|X) The dread pirate roberts got me.
                 # :)
-        except BrokenPipeError as e:
-            logger.error(e)
-            raise e
-    if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
-        logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
-        sys.exit(1)
-    elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
-        raise ValueError("Cannot write a file to an argument that isn't a string")
-    elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
-        logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
-    elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
-        logger.debug("Creating '{0}'...".format(arguments.kdb_out))
-    if arguments.kdb_out is not None:
-        with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
-            assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
-            assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
-            assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
-            with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
-                try:
-                    for i, idx in enumerate(kdb_in.kmer_ids):
-                        kmer_id = idx
-                        seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                        kmer_metadata = kmer.neighbors(seq, arguments.k)
-                        logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
-                        kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
+        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
+            sys.exit(1)
+        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
+            raise ValueError("Cannot write a file to an argument that isn't a string")
+        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
+            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
+        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
+            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
+            if arguments.kdb_out is not None:
+                with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
+                    assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
+                    assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
+                    assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
+                    with fileutil.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                        try:
+                            for i, idx in enumerate(kdb_in.kmer_ids):
+                                kmer_id = idx
+                                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                                kmer_metadata = kmer.neighbors(seq, arguments.k)
+                                logger.debug("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ")
+                                kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
                     
-                except StopIteration as e:
-                    logger.error(e)
-                    raise e
-                finally:
-                    #kdb_out._write_block(kdb_out._buffer)
-                    #kdb_out._handle.flush()
-                    #kdb_out._handle.close()
-                    sys.stderr.write(config.DONE)
+                        except StopIteration as e:
+                            logger.error(e)
+                            raise e
+                        finally:
+                            #kdb_out._write_block(kdb_out._buffer)
+                            #kdb_out._handle.flush()
+                            #kdb_out._handle.close()
+                            sys.stderr.write(config.DONE)
+    elif sfx == ".kdbg":
+        kdbg_in = graph.open(arguments.kdb_in, mode='r', slurp=True)
+        metadata = kdbg_in.metadata
 
+        n1_dtype      = metadata["n1_dtype"]
+        n2_dtype      = metadata["n2_dtype"]
+        weights_dtype = metadata["weights_dtype"]
+
+            
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+            if arguments.header:
+                yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+                print(yaml.dump(metadata, sort_keys=False))
+                print(config.header_delimiter)
+        logger.info("Reading from file...")
+        logger.debug("I cut off the json-formatted unstructured column for the main view.")
+
+        for i in range(len(kdbg_in.n1)):
+            n1 = kdbg_in.n1[i]
+            n2 = kdbg_in.n2[i]
+            w  = kdbg_in.weights[i]
+            logger.debug("The row in the file should follow this order:")
+            logger.debug("The first is an implicit row-index. The second and third are k-mer ids, then edge weight")
+            logger.debug("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+            logger.debug("{0} line:".format(i))
+            logger.debug("=== = = = ======= =  =  =  =  =  = |")
+            print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+                # I don't think anyone cares about the graph representation.
+                # I don't think this actually matters because I can't figure out what the next data structure is.
+                # Is it a Cypher query and creation node set?
+                # I need to demonstrate a capacity for graph based learning.
+                # (:-|X) The dread pirate roberts got me.
+                # :)
+        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
+            sys.exit(1)
+        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
+            raise ValueError("Cannot write a file to an argument that isn't a string")
+        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
+            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
+        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
+            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
+            if arguments.kdb_out is not None:
+                with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                    try:
+                        for i in range(len(kdbg.n1)):
+                            kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg_in.n1[i], kdbg_in.n2[i],  kdbg_in.w[i]))
+                    
+                    except StopIteration as e:
+                        logger.error(e)
+                        raise e
+                    finally:
+                        #kdb_out._write_block(kdb_out._buffer)
+                        #kdb_out._handle.flush()
+                        #kdb_out._handle.close()
+                        sys.stderr.write(config.DONE)
+
+
+def assembly(arguments):
+    from kmerdb import graph
+
+
+
+
+
+
+
+
+    assert type(arguments.kdbg) is str, "kdbg must be a str"
+    sfx = os.path.splitext(arguments.kdbg)[-1]
+
+
+
+
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdbg):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdbg))
+    elif sfx == ".kdbg":
+        with graph.open(arguments.kdbg, mode='r', slurp=True) as kdbg_in:
+            metadata = kdbg_in.metadata
+
+            N = len(kdbg_in.n1)            
+            n1_dtype      = metadata["n1_dtype"]
+            n2_dtype      = metadata["n2_dtype"]
+            weights_dtype = metadata["weights_dtype"]
+
+
+
+            
+            if metadata["version"] != config.VERSION:
+                logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+            if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+                if arguments.header:
+                    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+                    print(yaml.dump(metadata, sort_keys=False))
+                    print(config.header_delimiter)
+            logger.info("Reading from file...")
+            logger.debug("I cut off the json-formatted unstructured column for the main view.")
+            try:
+
+
+
+                nodes = list(set(kdbg_in.n1 + kdbg_in.n2))
+                edges = list(zip(kdbg_in.n1, kdbg_in.n2, list(map(lambda w: {'weight': w} , kdbg_in.weights))))
+
+                graph.create_graph(nodes, edges)
+                
+            except BrokenPipeError as e:
+                logger.error(e)
+                raise e
+
+    
+                            
+                                              
+def make_kdbg(arguments):
+    """
+    Another ugly function that takes a argparse Namespace object as its only positional argument
+
+    Basically, from a fasta file, I want to generate a file format that consists of unique row ids, k-mer ids, adjacency list, 
+
+    and finally an int field (0 represents unused) representing the order of the row-kmer being used in a graph traversal.
+
+    Note, that the .kdbg format may not be easily regenerated from a k-mer count vector alone, and thus a .fasta/.fastq is needed.
+
+    The goal isn't to yet implement the traversal algorithm in this first commit. But instead I'd like to get the format specified.
+    """
+    from multiprocessing import Pool
+
+
+    import jsonschema
+    
+    import numpy as np
+    
+    from kmerdb import graph, kmer, util
+    from kmerdb.config import VERSION
+
+
+    
+    logger.debug("Printing entire CLI argparse option Namespace...")
+    logger.debug(arguments)
+    
+    # The extension should be .kdb because I said so.
+    logger.info("Checking extension of output file...")
+    if os.path.splitext(arguments.kdbg)[-1] != ".kdbg":
+        raise IOError("Destination .kdbg filepath does not end in '.kdbg'")
+
+    file_metadata = []
+    theoretical_kmers_number = 4**arguments.k # Dimensionality of k-mer profile
+
+    
+    logger.info("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))))
+    infile = graph.Parseable(arguments) # NOTE: Uses the kmerdb.graph module
+
+    
+    logger.info("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel))
+    logger.debug("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable")
+    logger.debug("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI")
+    if arguments.parallel > 1:
+        with Pool(processes=arguments.parallel) as pool:
+            # data files_metadata
+            data = pool.map(infile.parsefile, arguments.seqfile) # Returns a list of k-mer ids
+    else:
+            # data files_metadata
+            data = list(map(infile.parsefile, arguments.seqfile))
+    """
+    Summary statistics and metadata structure
+    """
+
+    nullomer_ids = []
+    counts = []
+    for d in data:
+        nullomer_ids.extend(d[3])
+        counts.extend(d[2])
+        file_metadata.append(d[1])
+    N = 4**arguments.k
+
+    
+    all_observed_kmers = int(np.sum(counts))
+        
+    unique_nullomers = len(set(nullomer_ids))
+    
+    unique_kmers = int(np.count_nonzero(counts))
+    
+    # Key assertion
+    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
+    #logger.info("created a k-mer composite in memory")
+
+    
+    metadata=OrderedDict({
+        "version": VERSION,
+        "metadata_blocks": 1,
+        "k": arguments.k,
+        "total_kmers": all_observed_kmers,
+        "unique_kmers": unique_kmers,
+        "unique_nullomers": unique_nullomers,
+        "sorted": arguments.sorted,
+        "n1_dtype": "uint64",
+        "n2_dtype": "uint64",
+        "weights_dtype": "uint64",
+        "tags": [],
+        "files": file_metadata
+    })
+
+    
+    logger.info("Validating aggregated metadata structure for .kdbg header...")
+    try:
+        np.dtype(metadata["n1_dtype"])
+        np.dtype(metadata["n2_dtype"])
+        np.dtype(metadata["weights_dtype"])
+    except TypeError as e:
+        logger.error(metadata)
+        logger.error(e)
+        logger.error("kmerdb encountered a type error and needs to exit")
+        raise TypeError("Incorrect dtype detected in metadata structure. Internal error.")
+    
+    try:
+        jsonschema.validate(instance=metadata, schema=config.graph_schema)
+    except jsonschema.ValidationError as e:
+        logger.debug(e)
+        logger.error("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML")
+        raise e
+
+    logger.debug("Validation complete.")
+
+    
+    sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
+
+
+
+    """
+    ACCUMULATE ALL EDGE WEIGHTS ACROSS ALL FILES
+    """
+    """
+    Step 1: initialize the final edge datastructure, a hashmap, keyed on a pair of k-mer ids, and containing only an integer weight
+    """
+    # Initialize empty data structures
+    all_edges_in_kspace = {}
+    n1 = []
+    n2 = []
+    weights = []
+    # Loop over the input files and initialize the dictionary on the valid pairs, setting them to 0.
+    for d in data:
+        edges, h, counts, nullomers = d
+        pair_ids = edges.keys()
+        for p in pair_ids:
+            all_edges_in_kspace[p] = 0
+    """
+    Step 2: Accumulate all edge weights across all files
+    """
+    for d in data:
+        edges, h, counts, nullomers = d
+        pair_ids = edges.keys()
+        
+        for p in pair_ids:
+            try:
+                all_edges_in_kspace[p] += edges[p]
+            except KeyError as e:
+                logger.error("Unknown edge detected, evaded prepopulation. Internal error.")
+                raise e
+    """
+    Step 3: Add edges (2 k-mer ids) and weight to lists for conversion to NumPy array.
+    """
+    for e in all_edges_in_kspace.keys():
+        n1.append(e[0])
+        n2.append(e[1])
+        weights.append(all_edges_in_kspace[e])
+    """
+    N would be the number of edges, pairs of nodes, and weights.
+    """
+    N = len(n1)
+    
+    logger.debug("Initializing Numpy arrays of {0} uint for the edges and corresponding weight...".format(N))
+    n1 = np.array(n1, dtype=metadata["n1_dtype"])
+    n2 = np.array(n2, dtype=metadata["n2_dtype"])
+    weights = np.array(weights, dtype=metadata["weights_dtype"])
+    logger.info("Initialization of profile completed, using approximately {0} bytes per array".format(n1.nbytes))
+
+    """
+    Write the YAML metadata header to the .kdbg file
+    """
+    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+    sys.stderr.write(yaml.dump(metadata, sort_keys=False))
+
+    sys.stderr.write("\n\n\n")
+    logger.info("Wrote metadata header to .kdbg...")
+
+    
+    """
+    Cause pandas isn't edge-y enough.
+    """
+    # Convert the list of numpy arrays (the uint64 3-tuple of the edge) to pandas dataframe
+    #df = pd.DataFrame(twoD_weighted_edge_list)
+    #df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
+
+
+    """
+    Write the dataset (weighted edge list) to a file with '.kdbg' as its suffix.
+    """
+    kdbg_out = graph.open(arguments.kdbg, mode='wb', metadata=metadata)
+    
+    try:
+        sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
+        for i, node1 in enumerate(n1):
+            
+            node2 = n2[i]
+            w = weights[i]
+
+            tupley = (i, node1, node2, w)
+            tupley_dl = np.array(tupley, dtype="uint64")
+            if arguments.quiet is False:
+                print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
+            # i, node1, node2, weight
+            kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+    finally:
+        kdbg_out._write_block(kdbg_out._buffer)
+        kdbg_out._handle.flush()
+        kdbg_out._handle.close()
+
+
+        """
+        Done around n birfday
+        3/20/24        
+
+        Final statistics to stderr
+        """
+        sys.stderr.write("\n\n\nFinal stats:\n\n\n")
+        
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        sys.stderr.write("="*30 + "\n")
+        sys.stderr.write(".kdbg stats:\n")
+        sys.stderr.write("-"*30 + "\n")
+        sys.stderr.write("Edges in file:  {0}\n".format(N))
+        sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
+        sys.stderr.write("\nDone\n")
+
+    logger.info("Done printing weighted edge list to .kdbg")
+
+    sys.stderr.write(config.DONE)
+
+    
             
 def profile(arguments):
     """
-    A complex, near-end user function that handles an arparse Namespace as its only positional argument
+    A complex, near-end user function that handles a argparse Namespace as its only positional argument
 
     This function handles multiprocessing, NumPy type checking and array initialization, full metadata expansion if needed.
 
@@ -1106,6 +1473,7 @@ def profile(arguments):
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
     N = total_kmers
+    theoretical_kmers_number = N
 
     logger.info("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))))
     nullomers = set()
@@ -1126,7 +1494,7 @@ def profile(arguments):
 
     # 'data' is now a list of 4-tuples
     # Each 4-tuple represents a single file
-    # (counts<numpy.array>, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
+    # (edges, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
     # Construct a final_counts array for the composite profile across all inputs
     logger.debug("Initializing large list for extended metadata")
@@ -1143,9 +1511,54 @@ def profile(arguments):
             all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
 
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-    unique_kmers = int(np.count_nonzero(counts))
-    total_nullomers = total_kmers - unique_kmers
+    # unique_kmers = int(np.count_nonzero(counts))
+    # #total_nullomers = total_kmers - unique_kmers
+
+    # nullomer_ids = list(map(lambda n: n[2], data))
+    # all_observed_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], file_metadata))))
+
+
+
+    
+    """
+    3/20/24
+    *Massive* nullomer and count validation regression.
+    """
+
+    """
+    Summary statistics and metadata structure
+    """
+
+    nullomer_ids = []
+    counts = []
+    file_metadata = []
+    for d in data:
+        nullomer_ids.extend(d[2])
+        counts.extend(d[0])
+        file_metadata.append(d[1])
+    
     all_observed_kmers = int(np.sum(counts))
+    unique_nullomers = len(set(nullomer_ids))
+    unique_kmers = int(np.count_nonzero(counts))
+
+    
+    # Key assertion
+    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
+    #logger.info("created a k-mer composite in memory")
+
+
+    # nullomer_ids = []
+
+    # for ns in file_metadata:
+    #     nullomer_ids.extend(ns["nullomer_array"])
+    
+    # unique_nullomers = len(set(nullomer_ids))
+    # # 
+    # unique_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"], file_metadata))))
+
+    # assert unique_kmers + unique_nullomers == N, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, N, unique_kmers + unique_nullomers)
+    
+    # all_observed_kmers = int(np.sum(counts))
 
     logger.info("Initial counting process complete, creating BGZF format file (.kdb)...")
     logger.info("Formatting master metadata dictionary...")
@@ -1156,7 +1569,7 @@ def profile(arguments):
         "k": arguments.k,
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
-        "unique_nullomers": total_nullomers,
+        "unique_nullomers": unique_nullomers,
         "metadata": arguments.all_metadata,
         "sorted": arguments.sorted,
         "kmer_ids_dtype": "uint64",
@@ -1164,7 +1577,7 @@ def profile(arguments):
         "count_dtype": "uint64",
         "frequencies_dtype": "float64",
         "tags": [],
-        "files": [d[1] for d in data]
+        "files": file_metadata
     })
         
     try:
@@ -1183,7 +1596,7 @@ def profile(arguments):
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
     logger.info("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes))
-    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
 
     
@@ -1211,7 +1624,10 @@ def profile(arguments):
                 reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
                     seq = kmer.id_to_kmer(idx, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+                    kmer_id = int(idx)
+
+                    
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
                     reads = []
                     starts = []
                     reverses = []
@@ -1236,50 +1652,59 @@ def profile(arguments):
             else:
                 j = 0
                 for i, idx in enumerate(kmer_ids):
-                    kmer_id = int(idx)
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                    kmer_id = int(idx)
+
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
                     #logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[kmer_id], frequencies[kmer_id]))
                     
-                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+
                     all_metadata.append(kmer_metadata)
-                    counts[idx] = counts[idx]
-                    frequencies[idx] = frequencies[idx]
+                    c = counts[idx]
+                    f = frequencies[idx]
                     logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
                     j += 1
         else:
             if arguments.sorted:
-                duple_of_arrays = (kmer_ids, counts)
+
                 kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
-                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
+                reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
+                logger.info("FIXME before reverse : ", reverse_kmer_ids_sorted_by_count)
+                reverse_kmer_ids_sorted_by_count.reverse()
+                logger.info("FIXME after reverse : ", reverse_kmer_ids_sorted_by_count)
                 logger.debug("K-mer id sort shape: {0}".format(len(kmer_ids_sorted_by_count)))
                 for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
                     kmer_id = int(kmer_ids[idx])
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k)
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
+
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
                     all_metadata.append(kmer_metadata)
-                    counts[idx] = counts[idx]
-                    frequencies[idx] = frequencies[idx]
+                    c[idx] = counts[idx]
+                    f[idx] = frequencies[idx]
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
             else:
                 for i, idx in enumerate(kmer_ids):
-                    kmer_id = int(idx)
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    p = profile[i]
-                    c = counts[i]
-                    f = frequencies[i]
-                    seq = kmer.id_to_kmer(int(kmer_id), arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, arguments.k) # metadata is initialized by the neighbors
+
+
+                    kmer_id = int(kmer_ids[idx])
+                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                    c = counts[idx]
+                    f = frequencies[idx]
+
+                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
+                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+
                     all_metadata.append(kmer_metadata)
                     if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
+                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
@@ -1289,13 +1714,21 @@ def profile(arguments):
         kdb_out._handle.flush()
         kdb_out._handle.close()
 
-        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
-        sys.stderr.write("Final nullomer count:   {0}\n".format(total_nullomers))
-        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-        sys.stderr.write("Total {0}-mer count:     {1}\n".format(arguments.k, total_kmers))
-    
+        """
+        Done around n birfday
+        3/20/24        
 
+        Final statistics to stderr
+        """
+        sys.stderr.write("\n\n\nFinal stats:\n\n\n")
+        sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
+        sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        sys.stderr.write("="*30 + "\n")
         sys.stderr.write("\nDone\n")
+
+
     
         
 def get_root_logger(level):
@@ -1372,6 +1805,29 @@ def cli():
     header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
     header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     header_parser.set_defaults(func=header)
+
+    graph_parser = subparsers.add_parser("graph", help="Generate an adjacency list from .fa/.fq files")
+    graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+
+    graph_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
+
+    graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    graph_parser.add_argument("--quiet", action="store_true", default=False, help="Do not list all edges and neighboring relationships to stderr")
+    graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
+    #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
+
+    graph_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
+    graph_parser.add_argument("kdbg", type=str, help=".kdbg file")
+    graph_parser.set_defaults(func=make_kdbg)
+
+    # assembly_parser = subparsers.add_parser("assemble", help="Use NetworkX (and/or cugraph) to perform deBruijn graphs")
+    # assembly_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    # assembly_parser.add_argument("-g", "--gpu", action="store_true", default=False, help="Utilize GPU resources (requires CUDA library cugraph)")
+    # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
+    # assembly_parser.set_defaults(func=assembly)
+
     
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")

@@ -25,8 +25,12 @@ import yaml, json
 from collections import deque, OrderedDict
 
 
+from kmerdb import config
 
-def represent_ordereddict(dumper, data):
+
+
+
+def represent_yaml_from_collections_dot_OrderedDict(dumper, data):
     """
     Thanks to Blender and EquipDev on StackOverflow for this handy method to pass to yaml.add_representer
     https://stackoverflow.com/a/16782282
@@ -40,6 +44,8 @@ def represent_ordereddict(dumper, data):
     :param data:
     :type data: dict
     """
+
+    
     value = []
 
     for item_key, item_value in data.items():
@@ -51,20 +57,3 @@ def represent_ordereddict(dumper, data):
     return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
 
-def merge_metadata_lists(k, meta_metadata_across_all_files, new_kmer_meta_metadata):
-    """
-    Merge two 4**k metadata lists. 
-    :param k: The choice of k is important for count array indexing.
-    :type k: int
-    :param meta_metadata_across_all_files:
-    :type meta_metadata_across_all_files: list
-    :param new_kmer_meta_metadata:
-    :type new_kmer_meta_metadata: list
-    """
-    if 4**k != len(new_kmer_meta_metadata):
-        raise TypeError("kmerdb.util.merge_metadata_lists() expects a new_kmer_metadata list to have 4^{0} elements. Got {1}".format(k, len(new_kmer_meta_metadata)))
-
-    for i, meta_metadata in enumerate(new_kmer_meta_metadata):
-        meta_metadata_across_all_files[i] = meta_metadata_across_all_files[i] + meta_metadata
-
-    return meta_metadata_across_all_files
