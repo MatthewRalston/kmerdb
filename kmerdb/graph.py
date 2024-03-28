@@ -34,11 +34,12 @@ from itertools import chain
 
 from builtins import open as _open
 
-#import jsonschema
+import jsonschema
 from Bio import SeqIO, Seq, bgzf
 
 
 import numpy as np
+import networkx as nx
 
 from kmerdb import fileutil, parse, kmer, config, util
 
@@ -725,6 +726,35 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     """
     return all_edges_in_kspace
 
+
+
+def create_graph(nodes:list, edge_tuples:list, gpu:bool=False):
+
+
+
+    if nodes is None or type(nodes) is not list or not all(type(n) is not int for n in nodes):
+        raise TypeError("kmerdb.graph.create_graph expects the first argument to be a list of ints")
+    elif edge_tuples is None or type(edge_tuples) is not list or not all(len(e) != 3 for e in edge_tuples) or not all((type(e[0]) is int and type(e[1]) is int) for e in edge_tuples):
+        raise TypeError("kmerdb.graph.create_graph expects the second argument to be a list of tuples of length 2")
+    elif gpu is None or type(gpu) is not bool:
+        raise TypeError("kmerdb.graph.create_graph expects the keyword argument gpu to be a bool")
+
+
+    """
+    Now we make the networkx graph
+    """
+    G = nx.Graph()
+
+    G.add_nodes_from(nodes)
+    
+        
+    G.add_edges_from(edge_tuples)
+
+
+    
+
+    
+
 def w_lexer():
     pass
 
@@ -873,8 +903,8 @@ class KDBGReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'fileobj' to be a file object")
         if filename is not None and type(filename) is not str:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'filename' to be a str")
-        elif mode is not None and type(mode) is not bool:
-            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'mode' to be a bool")
+        elif mode is not None and type(mode) is not str:
+            raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'mode' to be a str")
         elif n1_dtype is not None and type(n1_dtype) is not str:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'n1_dtype' to be a str")
         elif n2_dtype is not None and type(n2_dtype) is not str:
@@ -936,7 +966,8 @@ class KDBGReader(bgzf.BgzfReader):
 
         self.read_and_validate_kdbg_header()
 
-        if slurp is True:            
+        if slurp is True:
+            logger.info("Reading .kdbg contents into memory")
             self.slurp(n1_dtype=n1_dtype, n2_dtype=n2_dtype, weights_dtype=weights_dtype)
 
         self.is_int = True
@@ -1142,8 +1173,8 @@ class KDBGReader(bgzf.BgzfReader):
                 reading = False
 
         
-        self.node1 = np.array(node1, dtype=n1_dtype)
-        self.node2 = np.array(node2, dtype=n2_dtype)
+        self.n1 = np.array(node1, dtype=n1_dtype)
+        self.n2 = np.array(node2, dtype=n2_dtype)
         self.weights = np.array(weights, dtype=weights_dtype)
         return
 
@@ -1229,9 +1260,41 @@ class KDBGWriter(bgzf.BgzfWriter):
         # 3-04-2024
         yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
 
-
+        self.metadata = metadata
 
         #self._write_block(metadata_slice)
+        if "b" in mode.lower():
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_plus_delimiter_in_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_plus_delimiter_in_bytes) / ( 2**16 ) ) # First estimate
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
+            metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
+            metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
+            logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
+            logger.debug(self.metadata)
+            logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
+
+            # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
+            # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
+            #self.write(bytes(yaml.dump(metadata, sort_keys=False), 'utf-8'))
+        
+            for i in range(self.metadata["metadata_blocks"]):
+                metadata_slice = metadata_bytes[:65536]
+                metadata_bytes = metadata_bytes[65536:]
+                self._write_block(metadata_slice)
+
+                #self._write_block
+                self._buffer = b""
+                self._handle.flush()
+        elif "w" == mode.lower() or "x" == mode.lower():
+            self.write(yaml.dump(metadata, sort_keys=False))
+            self._buffer = ""
+            self._handle.flush()
+        else:
+            logger.error("Mode: {}".format(mode.lower()))
+            raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
         
 
     
