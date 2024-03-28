@@ -906,26 +906,40 @@ def header(arguments):
     Another end-user function that takes an argparse Namespace object.
     This function just reads the metadata header, can print in json.
     """
-    from kmerdb import fileutil, config, util
+    from kmerdb import fileutil, config, util, graph
 
-    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
-        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
+    sfx = os.path.splitext(arguments.kdb)[-1]
+    metadata = None
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdb):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
 
-    with fileutil.open(arguments.kdb, mode='r') as kdb_in:
-        if kdb_in.metadata["version"] != config.VERSION:
+    if sfx == ".kdb":
+        kdb = fileutil.open(arguments.kdb, mode='r', sort=arguments.re_sort, slurp=True)
+        metadata = kdb.metadata
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
+        N = 4**metadata["k"]
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        assert kdb.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
+        assert kdb.counts.size == N, "view | read counts size did not match N from the header metadata"
+        assert kdb.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
+        metadata = kdb.metadata
+    elif sfx == ".kdbg":
+        kdb = graph.open(arguments.kdb, mode='r')
+        if kdb.metadata["version"] != config.VERSION:
             logger.warning("KDB file version is out of date, may be incompatible with current fileutil.KDBReader class")
-        N = 4**kdb_in.metadata["k"]
+        N = 4**kdb.metadata["k"]
+        metadata = kdb.metadata
 
-        assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
-        assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
-        assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
-
-        if arguments.json:
-            print(dict(kdb_in.metadata))
-        else:
-            yaml.add_representer(OrderedDict, util.represent_ordereddict)
-            print(yaml.dump(kdb_in.metadata))
-            print(config.header_delimiter)
+    if arguments.json:
+        print(dict(kdb.metadata))
+    else:
+        yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+        print(yaml.dump(metadata))
+        print(config.header_delimiter)
             
 def view(arguments):
     """
@@ -1065,12 +1079,91 @@ def view(arguments):
                             #kdb_out._handle.close()
                             sys.stderr.write(config.DONE)
     elif sfx == ".kdbg":
-        with graph.open(arguments.kdb_in, mode='r', slurp=True) as kdbg_in:
+        kdbg_in = graph.open(arguments.kdb_in, mode='r', slurp=True)
+        metadata = kdbg_in.metadata
+
+        n1_dtype      = metadata["n1_dtype"]
+        n2_dtype      = metadata["n2_dtype"]
+        weights_dtype = metadata["weights_dtype"]
+
+            
+        if metadata["version"] != config.VERSION:
+            logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
+        if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
+            if arguments.header:
+                yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+                print(yaml.dump(metadata, sort_keys=False))
+                print(config.header_delimiter)
+        logger.info("Reading from file...")
+        logger.debug("I cut off the json-formatted unstructured column for the main view.")
+
+        for i in range(len(kdbg_in.n1)):
+            n1 = kdbg_in.n1[i]
+            n2 = kdbg_in.n2[i]
+            w  = kdbg_in.weights[i]
+            logger.debug("The row in the file should follow this order:")
+            logger.debug("The first is an implicit row-index. The second and third are k-mer ids, then edge weight")
+            logger.debug("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+            logger.debug("{0} line:".format(i))
+            logger.debug("=== = = = ======= =  =  =  =  =  = |")
+            print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+                # I don't think anyone cares about the graph representation.
+                # I don't think this actually matters because I can't figure out what the next data structure is.
+                # Is it a Cypher query and creation node set?
+                # I need to demonstrate a capacity for graph based learning.
+                # (:-|X) The dread pirate roberts got me.
+                # :)
+        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
+            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
+            sys.exit(1)
+        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
+            raise ValueError("Cannot write a file to an argument that isn't a string")
+        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
+            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
+        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
+            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
+            if arguments.kdb_out is not None:
+                with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
+                    try:
+                        for i in range(len(kdbg.n1)):
+                            kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg_in.n1[i], kdbg_in.n2[i],  kdbg_in.w[i]))
+                    
+                    except StopIteration as e:
+                        logger.error(e)
+                        raise e
+                    finally:
+                        #kdb_out._write_block(kdb_out._buffer)
+                        #kdb_out._handle.flush()
+                        #kdb_out._handle.close()
+                        sys.stderr.write(config.DONE)
+
+
+def assembly(arguments):
+    from kmerdb import graph
+
+
+
+
+
+
+
+
+    assert type(arguments.kdbg) is str, "kdbg must be a str"
+    sfx = os.path.splitext(arguments.kdbg)[-1]
+
+
+
+
+    
+    if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
+    elif not os.path.exists(arguments.kdbg):
+        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdbg))
+    elif sfx == ".kdbg":
+        with graph.open(arguments.kdbg, mode='r', slurp=True) as kdbg_in:
             metadata = kdbg_in.metadata
 
-            print(metadata)
-            sys.exit(1)
-            
+            N = len(kdbg_in.n1)            
             n1_dtype      = metadata["n1_dtype"]
             n2_dtype      = metadata["n2_dtype"]
             weights_dtype = metadata["weights_dtype"]
@@ -1082,7 +1175,7 @@ def view(arguments):
                 logger.warning("KDB version is out of date, may be incompatible with current KDBReader class")
             if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
                 if arguments.header:
-                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
                     print(yaml.dump(metadata, sort_keys=False))
                     print(config.header_delimiter)
             logger.info("Reading from file...")
@@ -1090,60 +1183,18 @@ def view(arguments):
             try:
 
 
-                """
-                FIXME!
 
+                nodes = list(set(kdbg_in.n1 + kdbg_in.n2))
+                edges = list(zip(kdbg_in.n1, kdbg_in.n2, list(map(lambda w: {'weight': w} , kdbg_in.weights))))
 
-
-                """
+                graph.create_graph(nodes, edges)
                 
-
-
-                for i in range(len(kdbg_in.n1)):
-                    n1 = kdbg_in.n1[i]
-                    n2 = kdbg_in.n2[i]
-                    w  = kdbg_in.weights[i]
-                    logger.debug("The row in the file should follow this order:")
-                    logger.debug("The first is an implicit row-index. The second and third are k-mer ids, then edge weight")
-                    logger.debug("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
-                    logger.debug("{0} line:".format(i))
-                    logger.debug("=== = = = ======= =  =  =  =  =  = |")
-                    print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
-                    # I don't think anyone cares about the graph representation.
-                    # I don't think this actually matters because I can't figure out what the next data structure is.
-                    # Is it a Cypher query and creation node set?
-                    # I need to demonstrate a capacity for graph based learning.
-                    # (:-|X) The dread pirate roberts got me.
-                    # :)
             except BrokenPipeError as e:
                 logger.error(e)
                 raise e
-        if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
-            logger.error("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
-            sys.exit(1)
-        elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
-            raise ValueError("Cannot write a file to an argument that isn't a string")
-        elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
-            logger.warning("Overwriting '{0}'...".format(arguments.kdb_out))
-        elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
-            logger.debug("Creating '{0}'...".format(arguments.kdb_out))
-            if arguments.kdb_out is not None:
-                with fileutil.graph(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdbg:
-                    with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
-                        try:
-                            for i in range(len(kdbg.n1)):
-                                kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg.n1[i], kdbg.n2[i],  kdbg.w[i]))
-                    
-                        except StopIteration as e:
-                            logger.error(e)
-                            raise e
-                        finally:
-                            #kdb_out._write_block(kdb_out._buffer)
-                            #kdb_out._handle.flush()
-                            #kdb_out._handle.close()
-                            sys.stderr.write(config.DONE)
 
-
+    
+                            
                                               
 def make_kdbg(arguments):
     """
@@ -1330,6 +1381,7 @@ def make_kdbg(arguments):
     Write the dataset (weighted edge list) to a file with '.kdbg' as its suffix.
     """
     kdbg_out = graph.open(arguments.kdbg, mode='wb', metadata=metadata)
+    
     try:
         sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
         for i, node1 in enumerate(n1):
@@ -1769,6 +1821,13 @@ def cli():
     graph_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     graph_parser.add_argument("kdbg", type=str, help=".kdbg file")
     graph_parser.set_defaults(func=make_kdbg)
+
+    # assembly_parser = subparsers.add_parser("assemble", help="Use NetworkX (and/or cugraph) to perform deBruijn graphs")
+    # assembly_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    # assembly_parser.add_argument("-g", "--gpu", action="store_true", default=False, help="Utilize GPU resources (requires CUDA library cugraph)")
+    # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
+    # assembly_parser.set_defaults(func=assembly)
+
     
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
