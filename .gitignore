@@ -9,3 +9,4 @@ kdb/__pycache__
 examples/example_report/*.png
 examples/example_report
 test/data
+pypi_token.foo

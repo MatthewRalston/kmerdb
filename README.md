@@ -1,7 +1,7 @@
 # README - kmerdb
 > A Python CLI and module for k-mer profiles, similarities, and graph databases
 
-NOTE: This project is in alpha stage. Development is ongoing. But feel free to clone the repository and play with the code for yourself.
+NOTE: This project is in beta stage. Development is ongoing. But feel free to clone the repository and play with the code for yourself.
 
 ## Development Status
 [![Downloads](https://static.pepy.tech/personalized-badge/kmerdb?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads)](https://pypi.org/project/kmerdb)
@@ -20,12 +20,12 @@ NOTE: This project is in alpha stage. Development is ongoing. But feel free to c
 
 ## Summary 
 
-KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances and total counts. You can think of the current form as a "pre-index", as it includes all the essential information for indexing on any field in the landscape of k-mer to sequence relationships. One restriction is that k-mers with unspecified sequence residues 'N' create gaps in the k-mer to sequence relationship space, and are excluded. That said, non-standard IUPAC residues are supported.
+KDB is a Python library designed for bioinformatics applications. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts/abundances in a columnar format, with input file checksums, total counts, nullomers, and mononucleotide counts in a YAML formatted header in the first block of the `bgzf` formatted `.kdb` file. One restriction is that k-mers with unspecified sequence residues 'N' create gaps in the k-mer to sequence relationship space, and are excluded. That said, non-standard IUPAC residues are supported.
 
 
 Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quickstart) for more information about the format, the library, and the project.
 
-The k-mer spectrum of the fasta or fastq sequencing data is stored in the `.kdb` format spec, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided to decompress a `.kdb` file into a standard output stream.
+The k-mer spectrum of the fasta or fastq sequencing data is stored in the `.kdb` format spec, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided to decompress a `.kdb` file into a standard output stream. The output file is compatible with `zlib`.
 
 
 
@@ -79,8 +79,14 @@ See `python -m kmerdb -h` for details.
 
 ```bash
 kmerdb --help
-# Build a [composite] profile to a new or existing .kdb file
+# Build a [composite] profile to a new .kdb file
 kmerdb profile -k 8 example1.fq.gz example2.fq.gz profile.8.kdb
+
+# Note: zlib compatibility
+zcat profile.8.kdb
+
+# Build a weighted edge list
+kmerdb graph -k 12 example1.fq.gz example2.fq.gz edges.kdbg
 
 # View the raw data
 kmerdb view profile.8.kdb # -H for full header
@@ -88,14 +94,22 @@ kmerdb view profile.8.kdb # -H for full header
 # View the header
 kmerdb header profile.8.kdb
 
-# Collate the files
-kmerdb matrix -p $cores pass *.8.kdb
+# Collate the files. See 'kmerdb matrix -h' for more information.
+# Note: the 'pass' subcommand passes the int counts through collation, without normalization.
+# In this case the shell interprets '*.8.kdb' as all 8-mer profiles in the current working directory.
+# The k-mer profiles are read in parallel (-p $cores), and collated into one Pandas dataframe, which is printed to STDOUT.
+# Other options include DESeq2 normalization, frequency matrix, or PCA|tSNE based dimensionality reduction techniques.
+kmerdb matrix -p $cores pass *.8.kdb > kmer_count_dataframe.tsv
 
 # Calculate similarity between two (or more) profiles
-kmerdb distance correlation profile1.kdb profile2.kdb (...)
+# The correlation distance from Numpy is used on one or more profiles, or piped output from 'kmerdb matrix'.
+kmerdb distance correlation profile1.kdb profile2.kdb (...) > distance.tsv
+
+# A condensed, one-line invocation of the matrix and distance command using the bash shell's pipe mechanism is as follows.
+kmerdb matrix pass *.8.kdb | kmerdb distance correlation STDIN > distance.tsv
 ```
 
-## Usage note:
+## IUPAC support:
 
 ```bash
 kmerdb profile -k $k input.fa output.kdb # This may discard non-IUPAC characters, this feature lacks documentation!
@@ -132,9 +146,9 @@ python setup.py test
 
 ## License
 
-Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.github.io) - [Email](mailto:mrals89@gmail.com)
+Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.github.io) - [Email](mailto:mralston.development@gmail.com)
 
-Distributed under the Apache license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
+Distributed under the Apache license. See `LICENSE.txt` for the copy distributed with this project. Open source software is not for everyone, but we march into the information age with this ethos. I have the patent rights to this software. You may use and distribute this software, gratis, so long as the original LICENSE.txt is distributed along with the software. This software is distributed AS IS and provides no warranties of any kind.
 
 ```
    Copyright 2020 Matthew Ralston
@@ -154,7 +168,7 @@ Distributed under the Apache license. See `LICENSE.txt` for the copy distributed
 
 ## Contributing
 
-1. Fork it (<https://github.com/MatthewRalston/kdb/fork>)
+1. Fork it (<https://github.com/MatthewRalston/kmerdb/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
 3. Commit your changes (`git commit -am 'Add some fooBar'`)
 4. Push to the branch (`git push origin feature/fooBar`)
@@ -164,22 +178,24 @@ Distributed under the Apache license. See `LICENSE.txt` for the copy distributed
 
 Thank you to the authors of kPAL and Jellyfish for the early inspiration. And thank you to others for the encouragement along the way, who shall remain nameless. I wanted this library to be a good strategy for assessing these k-mer profiles, in a way that is both cost aware of the analytical tasks at play, capable of storing the exact profiles in sync with the current assemblies, and then updating the kmer databases only when needed to generate enough spectral signature information.
 
-The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project has begun under GPL v3.0 and hopefully could gain some interest.
+The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project began under GPL v3.0 and was relicensed with Apache v2. Hopefully this project could gain some interest. I have so much fun working on just this one project. There's more to it than meets the eye. I'm working on a preprint, and the draft is included in some of the latest versions of the codebase, specifically .Rmd files.
 
 More on the flip-side of this file. Literally. And figuratively. It's so complex with technology these days.
 
 <!--
-Thanks of course to that French girl from the children's series.
+Thanks of course to that French girl from the children's series. 
 Thanks to my former mentors BC, MR, IN, CR, and my newer bosses PJ and KL.
 Thanks to the Pap lab for the first dataset that I continue to use.
-Thank you to Ryan for the food and stuff.
+Thank you to Ryan for the food and stuff. I actually made this project specifically so you and I could converse...
 Thanks to Blahah for tolerating someone snooping and imitating his Ruby style.
-Thanks to Erin for getting my feet wet in this new field.
-Thanks to Rachel for the good memories and friendship.
+Thanks to Erin for getting my feet wet in this new field. You are my mvp.
+Thanks to Rachel for the good memories and friendship. And Sophie too. veggies n' R love.
 Thanks to Yasmeen for the usual banter.
-Thanks to Max, Robin, and Robert for the halfway decent memories in St. Louis.
+Thanks to Max, Robin, and Robert for the good memories in St. Louis.
 Thanks to Freddy Miller for the good memories.
-Thanks to Nichole for the cookies and good memories.
+Thanks to Nichole for the cookies and good memories. And your cute furballs too!
+Thanks to Stace for the lessons, convos, and even embarassing moments. You're kind of awesome to me.
+Thanks to a few friends I met in 2023 that reminded me I have a lot to learn about friendship, dating, and street smarts.
 And thanks to my family and friends.
 Go Blue Hens
 -->
