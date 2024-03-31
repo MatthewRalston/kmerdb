@@ -49,7 +49,7 @@ All other dependencies are managed directly by pip.
 ### OSX and Linux release:
 
 ```sh
-pip install kmerdb
+pip install --python-version 3.7.4 --pre kmerdb
 ```
 
 
@@ -58,7 +58,7 @@ pip install kmerdb
 
 ```sh
 git clone https://github.com/MatthewRalston/kmerdb.git
-pip install -e .
+pip install .
 ```
 
 ## Usage Example

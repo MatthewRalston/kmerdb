@@ -7,6 +7,63 @@
 
 
 
+* 3/25/24 - finished weighted edge list, planning assembler
+** Personal Remarks
+*** Today marks the beginning of the end... of the DeBruijn graph format pull-request from branch 'graph_algo'
+*** I'm doing a little bit better mentally. Learned today about non-stiumlant ADHD meds
+*** In hindsight, I've never been diagnosed with ADHD. I have reasonable hyper-focus, but I get derailed with alternate versions of ... oops I literally forgot what the psychiatrist calls it when you change tasks and get unfocused. Wow.
+*** I like my new therapist/counselor and her level of care seems nice. Let's see how the next 3 months goes.
+*** Okay, that's enough about meTM. 
+** Project remarks
+*** I'm very happy with the recent additions to the the graph_algo branch. The feature 'seems' to be working quite well regarding neighboring/subsequent k-mers appended to the id array.
+*** Specifically, I have a --quiet option that will silence most output delivered to the screen in addition to the verbosity setting.
+*** By DEFAULT I print an obnoxious amount of output to the STDERR stream, without the verbosity settings changed from the default of warning level (-v, -vv).
+*** I believe this demonstrates to the user how adjacencies in the id array are considered aka that they have the k-1 subsequence in common.
+*** These assertions introduced in kmerdb.graph are essential to verify that subsequent read counts, propagate an error, which is displayed to the user as a warning
+*** describing the nature of the assertion failures and suggesting the reason why.
+*** More specifically: it should be added to the README.md that the number of assertion failures should roughly equal the number of reads in a .fq file, triggering the issue via k-mer ids from the end of one read and the beginning of the next.
+
+NOTE: ADJACENCY ERRORS DETECTED: Found 24999 'improper' k-mer pairs/adjacencies from the input file(s),
+ where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.
+ These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.
+*** Okay, with this settled, I can now describe any plans for revision to the .kdbg format, as well as a description of a first-pass networkx based solution to graph traversal and stop criterion during contig generation.
+*** With that said, I absolutely need a visualizer at this point to check my work.
+** TODO Code cleanup
+*** Documentation
+**** Deprecations
+***** strand_specific
+***** all_metadata
+**** IUPAC
+**** README
+*** kmerdb module
+   - [X] kmer.py
+     - [ ] verbose => quiet
+   - [X] graph.py
+   - [X] parse.py
+   - [ ] __init__.py
+*** README.md
+   - [ ] README.md
+     - [ ] Document the *new* IUPAC strategy for 'kmerdb.kmer._shred_for_graph'
+     - [ ] Provide
+*** website -  matthewralston.github.io/kmerdb
+    - [/] Expanded documentation on subcommands.
+      - [ ] profile
+      - [ ] view
+      - [ ] distance (SWAP ORDER)
+      - [ ] matrix (SWAP ORDER)
+      - [ ] NEW! graph
+      - [ ] kmeans
+      - [ ] hierarchical
+      - [ ] probability
+    - [ ] DONT DO YET graph/assembly page
+    - [/] API
+      - [ ] reading .kdbg or .kdb files
+      - [ ] writing .kdbg or .kdb files
+** TODO Assembly algorithm planning
+** TODO CPU (NetworkX) implementation (overview)
+** TODO Stop criterion
+  - [ ] when are the *necessary* traversals are completed
+  - [ ] How do we rank these?
 
 * Lost comments
  
@@ -22,9 +79,8 @@
 ** Remembering that it's only supposed to be a k-mer count vector storage medium right now
 ** Scoping scoping where does it end
 ** Is my life's work pointless?
-** Losing my best friend because of relapse
-*** Sent 1 basic sorry, got an acknowledgement.
-*** Felt like shit, lost my fucking wallet and chillum
+** Losing my best friend because of argument
+*** Sent 1 basic sorry, got an minor acknowledgement.
 *** Smoking habit down to 1 cig a day (just bored, less and less dynamism of focus.
 *** Recalling the CortizoneTM
 *** Apply gently
@@ -34,7 +90,7 @@
 ** Time/money management issues mounting
 
 * Code maintenance
-** TODO COMMENTS [7/7]
+** FEEDBACK COMMENTS [7/7]
 DEADLINE: <2022-01-29 Sat> SCHEDULED: <2022-01-27 Thu>
   - [X] util
     - [X] merge_metadata_lists [3/3]
