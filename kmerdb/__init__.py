@@ -86,58 +86,58 @@ def shuf(arguments):
                         x += 1
     sys.stderr.write(DONE)
     
-def markov_probability(arguments):
-    """
-    A very old function that is probably broken in the indexing function.
+# def markov_probability(arguments):
+#     """
+#     A very old function that is probably broken in the indexing function.
     
-    :param arguments: argparse Namespace
-    :type arguments:
-    """
-    import pandas as pd
-    import numpy as np
-    from kmerdb import fileutil, index, probability, parse
-    from kmerdb.config import DONE
+#     :param arguments: argparse Namespace
+#     :type arguments:
+#     """
+#     import pandas as pd
+#     import numpy as np
+#     from kmerdb import fileutil, index, probability, parse
+#     from kmerdb.config import DONE
 
-    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
-        raise IOError("Model .kdb filepath does not end in '.kdb'")
+#     if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+#         raise IOError("Model .kdb filepath does not end in '.kdb'")
 
 
-    if index.has_index(arguments.kdb):
-        arguments.kdbi = arguments.kdb + "i"
-        #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
-        profiles = np.array([], dtype="int64")
-        with fileutil.open(arguments.kdb, 'r', slurp=True) as kdb:
-            k = kdb.metadata['k']
-            with index.open(arguments.kdbi, 'r') as kdbi:
-                with parse.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
-                    recs = [r for r in seqprsr]
-                    if seqprsr.fastq:
-                        logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
-                        assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
-                    else:
-                        logger.debug("Read {0} sequences from the {1} seqparser object".format(len(recs), seqprsr))
-                        logger.debug("Skipping the block size assertion for fasta files")
+#     if index.has_index(arguments.kdb):
+#         arguments.kdbi = arguments.kdb + "i"
+#         #df = pd.DataFrame([], columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
+#         profiles = np.array([], dtype="int64")
+#         with fileutil.open(arguments.kdb, 'r', slurp=True) as kdb:
+#             k = kdb.metadata['k']
+#             with index.open(arguments.kdbi, 'r') as kdbi:
+#                 with parse.SeqParser(arguments.seqfile, arguments.fastq_block_size, k) as seqprsr:
+#                     recs = [r for r in seqprsr]
+#                     if seqprsr.fastq:
+#                         logger.debug("Read exactly b=={0}=={1} records from the {2} seqparser object".format(b, len(recs), s))
+#                         assert len(recs) == b, "The seqparser should return exactly {0} records at a time".format(b)
+#                     else:
+#                         logger.debug("Read {0} sequences from the {1} seqparser object".format(len(recs), seqprsr))
+#                         logger.debug("Skipping the block size assertion for fasta files")
 
-                    while len(recs): # While the seqprsr continues to produce blocks of reads
-                        # Do something here
+#                     while len(recs): # While the seqprsr continues to produce blocks of reads
+#                         # Do something here
                     
-                        markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
+#                         markov_probs = list(map(lambda p: [p["seq"].name, p["log_odds_ratio"], p["p_of_seq"]], [probability.markov_probability(seq, kdb, kdbi) for seq in recs]))
 
-                        sys.stderr.write(json.dumps(markov_probs))
-                        if profiles.shape == (0,):
-                            profiles = np.array(markov_probs)
-                        else:
-                            np.append(profiles, markov_probs, axis=0)
+#                         sys.stderr.write(json.dumps(markov_probs))
+#                         if profiles.shape == (0,):
+#                             profiles = np.array(markov_probs)
+#                         else:
+#                             np.append(profiles, markov_probs, axis=0)
 
-                        recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the parse.SeqParser class
-        df = pd.DataFrame(profiles, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
-        df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
+#                         recs = [r for r in seqprsr] # Essentially accomplishes an iteration in the file, wrapped by the parse.SeqParser class
+#         df = pd.DataFrame(profiles, columns=["SequenceID", "Log_Odds_ratio", "p_of_seq"])
+#         df.to_csv(sys.stdout, sep=arguments.delimiter, index=False)
 
-    else:
-        raise IndexError(".kdb file '{0}' has no corresponding index file. Please run 'kdb index -h' for details on index generation".format(arguments.kdb))
+#     else:
+#         raise IndexError(".kdb file '{0}' has no corresponding index file. Please run 'kdb index -h' for details on index generation".format(arguments.kdb))
 
     
-    sys.stderr.write(DONE)
+#     sys.stderr.write(DONE)
                     
 def distances(arguments):
     """
@@ -298,11 +298,6 @@ def distances(arguments):
                             data[i][j] = r.value
                         else:
                             raise RuntimeError("Cannot calculate pearson correlation without NumPy and Cython")
-                    elif arguments.metric == "euclidean":
-                        logger.error("Custom Euclidean distance is DEPRECATED")
-                        raise RuntimeError("Genuine bug, please report the usage of deprecated custom distance functions")
-                        logger.info("Computing custom euclidean distance")
-                        data[i][j] = distance.euclidean(profiles[i], profiles[j])
                     elif arguments.metric == "spearman":
                         cor, pval = distance.spearman(profiles[i], profiles[j])
                         logger.info("Computing SciPy Spearman distance")
@@ -1785,13 +1780,14 @@ def cli():
 
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
 
-    profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
-    profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
-    profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
-    #profile_parser.add_argument("--keep-S3-file", action="store_true", help="Download S3 file to the current working directory")
+    # profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
+    # profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    #profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
+
     profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
-    profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
+    #profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    
+    #profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
     profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
     profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
@@ -1808,12 +1804,12 @@ def cli():
 
     graph_parser = subparsers.add_parser("graph", help="Generate an adjacency list from .fa/.fq files")
     graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+    graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
 
-    graph_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
+    graph_parser.add_argument("-p", "--parallel", type=int, default=1, help="Parallel file reading only.")
 
-    graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
-    graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+    #graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    #graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     graph_parser.add_argument("--quiet", action="store_true", default=False, help="Do not list all edges and neighboring relationships to stderr")
     graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
@@ -1945,12 +1941,12 @@ See https://matthewralston.github.io/quickstart#kmerdb-probability for more deta
 1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G., 1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
 """)
 
-    markov_probability_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    markov_probability_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
-    markov_probability_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
-    markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
-    markov_probability_parser.add_argument("kdb", type=str, help="An indexed k-mer database file (.kdb)")
-    markov_probability_parser.set_defaults(func=markov_probability)
+    # markov_probability_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    # markov_probability_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
+    # markov_probability_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
+    # markov_probability_parser.add_argument("seqfile", type=str, metavar="<.fasta|.fastq>", default=None, help="Sequences to calculate standard Markov-chain probabilities from, either .fasta or .fastq")
+    # markov_probability_parser.add_argument("kdb", type=str, help="An indexed k-mer database file (.kdb)")
+    # markov_probability_parser.set_defaults(func=markov_probability)
 
     citation_parser = subparsers.add_parser("citation", help="Silence the citation notice on further runs")
     citation_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")

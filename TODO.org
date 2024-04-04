@@ -1,3 +1,4 @@
+
 #+TITLE: KmerDB (.kdb)
 #+SUBTITLE: A simple bgzf-based k-mer database format
 #+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
@@ -6,7 +7,8 @@
 # The final prototype would be .bgzf format from biopython
 
 
-
+* 3/29/24 - AppMap
+** Appmap.org
 * 3/25/24 - finished weighted edge list, planning assembler
 ** Personal Remarks
 *** Today marks the beginning of the end... of the DeBruijn graph format pull-request from branch 'graph_algo'

@@ -274,7 +274,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
     
     # Initialize the kmer class for sequence shredding activities
-    Kmer = kmer.Kmers(k, strand_specific=not both_strands, verbose=fasta, all_metadata=True) # A wrapper class to shred k-mers with
+    Kmer = kmer.Kmers(k) # A wrapper class to shred k-mers with
     
     # Actually load in records 'recs'
     recs = [r for r in seqprsr]

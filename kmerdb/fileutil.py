@@ -325,7 +325,7 @@ class KDBReader(bgzf.BgzfReader):
         sys.stderr.write("\n")
         logger.info("Validating the header data against the schema...")
         try:
-            jsonschema.validate(instance=initial_header_data, schema=config.metadata_schema)
+            jsonschema.validate(instance=initial_header_data, schema=config.kdb_metadata_schema)
             self.metadata = dict(initial_header_data)
             
             self.k = self.metadata['k']
@@ -770,7 +770,7 @@ class KDBWriter(bgzf.BgzfWriter):
             raise TypeError("kmerdb.fileutil.KDBWriter expects a valid metadata object as its first positional argument")
         try:
             logger.debug("Validating metadata schema against the config.py header schema")
-            jsonschema.validate(instance=dict(metadata), schema=config.metadata_schema)
+            jsonschema.validate(instance=dict(metadata), schema=config.kdb_metadata_schema)
             self.metadata = metadata
             self.k = self.metadata['k']
         except jsonschema.ValidationError as e:
