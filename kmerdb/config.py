@@ -20,6 +20,14 @@
 VERSION="0.7.8"
 header_delimiter = "\n" + ("="*24) + "\n"
 
+
+requirements_count = 4
+requirements_dev_count = 14
+
+
+
+
+
 graph_schema = {
     "type": "object",
     "properties": {
@@ -69,7 +77,7 @@ graph_schema = {
     "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weights_dtype"]
 }
 
-metadata_schema = {
+kdb_metadata_schema = {
     "type": "object",
     "properties": {
         "version": {"type": "string"},
@@ -129,6 +137,52 @@ metadata_schema = {
 
 
 
+statfile =               "NAME.stats.txt",
+logfile =                "NAME.stderr.log", # Primary logfile
+output_usage_note =                "NAME.stdout.kmerdb.SUBCOMMAND.usage.txt",
+#                "NAME.stderr.ascii.log",
+primary_output =                "NAME.K.kdbg"
+
+
+# FORMAT IN 
+# kdb_program_metadata = {
+#     "type": "object",
+#     "properties": {
+#         "outputs": {
+#             "type": "array",
+#             "items": [
+#                 output_usage_note,
+#                 logfile,
+#                 statfile,
+#                 primary_output,
+#                 "NAME.K.kdb"
+#             ]
+#         },
+#         "output_dir":
+#         "logfile"
+#     },
+#     required = []
+# }
+
+# kdbg_program_metadata = {
+#     "type": "object",
+#     "properties": {
+#         "outputs": {
+#             "type": "array",
+#             "items": [
+#                 output_usage_note,
+#                 logfile,
+#                 statfile,
+#                 primary_output,
+#                 "NAME.K.kdbg"
+#             ]
+#         }
+#         "output_dir": {
+#             "type": "string"
+#         }
+#     },
+#     required = ["output_dir", "outputs"]
+# }
 
 
 
@@ -145,16 +199,13 @@ metadata_schema = {
 
 
 
-
-
-
-pca_variance_fig_filepath = "PCA_variance_accumulation.png"
-kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
-kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
-ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
-hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
-spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
-files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
+# pca_variance_fig_filepath = "PCA_variance_accumulation.png"
+# kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
+# kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
+# #ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
+# hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
+# spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
+# files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
 
 #######################################################
 
@@ -175,49 +226,36 @@ O---o     |||      Website   : https://matthewralston.github.io/kmerdb
 """.format(VERSION)
 
 GITHUB_LOGO = """
-.-----------------------------------------------------------------.
-|                    .mmMMMMMMMMMMMMMmm.                          |
-|                .mMMMMMMMMMMMMMMMMMMMMMMMm.                      |
-|             .mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMm.                   |
-|           .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.                 |
-|         .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.               |
-|        MMMMMMMM'  `"MMMMM"""""""MMMM""`  'MMMMMMMM              |
-|       MMMMMMMMM                           MMMMMMMMM             |
-|      MMMMMMMMMM:                         :MMMMMMMMMM            |
-|     .MMMMMMMMMM                           MMMMMMMMMM.           |
-|     MMMMMMMMM"                             "MMMMMMMMM           |
-|     MMMMMMMMM                               MMMMMMMMM           |
-|     MMMMMMMMM                               MMMMMMMMM           |
-|     MMMMMMMMMM                             MMMMMMMMMM           |
-|     `MMMMMMMMMM                           MMMMMMMMMM`           |
-|      MMMMMMMMMMMM.                     .MMMMMMMMMMMM            |
-|       MMMMMM  MMMMMMMMMM         MMMMMMMMMMMMMMMMMM             |
-|        MMMMMM  'MMMMMMM           MMMMMMMMMMMMMMMM              |
-|         `MMMMMM  "MMMMM           MMMMMMMMMMMMMM`               |
-|           `MMMMMm                 MMMMMMMMMMMM`                 |
-|             `"MMMMMMMMM           MMMMMMMMM"`                   |
-|                `"MMMMMM           MMMMMM"`                      |
-|                    `""M           M""`                          |
-'-----------------------------------------------------------------'
-"""
-
-PYTHON_LOGO = """
-.-------------------------.
-|         .:::::.         |
-|        :: ::::::        |
-|        ````:::::        |
-|  .:::::::::::::: iiii.  |
-| :::::::::::::::: iiiiii |
-| :::::: ..........iiiiii |
-|  ':::: iiiiiiiiiiiiii'  |
-|        iiiii....        |
-|        iiiiii ii        |
-|         'iiiii'         |
-'-------------------------'
+.--------------------------------------------------.
+|                 .mmMMMMMMMMMMMMMmm.              |
+|             .mMMMMMMMMMMMMMMMMMMMMMMMm.          |
+|          .mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMm.       |
+|        .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.     |
+|      .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.   |
+|     MMMMMMMM'  `"MMMMM"""""""MMMM""`  'MMMMMMMM  |
+|    MMMMMMMMM                           MMMMMMMMM |
+|   MMMMMMMMMM:                         :MMMMMMMMMM|
+|  .MMMMMMMMMM                           MMMMMMMMMM.
+|  MMMMMMMMM"                             "MMMMMMMMM
+|  MMMMMMMMM                               MMMMMMMMM
+|  MMMMMMMMM                               MMMMMMMMM
+|  MMMMMMMMMM                             MMMMMMMMMM
+|  `MMMMMMMMMM                           MMMMMMMMMMM
+|   MMMMMMMMMMMM.                     .MMMMMMMMMMMMM
+|    MMMMMM  MMMMMMMMMM         MMMMMMMMMMMMMMMMMMM|
+|     MMMMMM  'MMMMMMM           MMMMMMMMMMMMMMMM` |
+|      `MMMMMM  "MMMMM           MMMMMMMMMMMMMM`   |
+|        `MMMMMm                 MMMMMMMMMMMM`     |
+|          `"MMMMMMMMM           MMMMMMMMM"`       |
+|             `"MMMMMM           MMMMMM"`          |
+|                 `""M           M""`              |
+'--------------------------------------------------'
 """
 
 
-SPONGEBOB = """
+
+
+oSPONGEBOB = """
 ⢀⣠⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
 ⣿⡋⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢙⣿
 ⣿⡇⠀⠀⠀⣠⣴⠾⠿⠷⣦⡀⢀⣴⠾⠿⠷⣦⣄⠀⠀⠀⢸⣿
@@ -239,9 +277,6 @@ SPONGEBOB = """
 
 
 
-
-
-
 #######################################################
 
 #          E n v i r o n m e n t
@@ -253,26 +288,48 @@ SPONGEBOB = """
 
 
 
+LANGUAGE = """
+
+
+                                                                      lang :         python
+                                                                         v :         v3.8.0
+                                                                             
+                                                                                      
+                                                                                     
+"""
+
+# A language specific version number
+#PYTHON_VERSION = """
+
+                                                               
+#"""
+
+# A package manager version
+PIP_VERSION = """
+                      package manger : pip
+                        version      : v24.0
+"""
+
+
+
+DEPENDENCY_COUNT = """
+                       dependencies  : {0}
+           development_dependencies  : {1}
+""".format(requirements_count, requirements_dev_count)
 
 
 
 
+#SUBCOMMAND_NAME
+#VERSION
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# OUTPUTS determined at runtime
+# OUTPUT_DIR/PREFIX determined at runtime
+# Logfile (in output_dir) determined at runtime
+# Verbosity determined at runtime
 
 
 #######################################################
@@ -329,8 +386,7 @@ FIVE_LINES = """
 
 """
 
-DNA_SPACER_1 = 
-"""
+DNA_SPACER_1 = """
 =================================
 =================================
 
@@ -345,8 +401,7 @@ o       O o       O o       O O
 =================================
 """
 
-DNA_SPACER_lol =
-"""
+DNA_SPACER_lol = """
 =================================
 =================================
 Carbon rules everything around me
@@ -362,8 +417,7 @@ o       O o       O o       O O
 """
 
 
-DNA_COLUMN_1 =
-"""
+DNA_COLUMN_1 = """
 O---o
  O-o
   O
@@ -399,8 +453,7 @@ o---O
 #######################################################
 
 
-FOOTER_COMMAND_SUMMARY =
-"""
+FOOTER_COMMAND_SUMMARY = """
 command : COMMAND
 runtime : RUNTIME
 logfile : LOGFILE
@@ -435,7 +488,7 @@ conda_environment_validated? : CONDA_READY
 
 
 
-DONE = + usage + issue_tracker
+#DONE = + usage + issue_tracker
 # Accept the citation notice with 'kmerdb citation'
 
 
@@ -642,10 +695,4 @@ Hierarchical clustering beginning!
 
 """
     
-
-
-DEBUG_MASTHEAD = '''
-
-
-'''.format(*files)
 

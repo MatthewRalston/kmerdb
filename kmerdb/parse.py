@@ -50,7 +50,7 @@ logger = logging.getLogger(__file__)
 
 
 
-def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -85,16 +85,16 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
         raise OSError("kmerdb.parse.parsefile could not find the file '{0}' on the filesystem".format(filepath))
     elif k is None or type(k) is not int:
         raise TypeError("kmerdb.parse.parsefile expects an int as its second positional argument")
-    elif rows_per_batch is None or type(rows_per_batch) is not int:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'rows_per_batch' to be an int")
-    elif b is None or type(b) is not int:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
-    elif n is None or type(n) is not int:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'n' to be an int")
-    elif both_strands is None or type(both_strands) is not bool:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'both_strands' to be a bool")
-    elif all_metadata is None or type(all_metadata) is not bool:
-        raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'all_metadata' to be a bool")
+    # elif rows_per_batch is None or type(rows_per_batch) is not int:
+    #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'rows_per_batch' to be an int")
+    # elif b is None or type(b) is not int:
+    #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'b' to be an int")
+    # elif n is None or type(n) is not int:
+    #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'n' to be an int")
+    # elif both_strands is None or type(both_strands) is not bool:
+    #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'both_strands' to be a bool")
+    # elif all_metadata is None or type(all_metadata) is not bool:
+    #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'all_metadata' to be a bool")
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []
@@ -102,7 +102,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
     nullomers = set()
     # Build fasta/fastq parser object to stream reads into memory
     logger.debug("Initializing parser...")
-    seqprsr = SeqParser(filepath, b, k)
+    seqprsr = SeqParser(filepath, k)
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
 
     # Initialize the kmer array
@@ -115,7 +115,7 @@ def parsefile(filepath:str, k:int, rows_per_batch:int=100000, b:int=50000, n:int
 
     logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(N, counts.nbytes))
         # Instantiate the kmer class
-    Kmer = kmer.Kmers(k, strand_specific=not both_strands, verbose=fasta, all_metadata=all_metadata) # A wrapper class to shred k-mers with
+    Kmer = kmer.Kmers(k, verbose=fasta) # A wrapper class to shred k-mers with
 
     recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
     if not fasta:
@@ -288,13 +288,15 @@ class SeqParser:
     :ivar num: The number of records to read in from a .fastq
     :ivar k: The choice of k to initialize the calculation of kmer/nullomer counts.
     """
-    def __init__(self, filepath, num, k):
+    def __init__(self, filepath:str, k:int, num:int=100000, ):
         """
         The SeqParser class wraps up some functionality  
         """
         
         if type(filepath) is not str:
             raise TypeError("kmerdb.parse.SeqParser expects a str as its first positional argument")
+        elif not os.access(filepath):
+            raise TypeError("kmerdb.parse.SeqParser expects an existing path on the operating system as its first argument")
         elif type(num) is not int:
             raise TypeError("kmerdb.parse.SeqParser expects an int as its second positional argument")
         elif type(k) is not int:
@@ -453,6 +455,6 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, rows_per_batch=self.arguments.batch_size, b=self.arguments.fastq_block_size, n=self.arguments.n, both_strands=self.arguments.both_strands, all_metadata=self.arguments.all_metadata)
+        return parsefile(filename, self.arguments.k)
 
 
