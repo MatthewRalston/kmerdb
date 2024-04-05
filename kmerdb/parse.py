@@ -64,11 +64,6 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
     :raise TypeError: filepath was invalid
     :raise OSError: filepath was invalid
     :raise TypeError: k was invalid
-    :raise TypeError: rows_per_batch was invalid
-    :raise TypeError: b was invalid
-    :raise TypeError: n was invalid
-    :raise TypeError: both_strands was invalid
-    :raise TypeError: all_metadata was invalid
     :raise TypeError: invalid dtype
     :raise ValueError: invalid (None) kmer id detected
     :raise ValueError: mismatched number of kmer_ids, associated sequence/read ids, starting locations, and reverse bools
@@ -169,62 +164,43 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
         logger.debug("In other words, one or more characters in your .fasta or .fastq file were 'N' or otherwise contained IUPAC characters that need to be substituted.")
         logger.debug("We have chosen to omit k-mer with unspecified nucleotides 'N', and these make gaps in our database explicitly.")
         logger.info("These can be recovered from the reads if they are needed, and the read ids may be found with the experimental --all-metadata flag")
-        if all_metadata:
+        # if all_metadata:
 
-            logger.warning("\n\n\nGENERATING ALL METADATA\n\n\nThis is extremely expensive and experimental. You have been warned.\n\n\n")
-            reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
-            starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
-            reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
-            logger.debug("Checking each k-mer for N-content and IUPAC substitution")
-            for i, x in enumerate(kmer_ids): # This removes N content
-                if i in sus: # This is where we actually delete the N content, in case that is eventually supported.
-                    kmer_ids[i] = None
-                    reads[i] = None
-                    starts[i] = None
-                    reverses[i] = None
-            kmer_ids = list(filter(lambda k: k is not None, kmer_ids)) 
-            reads = list(filter(lambda r: r is not None, reads))
-            starts = list(filter(lambda s: s is not None, starts))
-            reverses = list(filter(lambda r: r is not None, reverses))
-        else:
-            logger.debug("Checking each k-mer for IUPAC substitution or N content.")
-            for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
-                if i in sus:
-                    kmer_ids[i] = None
-            logger.info("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions")
-            kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
-            reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
-            starts = []
-            reverses = []
-            if None in kmer_ids:
-                logger.debug("In the no-metadata field")
-                # Actually they were just introduced to be filtered out, instead of deleted
-                # Because each deletion whould cange the array index
-                # So instead we set ghtme to None, and filter out
-                raise ValueError("kmerdb.parse.parsefile encountered an invalid kmer_id. Internal error.")
+        #     logger.warning("\n\n\nGENERATING ALL METADATA\n\n\nThis is extremely expensive and experimental. You have been warned.\n\n\n")
+        #     reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
+        #     starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
+        #     reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
+        #     logger.debug("Checking each k-mer for N-content and IUPAC substitution")
+        #     for i, x in enumerate(kmer_ids): # This removes N content
+        #         if i in sus: # This is where we actually delete the N content, in case that is eventually supported.
+        #             kmer_ids[i] = None
+        #             reads[i] = None
+        #             starts[i] = None
+        #             reverses[i] = None
+        #     kmer_ids = list(filter(lambda k: k is not None, kmer_ids)) 
+        #     reads = list(filter(lambda r: r is not None, reads))
+        #     starts = list(filter(lambda s: s is not None, starts))
+        #     reverses = list(filter(lambda r: r is not None, reverses))
+        # else:
+        logger.debug("Checking each k-mer for IUPAC substitution or N content.")
+        for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
+            if i in sus:
+                kmer_ids[i] = None
+        logger.info("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions")
+        kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
+        reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
+        starts = []
+        reverses = []
+        if None in kmer_ids:
+            # Actually they were just introduced to be filtered out, instead of deleted
+            # Because each deletion whould cange the array index
+            # So instead we set ghtme to None, and filter out
+            raise ValueError("kmerdb.parse.parsefile encountered an invalid kmer_id. Internal error.")
 
-        #logger.debug(kmer_ids)
+
         logger.debug("{0} 'clean' kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs))
         logger.debug("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids), len(starts)))
         # Assert that all list lengths are equal before adding metadata to k-mers
-        if all_metadata is True and len(kmer_ids) == len(reads) and len(reads) == len(starts) and len(starts) == len(reverses):
-            N = len(starts)
-                
-            kmer_metadata = list(zip(kmer_ids, reads, starts, reverses))
-            # Everything is in the right order
-            logger.warning("Dumping all metadata into the .kdb file eventually. This could be expensive...")
-
-        elif not all_metadata and len(reads) == 0 and len(starts) == 0 and len(reverses) == 0:
-            logger.debug("Skipping metadata allocation")
-            pass # If we're not doing metadata, don't do it
-        else: # Raise an error if the numbers of items per list are not equal
-            logger.error("{0} kmer ids".format(len(kmer_ids)))
-            logger.error("{0} sequence/read associations".format(len(reads)))
-            logger.error("{0} start positions for the associations found".format(len(starts)))
-            logger.error("{0} reverse bools for each association".format(len(reverses)))
-                
-            raise ValueError("Unexpectedly, the number of ids did not match up with the number of other metadata elements per k-mer OR other unknown error. Internal error.")
-
         # else:
         #     raise RuntimeError("Still have no clue what's going on...")
         # On disk k-mer counting
@@ -240,9 +216,9 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
             for kmer in kmer_ids:
                 counts[kmer] += 1
         # all_kmer_metadata
-        if all_metadata:
-            for single_kmer_id, read, start, reverse in kmer_metadata:
-                all_kmer_metadata[single_kmer_id].append((read, start, reverse))
+        # if all_metadata:
+        #     for single_kmer_id, read, start, reverse in kmer_metadata:
+        #         all_kmer_metadata[single_kmer_id].append((read, start, reverse))
 
         recs = [r for r in seqprsr] # The next block of exactly 'b' reads
         logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
@@ -269,9 +245,9 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
 
     
     seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
-    sys.stderr.write("\n\n\nFinished counting k-mers{0} from '{1}'...\n\n\n".format(' and metadata' if all_metadata else '', filepath))
+    sys.stderr.write("\n\n\nFinished counting k-mers from '{0}'...\n\n\n".format(filepath))
 
-    return counts, seqprsr.header_dict(), seqprsr.nullomer_array, all_kmer_metadata
+    return counts, seqprsr.header_dict(), seqprsr.nullomer_array
 
 
 
@@ -295,7 +271,7 @@ class SeqParser:
         
         if type(filepath) is not str:
             raise TypeError("kmerdb.parse.SeqParser expects a str as its first positional argument")
-        elif not os.access(filepath):
+        elif not os.access(filepath, os.R_OK):
             raise TypeError("kmerdb.parse.SeqParser expects an existing path on the operating system as its first argument")
         elif type(num) is not int:
             raise TypeError("kmerdb.parse.SeqParser expects an int as its second positional argument")
