@@ -137,9 +137,9 @@ kdb_metadata_schema = {
 
 
 
-statfile =               "NAME.stats.txt",
-logfile =                "NAME.stderr.log", # Primary logfile
-output_usage_note =                "NAME.stdout.kmerdb.SUBCOMMAND.usage.txt",
+statfile =               "NAME.stats.txt"
+logfile =                "NAME.stderr.log" # Primary logfile
+output_usage_note =                "NAME.stdout.kmerdb.SUBCOMMAND.usage.txt"
 #                "NAME.stderr.ascii.log",
 primary_output =                "NAME.K.kdbg"
 
@@ -490,7 +490,9 @@ conda_environment_validated? : CONDA_READY
 
 #DONE = + usage + issue_tracker
 # Accept the citation notice with 'kmerdb citation'
-
+DONE = """
+DONE
+"""
 
 
 
@@ -660,6 +662,9 @@ grand_total_of_kmers     :
 kmer_totals  :  (array okay)  (per file)
 unique kmers :  (array okay)  (per file)
 nullomers    :  (array okay)  (per file)
+
+
+unique_nullomers
 
 output.kdbg.stats.doublets
 output.kdbg.stats.triplets

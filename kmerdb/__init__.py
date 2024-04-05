@@ -40,17 +40,16 @@ def print_argv():
     argv = sys.argv
     sys.stderr.write(" ".join(argv[0:4]) + " ...\n")
 
-def citation(arguments):
-    import pkg_resources
-    citation = None
-    if pkg_resources.resource_exists('kmerdb', 'CITATION.txt'):
-        citation_fname = pkg_resources.resource_filename('kmerdb', 'CITATION.txt')
-        with open(citation_fname, 'w') as citation_file:
-            citation_file.write("")
+def citation():
 
+    MODULE_ROOT = os.path.dirname(__file__)
+    citation_file = os.path.join(MODULE_ROOT,  'CITATION.txt')
+    if os.access(citation_file, os.R_OK):
+        with open(citation_file, 'w') as cit_file:
+            cit_file.write("")
 
     sys.stderr.write("On the real, we gotta eat.")
-    sys.stderr.write("Consider a +1 to keep it real...")
+    sys.stderr.write("Consider a +1 on Github to keep it real...")
 
 def index_file(arguments):
     from kmerdb import fileutil, index
@@ -544,9 +543,10 @@ def get_matrix(arguments):
         #df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = df
     elif arguments.method == "Frequency":
-        k = suggested_metadata['k']
-        total_kmers = suggested_metadata["total_kmers"]
-        final_df = df.div(total_kmers)
+        final_df = df # 4/5/24 - frequencies are given in the standard format
+        #k = suggested_metadata['k']
+        #total_kmers = suggested_metadata["total_kmers"]
+        #final_df = df.div(total_kmers)
     elif arguments.method == "PCA":
         # This method is actually dimensionality reduction via SVD, and this process is used during principal components analysis.
         # We generate the elbow graph in this step if the required dimensionality parameter '-n' is not supplied.
@@ -576,10 +576,13 @@ def get_matrix(arguments):
             logger.info("Using selected PCA dimensionality to reduce the transpose matrix/DataFrame again for use in 'kdb kmeans'")
             pca = PCA(n_components=arguments.n)
             pca.fit(np.transpose(df))
-            #logger.debug("Explained variances: {0}".format(pca.explained_variance_ratio_))
-            #logger.debug("Log-likelihoods: {0}".format(pca.score_samples(normalized)))
-            #logger.debug("Overall log-likelihood of all samples: {0}".format(pca.score(normalized)))
-            #logger.debug("MLE estimate of components for dimensionality reduction produced this shape: {0}".format(pca.components_.shape))
+            sys.stderr.write("\n\n\n")
+            sys.stderr.write("-"*30)
+            
+            sys.stderr.write("Explained variances: {0}\n".format(pca.explained_variance_ratio_))
+            sys.stderr.write("Log-likelihoods: {0}\n".format(pca.score_samples(normalized)))
+            sys.stderr.write("Log-likelihood of all samples: {0}\n".format(pca.score(normalized)))
+            sys.stderr.write("MLE estimate of components for dimensionality reduction produced this shape: {0}\n".format(pca.components_.shape))
 
             score_matrix = pca.transform(np.transpose(df))
             score_df = pd.DataFrame(np.transpose(score_matrix), columns=columns)
@@ -1241,6 +1244,21 @@ def make_kdbg(arguments):
     else:
             # data files_metadata
             data = list(map(infile.parsefile, arguments.seqfile))
+
+
+
+    """
+    ######################################
+    Step 1. Completed
+    ######################################
+    """
+
+
+
+
+
+
+            
     """
     Summary statistics and metadata structure
     """
@@ -1310,7 +1328,7 @@ def make_kdbg(arguments):
     ACCUMULATE ALL EDGE WEIGHTS ACROSS ALL FILES
     """
     """
-    Step 1: initialize the final edge datastructure, a hashmap, keyed on a pair of k-mer ids, and containing only an integer weight
+    task 1: initialize the final edge datastructure, a hashmap, keyed on a pair of k-mer ids, and containing only an integer weight
     """
     # Initialize empty data structures
     all_edges_in_kspace = {}
@@ -1324,7 +1342,7 @@ def make_kdbg(arguments):
         for p in pair_ids:
             all_edges_in_kspace[p] = 0
     """
-    Step 2: Accumulate all edge weights across all files
+    task 2: Accumulate all edge weights across all files
     """
     for d in data:
         edges, h, counts, nullomers = d
@@ -1337,12 +1355,33 @@ def make_kdbg(arguments):
                 logger.error("Unknown edge detected, evaded prepopulation. Internal error.")
                 raise e
     """
-    Step 3: Add edges (2 k-mer ids) and weight to lists for conversion to NumPy array.
+    task 3: Add edges (2 k-mer ids) and weight to lists for conversion to NumPy array.
     """
     for e in all_edges_in_kspace.keys():
         n1.append(e[0])
         n2.append(e[1])
         weights.append(all_edges_in_kspace[e])
+
+
+    """
+    #################################################
+    Step 2. Completed
+    #################################################
+    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
     """
     N would be the number of edges, pairs of nodes, and weights.
     """
@@ -1492,18 +1531,14 @@ def profile(arguments):
     # (edges, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
 
     # Construct a final_counts array for the composite profile across all inputs
-    logger.debug("Initializing large list for extended metadata")
-    all_kmer_metadata = list([] for x in range(total_kmers)) if arguments.all_metadata else None
-    logger.debug("Allocation completed")
+
+
     counts = np.zeros(N, dtype="uint64")
     # Complete collating of counts across files
     # This technically uses 1 more arrray than necessary 'final_counts' but its okay
     logger.info("Summing counts from individual fasta/fastq files into a composite profile...")
     for d in data:
         counts = counts + d[0]
-        if arguments.all_metadata:
-            logger.info("\n\nMerging metadata from all files...\n\n")
-            all_kmer_metadata = util.merge_metadata_lists(arguments.k, all_kmer_metadata, d[3])
 
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
     # unique_kmers = int(np.count_nonzero(counts))
@@ -1565,7 +1600,7 @@ def profile(arguments):
         "total_kmers": all_observed_kmers,
         "unique_kmers": unique_kmers,
         "unique_nullomers": unique_nullomers,
-        "metadata": arguments.all_metadata,
+        "metadata": False,
         "sorted": arguments.sorted,
         "kmer_ids_dtype": "uint64",
         "profile_dtype": "uint64",
@@ -1608,98 +1643,35 @@ def profile(arguments):
         #profile = np.zeros(total_kmers, dtype=metadata["profile_dtype"])
         #counts = np.zeros(total_kmers, dtype=metadata["count_dtype"])
         #frequencies = np.zeros(total_kmers, dtype=metadata["frequencies_dtype"])
-        all_metadata = []
-        if arguments.all_metadata:
+        if arguments.sorted:
 
-            if arguments.sorted is True:
-                j = 0
-                list_of_duples = list(zip(kmer_ids, counts))
-                logger.debug(list_of_duples[0:3])
-                kmer_ids_sorted_by_count = np.lexsort(list_of_duples)
-                reverse_kmer_ids_sorted_by_count = np.flipud(kmer_ids_sorted_by_count)
-                for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
-                    seq = kmer.id_to_kmer(idx, arguments.k)
-                    kmer_id = int(idx)
+            kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
+            reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
+            reverse_kmer_ids_sorted_by_count.reverse()
+            logger.debug("K-mer id sort example: {0}".format(reverse_kmer_ids_sorted_by_count[:30]))
+            for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
-                    
-                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
-                    reads = []
-                    starts = []
-                    reverses = []
-                    frequency = float(count)/N
-                    for read, start, reverse in all_kmer_metadata[idx]:
-                        reads.append(read)
-                        starts.append(start)
-                        reverses.append(reverse)
-                        kmer_metadata["reads"] = reads
-                        kmer_metadata["starts"] = starts
-                        kmer_metadata["reverses"] = reverses
-                    counts[idx] = counts[idx]
-                    frequencies[idx] = frequencies[idx]
-                    all_metadata.append(kmer_metadata)
-                    assert j <= i + 1, "profile | row index was not sequential. Possibly read improperly."
-                    assert idx == kmer_ids[i], "profile | row index did not match a kmer_id"
-                    logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
-                    if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_ids[idx], counts[idx], frequencies[idx], json.dumps(kmer_metadata)))
-                    j += 1
-            else:
-                j = 0
-                for i, idx in enumerate(kmer_ids):
-                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    kmer_id = int(idx)
-
-                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
-                    #logger.info("{0}\t{1}\t{2}\t{3}\t{4}".format(i, idx, kmer_ids[i], counts[kmer_id], frequencies[kmer_id]))
-                    
-
-                    all_metadata.append(kmer_metadata)
-                    c = counts[idx]
-                    f = frequencies[idx]
-                    logger.info("First is the implicit row index, next is a k-mer id, next is the corresponding k-mer id to the row-index (may not match from sorting), next is the count and frequencies")
-                    if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
-                    j += 1
+                kmer_id = int(kmer_ids[idx])
+                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
+                c[idx] = counts[idx]
+                f[idx] = frequencies[idx]
+                if arguments.quiet is not True:
+                    print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f))
         else:
-            if arguments.sorted:
-
-                kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
-                reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
-                logger.info("FIXME before reverse : ", reverse_kmer_ids_sorted_by_count)
-                reverse_kmer_ids_sorted_by_count.reverse()
-                logger.info("FIXME after reverse : ", reverse_kmer_ids_sorted_by_count)
-                logger.debug("K-mer id sort shape: {0}".format(len(kmer_ids_sorted_by_count)))
-                for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
-
-                    kmer_id = int(kmer_ids[idx])
-                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k)
-
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]))
-                    all_metadata.append(kmer_metadata)
-                    c[idx] = counts[idx]
-                    f[idx] = frequencies[idx]
-                    if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
-            else:
-                for i, idx in enumerate(kmer_ids):
+            for i, idx in enumerate(kmer_ids):
 
 
-                    kmer_id = int(kmer_ids[idx])
-                    seq = kmer.id_to_kmer(kmer_id, arguments.k)
-                    c = counts[idx]
-                    f = frequencies[idx]
+                kmer_id = int(kmer_ids[idx])
+                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                c = counts[idx]
+                f = frequencies[idx]
 
-                    kmer_metadata = kmer.neighbors(seq, kmer_id, arguments.k) # metadata is initialized by the neighbors
-                    logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
-
-                    all_metadata.append(kmer_metadata)
-                    if arguments.quiet is not True:
-                        print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
-                    kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f, json.dumps(kmer_metadata)))
+                logger.info("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                if arguments.quiet is not True:
+                    print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
+                kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, c, f))
         logger.info("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers))
 
         logger.info("Done")
@@ -1740,10 +1712,14 @@ def get_root_logger(level):
 
 
 def citation_info():
-    import pkg_resources
     citation = None
-    if pkg_resources.resource_exists('kmerdb', 'CITATION.txt'):
-        citation = pkg_resources.resource_string('kmerdb', 'CITATION.txt').decode('utf-8').rstrip()
+
+    MODULE_ROOT = os.path.dirname(__file__)
+    citation_file = os.path.join(MODULE_ROOT,  'CITATION.txt')
+    if os.access(citation_file, os.R_OK):
+        with open(citation_file, 'r') as citation_f:
+            citation = citation_f.read().rstrip()
+
         if citation == "":
             return
         else:
@@ -1812,7 +1788,7 @@ def cli():
     #graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     graph_parser.add_argument("--quiet", action="store_true", default=False, help="Do not list all edges and neighboring relationships to stderr")
     graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
-    #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
+    #graph_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
 
     graph_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     graph_parser.add_argument("kdbg", type=str, help=".kdbg file")
@@ -1933,13 +1909,13 @@ def cli():
     shuf_parser.set_defaults(func=shuf)
 
     
-    markov_probability_parser = subparsers.add_parser("probability", help=u"""
-Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)), given the entire k-mer profile of a species.
+    # markov_probability_parser = subparsers.add_parser("probability", help=u"""
+# Calculate the log-odds ratio of the Markov probability of a given sequence from the product (pi) of the transition probabilities(aij) times the frequency of the first k-mer (P(X1)), given the entire k-mer profile of a species.
 
-See https://matthewralston.github.io/quickstart#kmerdb-probability for more details.
+# See https://matthewralston.github.io/quickstart#kmerdb-probability for more details.
 
-1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G., 1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
-""")
+# 1. Durbin, R., Eddy, S.R., Krogh, A. and Mitchison, G., 1998. Biological sequence analysis: probabilistic models of proteins and nucleic acids. Cambridge university press.
+# """)
 
     # markov_probability_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     # markov_probability_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")

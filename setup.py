@@ -109,29 +109,47 @@ NAME = 'kmerdb'
 DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
 URL = 'https://github.com/MatthewRalston/kmerdb'
-CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.7.0.tar.gz"
-EMAIL = 'mrals89@gmail.com'
-AUTHOR = 'Matthew Ralston'
-REQUIRES_PYTHON = '>=3.8.0'
-VERSION = "0.7.8"
-KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer", "k-merdb", "kmerdb", "kdb"],
+CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.7.9.tar.gz"
+EMAIL = 'mralston.development@gmail.com'
+AUTHOR = 'fross'
+REQUIRES_PYTHON = '>=3.7.4'
+VERSION = "0.7.9"
+KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer"]
 CLASSIFIERS = [
-    "Development Status :: 1 - Planning",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Scientific/Engineering",
-    "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+	    "Development Status :: 1 - Planning",
+	    "Development Status :: 2 - Pre-Alpha",
+	    "Development Status :: 7 - Inactive",
+	    "Environment :: Console",
+	    "Intended Audience :: Developers",
+	    "Intended Audience :: Science/Research",
+	    "License :: OSI Approved :: Apache Software License",
+	    "Operating System :: OS Independent",
+	    "Programming Language :: Python",
+	    "Programming Language :: Python :: 3",
+	    "Programming Language :: Python :: 3.6",
+	    "Programming Language :: Python :: 3.7",
+	    "Programming Language :: Python :: 3.8",
+	    "Programming Language :: Python :: 3.9",
+	    "Programming Language :: Python :: 3.10",
+	    "Programming Language :: Python :: 3 :: Only",
+	    "Operating System :: PalmOS",
+	    "Topic :: Scientific/Engineering",
+	    "Topic :: Scientific/Engineering :: Bio-Informatics",
+	    "Topic :: Software Development :: Libraries :: Python Modules",
+	    "Intended Audience :: Other Audience",
+	    "License :: Free For Educational Use",
+	    "License :: Free for non-commercial use",
+	    "License :: OSI Approved :: Academic Free License (AFL)",
+	    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+	    "Topic :: File Formats",
+	    "Topic :: Games/Entertainment :: Puzzle Games",
+	    "Topic :: Text Processing :: Indexing",
+	    "Topic :: Text Processing",
+	    #"Topic :: Software Development :: Assemblers"
+	    "Operating System :: POSIX :: Linux",
 ]
+
+
 # What packages are required for this module to be executed?
 
 #REQUIRED = [l.rstrip() for l in open('./requirements.txt', 'r')]
