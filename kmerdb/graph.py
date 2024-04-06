@@ -39,7 +39,7 @@ from Bio import SeqIO, Seq, bgzf
 
 
 import numpy as np
-import networkx as nx
+#import networkx as nx
 
 from kmerdb import fileutil, parse, kmer, config, util
 
@@ -274,7 +274,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
     
     # Initialize the kmer class for sequence shredding activities
-    Kmer = kmer.Kmers(k, strand_specific=not both_strands, verbose=fasta, all_metadata=True) # A wrapper class to shred k-mers with
+    Kmer = kmer.Kmers(k) # A wrapper class to shred k-mers with
     
     # Actually load in records 'recs'
     recs = [r for r in seqprsr]
@@ -613,8 +613,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             k2 : k-1mer   current_kmer[:-1] right-most char ommitted, neighbors prepended
 
             # e.g. ACTGACTG
-            # pair0 = CTGACTG (k-1 mer via first char removed. k-1 mer that receives appends.
-            # pair1 = ACTGACT (k-1 mer via last char removed. k-1 mer that gets at its prepend.
+            # pair0 = CTGACTG (k-1 mer via first char removed. k-1 mer that receives appends)
+            # pair1 = ACTGACT (k-1 mer via last char removed. k-1 mer that gets at its prepend.)
 
             DECLARATIONS FINISHED
             """
@@ -730,7 +730,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
 
 def create_graph(nodes:list, edge_tuples:list, gpu:bool=False):
 
-
+    import networkx as nx
 
     if nodes is None or type(nodes) is not list or not all(type(n) is not int for n in nodes):
         raise TypeError("kmerdb.graph.create_graph expects the first argument to be a list of ints")
@@ -1312,7 +1312,7 @@ class Parseable:
         :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with kmerdb.graph.parsefile
         :type filename: str
         """
-        return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet, b=self.arguments.fastq_block_size, both_strands=self.arguments.both_strands)
+        return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet)
 
 
 

@@ -1,3 +1,4 @@
+
 #+TITLE: KmerDB (.kdb)
 #+SUBTITLE: A simple bgzf-based k-mer database format
 #+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
@@ -6,6 +7,285 @@
 # The final prototype would be .bgzf format from biopython
 
 
+* 3/29/24 - AppMap
+** Appmap.org v0.7.9
+*** 
+** Header
+
+*** versions (program version)
+*** Interpreter
+**** 
+
+
+
+*** package_manager
+
+**** 
+                      package manger : pip
+                        version      : v24.0
+
+**** version
+**** file of executable (existing in __init__)
+**** module_root / package_root
+**** loaded modules
+**** dependencies (parse requirements.txt or pyproject.toml)
+***** [v] required
+                       dependencies  : {0}
+***** optional
+           development_dependencies  : {1}
+*** relevant env variables (PYTHONPATH)
+** Subcommand and features
+*** subcommand name section
+*** Supported features:
+*** 
+*** 
+***          [X] Features Checkbox
+*** 
+*** 
+*** 
+***             .... (more whitespace)
+*** 
+*** 
+*** 
+** 
+** pre-log block
+*** "$1" program arguments
+*** "$ARGV"
+** Spinner placeholder
+*** s p a c e r   o . o . o    .( the spinner )
+** pre-log usage block
+*** Spacer
+*** 
+*** pre-log usage note
+*** 
+*** 
+*** 
+** [ G i t h u b ] block
+**** github logo
+***** 
+ .--------------------------------------------------.
+ |                 .mmMMMMMMMMMMMMMmm.              |
+ |             .mMMMMMMMMMMMMMMMMMMMMMMMm.          |
+ |          .mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMm.       |
+ |        .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.     |
+ |      .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.   |
+ |     MMMMMMMM'  `"MMMMM"""""""MMMM""`  'MMMMMMMM  |
+ |    MMMMMMMMM                           MMMMMMMMM |
+ |   MMMMMMMMMM:                         :MMMMMMMMMM|
+ |  .MMMMMMMMMM                           MMMMMMMMMM.
+ |  MMMMMMMMM"                             "MMMMMMMMM
+ |  MMMMMMMMM                               MMMMMMMMM
+ |  MMMMMMMMM                               MMMMMMMMM
+ |  MMMMMMMMMM                             MMMMMMMMMM
+ |  `MMMMMMMMMM                           MMMMMMMMMMM
+ |   MMMMMMMMMMMM.                     .MMMMMMMMMMMMM
+ |    MMMMMM  MMMMMMMMMM         MMMMMMMMMMMMMMMMMMM|
+ |     MMMMMM  'MMMMMMM           MMMMMMMMMMMMMMMM` |
+ |      `MMMMMM  "MMMMM           MMMMMMMMMMMMMM`   |
+ |        `MMMMMm                 MMMMMMMMMMMM`     |
+ |          `"MMMMMMMMM           MMMMMMMMM"`       |
+ |             `"MMMMMM           MMMMMM"`          |
+ |                 `""M           M""`              |
+ '--------------------------------------------------'
+
+**** github header
+
+***** 
+=======================================================
+                  ||      G i t H u b     ||
+=======================================================
+                         Repo: kmerdb
+               Feature branch: graph_algo
+-------------------------------------------------------
+**** relevant/pinned issue
+***** 
+                 Pinned issue: #130
+**** development libraries? <true|false>
+***** 
+             Development feature: (suggested feature based on error type)
+*** [ x ] ascii file logging only, .logging module, no 'rich' logging yet.
+** [ X ] Log Block
+*** .logging log
+*** 
+*** -----------------------------------
+*** [1] .logging module only, and/or sys.stderr lines
+*** 
+*** 
+*** 
+*** 
+*** last 100, 500, 1000, -n lines of log
+*** 
+*** 
+*** 
+*** 
+*** 
+*** 
+***  L a r g e    banner spacer
+*** ======================================================
+*** [ 2 ] Footer command Summary and Usage Reminder
+**** Usage reminder (short form usage_notes text)
+***         [ metadata ]
+***         [ metadata description ]
+***         [ x ]  Error/exit note
+**** command
+**** params
+**** runtime
+**** logfile
+**** exit_code
+***** Error summary
+****** traceback
+****** call stack (processed from error text??)
+****** loggable_line (also processed)
+***** Relevant issue
+***** [metadata]
+****** key indices | key arrays/structures
+****** loaded modules
+****** traceback
+****** text description of the process (these should be the sys.stderr with the carriage return \r texts)
+******  index-of-error (of the loggable line)
+******  index of error (in the data structure(s)) [ part of metadata ]
+****** str( | loggable line   |                     |
+******      |                 |    traceback        |  )
+******      -- + passed to both 'rich' and logging module (to file and stderr)
+****** 
+****** [ matched syntax in rich between modules and index of error ]
+
+
+    [ 3 ] PROGRAM HAULT, SIGTERM, ERROR CATCHING, BLACKMAGIC x
+** [ X ] Error Block
+*** TRACEBACK LOGGER 1 : (.logging and sys.stderr calls. needs unified interface, capture traceback, callstack, [ loggable line ], loaded modules, grab module versions from requirements.txt, 
+*** 
+*** 
+*** 
+*** 
+*** Traceback logger 2 : (.rich logger for the traceback, last logged line before sigterm stuff)
+***  L a r ge      banner spacer
+*** ==========================================================
+*** [ THIS NEEDS BOTH A PLAIN STDERR AND/OR .logging RELATED INTERFACE, AS WELL AS A 'RICH' styled output. (this way logs are ASCII and from .logging) (other stderr content may be printed, stylized by "rich".
+*** Example
+**** 
+***** [ x ] resume rich text logging to stderr
+***** 
+***** the reason for the 'rich' module would be to show traceback and relevant loggable line and callstack?
+***** 
+***** ---------------------------------------------------------------------------------
+***** 
+***** ....last 20 lines of log
+***** -----------------------------------+---------------------------------------------
+*****                                    |         
+*****                                    |      
+*****                                    |                    traceback
+***** loggable line                      |                 
+***** >                                  |
+***** -----------------------------------+---------------------------------------------
+    * Configure kmerdb logger to pass -n, --log-lines from stderr array, collected
+    * Configure kmerdb to log to -l, --log-file as well as stderr/stdout
+    * 
+    * 2. metadata schema
+    * 3. usage notes
+*** [ metadata] | command Summary and Usage Reminder
+**** Usage reminder (short form usage_notes text)
+****         [ metadata ]
+****         [ metadata description ]
+****         [ x ]  Error/exit note
+***** exit_code
+****** Error summary
+******* traceback
+******* call stack (processed from error text??)
+******* loggable_line (also processed)
+****** Relevant issue
+****** [metadata]
+******* key indices | key arrays/structures
+******* traceback
+******* text description of the process (these should be the sys.stderr with the carriage return \r texts)
+*******  index-of-error (of the loggable line)
+*******  index of error (in the data structure(s)) [ part of metadata ]
+******* str( | loggable line   |                     |
+*******      |                 |    traceback        |  )
+*******      -- + passed to both 'rich' and logging module (to file and stderr)
+******* 
+******* [ matched syntax in rich between modules and index of error ]
+
+***** outputs_directory and output_file(s)
+
+**** [ x ] end rich formatting (avoids double logging to stderr issue)
+     * x why its totally optional at this point.
+** Logger subfooter
+**** command
+**** params
+**** runtime
+*** Logfile : path/to/logfile.log
+*** "logger" header (logger type, metadata 'state' number : int, url of logging configuration README.md, which describes the logging and error blocks)
+*** verbosity level
+*** global/local variables state 1
+*** global/local variables state 2
+*** ...etc.
+*** "logger" header (file logger, syntax breakdown, 
+** [ 2 ] Footer note - | 'metadata' or 'data' or available information at time of program exit. (see below)
+*** =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-==--=-=-=-=-=-=--=-=-=-=-==--=-=---=-=
+*** assembled before program termination, and a collection of descriptor structures necessary for pinpointing "loggable line" i.e. the metadata structures
+*** 
+*** 
+*** spacer
+*** 
+*** 
+*** [ x ] end of rich text module preference throughout interfaces, captured in a series of logging variable addresses
+*** 
+*** access to stderr, rich, and other logging facilities
+*** 
+*** beginning of secondary logging variables (the structured log data) being used to stdout
+***            this way, the most relevant logging variables are printed to stdout first, without the "usage note, static documentative content"
+*** 
+*** logging to stderr or logging file continues by virtue of Python logging module, (the logging continues, by virtue of message assembly, addressing, and passage through the program branches, part of the nascent "logging fnx" featurer merger with the appmap rom.
+*** 
+*** And primary variable chain, "the outputs", part of the data|metadata, and captured as program proceeds taskwise, key variables, indices, are printed in rich text post logging, to make valuable stdout, but logging proceeds both to stderr by virtue of logging internal library module, (1.) the logfile, and (2.) to rich-text enabled (table support, emphasis) stderr.
+*** And the logger_header
+*** ------------------------
+*** 
+*** 
+
+*** 
+*** 
+** [ 1 ] | Description of error capture progress (blame?)
+*** internal_errors variable
+*** sigterm/error capture
+*** accumulated log array (.logging determined)
+*** try: caught error
+**** 
+**** traceback
+**** modules
+**** usage note
+** [ 2 ] Footer | command Summary and Usage Reminder
+*** Usage reminder (short form usage_notes text)
+***         [ metadata ]
+**** - metadata
+**** - metadata property
+***         [ x ]  Error/exit note
+**** exit_code
+***** Error summary
+****** traceback
+****** call stack (processed from error text??)
+****** loggable_line (also processed)
+***** Relevant issue
+***** [metadata] + usage note (short) on each variable, metadata property, array, custom type, and index value
+****** key indices | 
+****** key arrays/structures,
+****** python version (? + citation)
+****** loaded modules (hardcoded from pyproject.toml)
+****** -compiler-
+****** traceback
+******  subcommand usage note text description of the process (these should be the sys.stderr with the carriage return \r texts)
+******  index-of-error (of the loggable line)
+******  index of error (in the data structure(s)) [ part of metadata ]
+****** str( | loggable line   |                     |
+******      |                 |    traceback        |  )
+
+
+
+
+**** outputs_directory and output_file(s)
+** Thanks
+** DONE
 
 * 3/25/24 - finished weighted edge list, planning assembler
 ** Personal Remarks
