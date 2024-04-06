@@ -20,6 +20,14 @@
 VERSION="0.7.8"
 header_delimiter = "\n" + ("="*24) + "\n"
 
+
+requirements_count = 4
+requirements_dev_count = 14
+
+
+
+
+
 graph_schema = {
     "type": "object",
     "properties": {
@@ -69,7 +77,7 @@ graph_schema = {
     "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weights_dtype"]
 }
 
-metadata_schema = {
+kdb_metadata_schema = {
     "type": "object",
     "properties": {
         "version": {"type": "string"},
@@ -129,6 +137,52 @@ metadata_schema = {
 
 
 
+statfile =               "NAME.stats.txt"
+logfile =                "NAME.stderr.log" # Primary logfile
+output_usage_note =                "NAME.stdout.kmerdb.SUBCOMMAND.usage.txt"
+#                "NAME.stderr.ascii.log",
+primary_output =                "NAME.K.kdbg"
+
+
+# FORMAT IN 
+# kdb_program_metadata = {
+#     "type": "object",
+#     "properties": {
+#         "outputs": {
+#             "type": "array",
+#             "items": [
+#                 output_usage_note,
+#                 logfile,
+#                 statfile,
+#                 primary_output,
+#                 "NAME.K.kdb"
+#             ]
+#         },
+#         "output_dir":
+#         "logfile"
+#     },
+#     required = []
+# }
+
+# kdbg_program_metadata = {
+#     "type": "object",
+#     "properties": {
+#         "outputs": {
+#             "type": "array",
+#             "items": [
+#                 output_usage_note,
+#                 logfile,
+#                 statfile,
+#                 primary_output,
+#                 "NAME.K.kdbg"
+#             ]
+#         }
+#         "output_dir": {
+#             "type": "string"
+#         }
+#     },
+#     required = ["output_dir", "outputs"]
+# }
 
 
 
@@ -145,66 +199,63 @@ metadata_schema = {
 
 
 
+# pca_variance_fig_filepath = "PCA_variance_accumulation.png"
+# kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
+# kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
+# #ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
+# hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
+# spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
+# files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
 
+#######################################################
 
+#          L o g o s
 
-pca_variance_fig_filepath = "PCA_variance_accumulation.png"
-kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
-kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
-ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
-hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
-spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
-files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
+#######################################################
 
-DEFAULT_MASTHEAD = """
+KMERDB_LOGO = """
+ o-O      |||
+o---O     |||             [|[          kmerdb           ]|]
+O---o     |||
+ O-o      |||        version :     v{0}
+  O       |||
+ o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
+o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
+O---o     |||      Website   : https://matthewralston.github.io/kmerdb
+ O-o      |||
+""".format(VERSION)
 
-==========================================
-               k m e r d b
-==========================================
-
-Thank you for using kmerdb. Please feel free
-to submit issues and requests to 
-https://github.com/MatthewRalston/kmerdb
-
-Copyright 2020 Matt Ralston (mrals89@gmail.com)
-
-# First links
-==========================================-
-|      Project     p a g e               |
-===========================================
-
-https://matthewralston.github.io/kmerdb
-
-===========================================
-|          G i t h u b                    |
-===========================================
-https://github.com/MatthewRalston/kmerdb
-
-
-============================================
-
-|   N o t   Very   H u m e r u s           |
-
-============================================
-
-
-Please cite my repository in your work!
-
-Feel free to e-mail me or reach out!
-
-Please check the README.md for more details.
-https://matthewralston.github.io/kmerdb/
-
+GITHUB_LOGO = """
+.--------------------------------------------------.
+|                 .mmMMMMMMMMMMMMMmm.              |
+|             .mMMMMMMMMMMMMMMMMMMMMMMMm.          |
+|          .mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMm.       |
+|        .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.     |
+|      .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.   |
+|     MMMMMMMM'  `"MMMMM"""""""MMMM""`  'MMMMMMMM  |
+|    MMMMMMMMM                           MMMMMMMMM |
+|   MMMMMMMMMM:                         :MMMMMMMMMM|
+|  .MMMMMMMMMM                           MMMMMMMMMM.
+|  MMMMMMMMM"                             "MMMMMMMMM
+|  MMMMMMMMM                               MMMMMMMMM
+|  MMMMMMMMM                               MMMMMMMMM
+|  MMMMMMMMMM                             MMMMMMMMMM
+|  `MMMMMMMMMM                           MMMMMMMMMMM
+|   MMMMMMMMMMMM.                     .MMMMMMMMMMMMM
+|    MMMMMM  MMMMMMMMMM         MMMMMMMMMMMMMMMMMMM|
+|     MMMMMM  'MMMMMMM           MMMMMMMMMMMMMMMM` |
+|      `MMMMMM  "MMMMM           MMMMMMMMMMMMMM`   |
+|        `MMMMMm                 MMMMMMMMMMMM`     |
+|          `"MMMMMMMMM           MMMMMMMMM"`       |
+|             `"MMMMMM           MMMMMM"`          |
+|                 `""M           M""`              |
+'--------------------------------------------------'
 """
 
 
 
 
-
-
-
-
-SPONGEBOB = """
+oSPONGEBOB = """
 ⢀⣠⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
 ⣿⡋⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢙⣿
 ⣿⡇⠀⠀⠀⣠⣴⠾⠿⠷⣦⡀⢀⣴⠾⠿⠷⣦⣄⠀⠀⠀⢸⣿
@@ -224,19 +275,274 @@ SPONGEBOB = """
 """
 
 
+
+
+#######################################################
+
+#          E n v i r o n m e n t
+
+#######################################################
+
+
+
+
+
+
+LANGUAGE = """
+
+
+                                                                      lang :         python
+                                                                         v :         v3.8.0
+                                                                             
+                                                                                      
+                                                                                     
+"""
+
+# A language specific version number
+#PYTHON_VERSION = """
+
+                                                               
+#"""
+
+# A package manager version
+PIP_VERSION = """
+                      package manger : pip
+                        version      : v24.0
+"""
+
+
+
+DEPENDENCY_COUNT = """
+                       dependencies  : {0}
+           development_dependencies  : {1}
+""".format(requirements_count, requirements_dev_count)
+
+
+
+
+#SUBCOMMAND_NAME
+#VERSION
+
+
+
+
+# OUTPUTS determined at runtime
+# OUTPUT_DIR/PREFIX determined at runtime
+# Logfile (in output_dir) determined at runtime
+# Verbosity determined at runtime
+
+
+#######################################################
+
+#          b a n n e r s  / mini - h e a d e r s
+
+#######################################################
+
+
+GITHUB_PROJECT_INFO = """
+=======================================================
+                  ||      G i t H u b     ||
+=======================================================
+                         Repo: kmerdb
+                 Pinned issue: #130
+               Feature branch: graph_algo
+-------------------------------------------------------
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+#######################################################
+
+#          s p a c e r s
+
+#######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+FIVE_LINES = """
+
+
+
+
+
+"""
+
+DNA_SPACER_1 = """
+=================================
+=================================
+
+
+O       o O       o O       o O
+| O   o | | O   o | | O   o | | O
+| | O | | | | O | | | | O | | | |
+| o   O | | o   O | | o   O | | o
+o       O o       O o       O O
+
+
+=================================
+"""
+
+DNA_SPACER_lol = """
+=================================
+=================================
+Carbon rules everything around me
+
+O       o O       o O       o O
+| O   o | | O   o | | O   o | | O
+| | O | | | | O | | | | O | | | |
+| o   O | | o   O | | o   O | | o
+o       O o       O o       O O
+
+
+=================================
+"""
+
+
+DNA_COLUMN_1 = """
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+"""
+
+
+
+
+
+
+"""
 # "@->- -|>" ... (@->-)
 # "..., -|> ?"
-DONE = """
-
-
-==========================================
-----------------D O N E-------------------
-==========================================
-
-Thanks for checking out kmerdb.
-Accept the citation notice with 'kmerdb citation'
-Use 'kmerdb [cmd] -h' for more details.
 """
+
+
+#######################################################
+
+#          F o o t e r s
+
+#######################################################
+
+
+FOOTER_COMMAND_SUMMARY = """
+command : COMMAND
+runtime : RUNTIME
+logfile : LOGFILE
+exit_status : EXITCODE
+
+
+0---------------------------0
+
+.kdb_config file : CONFIG_PATH
+was_pipeline : IS_PIPELINE
+
+-----
+
+conda_environment_validated? : CONDA_READY
+
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#DONE = + usage + issue_tracker
+# Accept the citation notice with 'kmerdb citation'
+DONE = """
+DONE
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#######################################################
+
+#          O l d       M a s t h e a d s
+
+#######################################################
+
 
 
 DISTANCE_MASTHEAD = """
@@ -254,12 +560,13 @@ Distance matrix will be written to STDOUT as this is the first step of the pipel
 #     DISTANCE_MASTHEAD += i*"=" + "\n"
 
 
+
 MATRIX_MASTHEAD = """
 
 ==========================================
            kmerdb matrix
 ==========================================
-kmerdb matrix <pass> test/data/*.8.kdb
+kmerdb matrix <* pass *> test/data/*.8.kdb
 kmerdb matrix PCA test/data/*.8.kdb
 kmerdb matrix tSNE test/data/*.8.kdb
 kmerdb matrix DESeq2 test/data/*.8.kdb
@@ -283,8 +590,25 @@ GRAPH_MASTHEAD = """
 ==========================================
            kmerdb graph
 ==========================================
+current interface v.0.7.8
+
+kmerdb graph -k 12 example_seqs1.fa.gz example_seqs2.fa.gz         < ... microbe1.fa.gz microbe2.fa.gz > output.kdbg
+
+[ note ]
+
+kmerdb graph -h
+
+
+
+
+
+-----
+
+future interface, p. v0.8.0
 kmerdb graph example.fa example.kdbg --prefix temp_output
 -----
+
+
 .
 .
 .
@@ -302,7 +626,9 @@ output.kdbg.stats_txt
 ---------------------
 distribution.txt
 quick_stats.txt
----------------
+---------------------
+ m e t a d a t a
+---------------------
 kmers-per-file (array ok)
 
 kmers-total  :
@@ -310,9 +636,24 @@ kmers-avg   :
 singletons :
 doublets :
 triplets :
+---------------------
+notes...
+-----
 
 
-'meaningful_kmers = unique_kmers + total_kmers'  (per file)     :  {0}      =    ' {1} '  ' + ' ' {2} '       |
+
+
+
+
+
+
+
+
+
+...final metadata schema unspecified
+
+k-mer uniqueness  -- as ( a decimal value between o an 1)    = unique_kmers / size of kspace / total_kmers     (( ...note : not included in header metadata as of v0.7.8 )
+'meaningful_kmers = unique_kmers + total_kmers'  (per file)     :  {0}      =    ' {1} '  ' + ' ' {2} '   
 grand_total_of_kmers     :    
 --------------------------------------------------------------------------------------
 
@@ -321,6 +662,9 @@ grand_total_of_kmers     :
 kmer_totals  :  (array okay)  (per file)
 unique kmers :  (array okay)  (per file)
 nullomers    :  (array okay)  (per file)
+
+
+unique_nullomers
 
 output.kdbg.stats.doublets
 output.kdbg.stats.triplets
@@ -356,99 +700,4 @@ Hierarchical clustering beginning!
 
 """
     
-
-
-DEBUG_MASTHEAD = '''
-
-The workflow is roughly as follows:
-
-# # # # # # # # # #  #
-# profile generation #
-# # # # # # # # # #  #
-# I have included -p and -b parameters that influence the rate of profile generation.
-# The block size (-b) is primarily for the number of .fastq(.gz) records to read at a time.
-# The -p parallel feature works within fastq parsing to process k-mer shredding/counting.
-#
-# -k $K is the parameter that specifies the k-mer resolution
-#
-# This command used to use PostgreSQL behind the scenes for on-disk k-mer counting
-# since memory is limiting for profile generation when dealing 
-# with biologically conventional choices of k (20 < k < 35).
-#
-# Now we're all in memory.
-# I STRONGLY SUGGEST YOU START WITH MORE MODERATE CHOICES OF K (10 < k < 15)
-parallel 'kmerdb profile -k $K {{}} {{.}}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
-
-
-
-# # # # # # #
-# analysis  #
-# # # # # # #
-
-##################
-# normalization
-##################
-# Use rpy2 and DESeq2 to normalize NB-distributed k-mer counts
-# Graphical comparison can be made by comparing counts of unnormalized data to normalized
-# kmerdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb > (un)normalized_matrix.tsv
-# 
-#
-# Install DESeq2 with the following, if not installed
-# if (!requireNamespace("BiocManager", quietly = TRUE))
-#     install.packages("BiocManager")
-#
-# BiocManager::install("DESeq2")
-
-##################
-# distance matrix
-##################
-# kmerdb distance spearman normalized_matrix.tsv > normalized_spearman_dist.tsv
-
-
-
-I make no disclaimers.
-
-#
-##################
-# dimensionality reduction + kmeans
-##################
-# The first step ('kmerdb matrix') generates one from different profiles with the same choice of k.
-# This command uses ecopy to normalize between sample k-mer total counts before PCA/tSNE.
-# -n $N is the dimensionality of either PCA or tSNE. A good choice for tSNE is 2.
-# If the command is run with PCA without a selected dimensionality, an elbow graph
-# will be produced named '{0}'. Please use this graph to select
-# the number of principal components to use.
-# The pipeline will not continue until -n $N is selected by the user.
-# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kmerdb kmeans'
-# 
-# The PCA/tSNE matrix will be dimReduced ($N) * N, where N is the number of samples/files/profiles.
-#
-# And finally, a k-means clustering will be done on the reduced dimensionality dataset
-# Please note the randomness parameter 'random_state=42' for sklearn's kmeans is fixed at 42.
-# Note here that the -k $K is not related to the choice of substring length 'k' for profile generation.
-# The 'kmerdb kmeans' command produces two figures, first is an elbow graph looking at up to N clusters.
-# This elbow graph will be written to '{1}'.
-# The second is the more typical scatterplot of the first two reduced dimensions
-# and the k-means clustering labels shown over the scatter.
-# This file will be written to '{2}'.
-kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K sklearn
-kmerdb matrix [-n $N] [ PCA | tSNE ] normalized_matrix.tsv | kmerdb kmeans -k $K --distance e Biopython
-#
-# If you wanted to save a matrix from kmerdb matrix for use on your own
-# it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
-# which we will see is used downstream in the rarefaction and hierarchical analytics pathways.
-#
-
-##################
-# Hierarchical
-##################
-#
-# The Normalized matrix goes to the distance subcommand, which can use any of scipy's pdist distances
-# to form the m x m distance matrix.
-# The third step (kmerdb hierarchical)  is to build a dendrogram with scipy.cluster.hierarchy.
-# This final step produces a plot in addition to the tsvs produced in the prior steps,
-# which can be captured as independent steps or with tee in a pipeline.
-kmerdb matrix [ Normalized ] test/data/*.$K.kdb | kmerdb distance spearman | kmerdb hiearchical
-
-'''.format(*files)
 
