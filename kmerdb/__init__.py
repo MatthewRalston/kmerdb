@@ -137,7 +137,43 @@ def shuf(arguments):
 
     
 #     sys.stderr.write(DONE)
-                    
+
+
+
+
+
+
+def expanded_help(arguments):
+
+    import sys
+    
+    argv = sys.argv
+    
+    from kmerdb import config, appmap
+
+    kmerdb_appmap = appmap.kmerdb_appmap( argv )
+
+    #kmerdb_appmap.print_program_header()
+    
+    if arguments.method not in config.subcommands:
+        raise ValueError("unsupported method")
+    elif arguments.method == "profile":
+        kmerdb_appmap.print_profile_header()
+    elif arguments.method == "graph":
+        kmerdb_appmap.print_graph_header()
+    elif arguments.method == "index":
+        #kmerdb_appmap.print_index_header()
+        raise ValueError("Unsupported method")
+    elif arguments.method == "shuf":
+        #kmerdb_appmap.print_shuf_header()
+        raise ValueError("Unsupported method")
+    elif arguments.method == "matrix":
+        kmerdb_appmap.print_matrix_header()
+    elif arguments.method == "distance":
+        kmerdb_appmap.print_distance_header()
+
+
+
 def distances(arguments):
     """
     An end-user function to provide CLI access to certain distances
@@ -1730,7 +1766,30 @@ def citation_info():
         raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
 
+def get_program_header(arguments):
+    import appmap.py
+    import sys
+
+
+    argv = sys.argv
+
+    kmerdb_appmap = appmap.kmerdb_appmap( argv )
+
+
+    kmerdb_appmap.print_program_header()
+
+
+    return kmerdb_appmap
+
 def cli():
+
+    import sys
+
+
+    
+    argv = sys.argv
+
+    
     sys.stderr.write("Running kdb script from '{0}'\n".format(__file__))
     sys.stderr.write("Checking installed environment...\n")
     primary_path = sys.path[0]
@@ -1743,6 +1802,7 @@ def cli():
     #sys.stderr.write("PYTHONPATH={0}".format(sys.path))
     #sys.path.remove(os.path.dirname(os.path.abspath(__file__)))
     citation_info()
+
 
     
     parser = argparse.ArgumentParser()
@@ -1772,12 +1832,6 @@ def cli():
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
-    header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb file and exit")
-    header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
-    header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
-    header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
-    header_parser.set_defaults(func=header)
-
     graph_parser = subparsers.add_parser("graph", help="Generate an adjacency list from .fa/.fq files")
     graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
@@ -1800,6 +1854,17 @@ def cli():
     # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
     # assembly_parser.set_defaults(func=assembly)
 
+
+    usage_parser = subparsers.add_parser("usage", help="provide expanded usage information on parameters and functions provided")
+    usage_parser.add_argument("-m", "--method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), required=True, help="Print expanded usage statement")
+    usage_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    usage_parser.set_defaults(func=expanded_help)
+
+    help_parser = subparsers.add_parser("help", help="provide expanded help section on parameters and functions provided")
+    help_parser.add_argument("-m", "--method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), required=True, help="Print expanded usage statement")
+    help_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    help_parser.set_defaults(func=expanded_help)
+    
     
     view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
@@ -1812,6 +1877,12 @@ def cli():
     view_parser.add_argument("kdb_in", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be read (Optional)")
     view_parser.add_argument("kdb_out", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be written to (Optional)")
     view_parser.set_defaults(func=view)
+
+    header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb file and exit")
+    header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
+    header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    header_parser.set_defaults(func=header)
 
 
     matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
@@ -1934,5 +2005,19 @@ def cli():
 
     sys.stderr.write("Constructed a logger for the program...\n")
     #logger.debug(sys.path)
+
+    # Print program header
+
+
+
+
+    """
+    Print detailed debugging information prior to program log.
+    """
+    from kmerdb import appmap
+    kmerdb_appmap = appmap.kmerdb_appmap( argv )
+    kmerdb_appmap.print_program_header()
+
+    
     args.func(args)
     
