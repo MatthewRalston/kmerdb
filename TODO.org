@@ -24,18 +24,22 @@
                       package manger : pip
                         version      : v24.0
 
-**** version
-**** file of executable (existing in __init__)
-**** module_root / package_root
-**** loaded modules
-**** dependencies (parse requirements.txt or pyproject.toml)
+**** DELEGATED version
+     CLOSED: [2024-04-04 Thu 13:30]
+**** DONE file of executable (existing in __init__)
+     CLOSED: [2024-04-04 Thu 13:30]
+**** DONE module_root / package_root
+     CLOSED: [2024-04-04 Thu 13:30]
+**** TODO loaded modules
+**** TODO dependencies (parse requirements.txt or pyproject.toml)
 ***** [v] required
                        dependencies  : {0}
 ***** optional
            development_dependencies  : {1}
-*** relevant env variables (PYTHONPATH)
+*** TODO relevant env variables (PYTHONPATH)
 ** Subcommand and features
 *** subcommand name section
+**** parameters
 *** Supported features:
 *** 
 *** 
