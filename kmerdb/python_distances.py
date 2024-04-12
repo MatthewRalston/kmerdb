@@ -82,13 +82,12 @@ def correlation(counts1:np.ndarray, counts2:np.ndarray):
         x_minus_xbar = x - x_bar
         y_minus_ybar = y - y_bar
         ssxy += x_minus_xbar*y_minus_ybar
-        logger.warning("Beware custom correlations")
+        self.logger.log_it("Beware: custom correlation. Check the source for the ssxy/sqrt(ssxx*ssyy) calculation", "WARNING")
     if ssxx*ssyy == 0:
-        logger.error("Incorrect denominator found, skipping...")
+        self.logger.log_it("Incorrect denominator found, skipping...", "ERROR")
         return 0
     else:
-        logger.info("Acquired")
-        #logger.debug("Well done, cap...")
+        #logger.debug("Well done, govna...")
         return ssxy/np.sqrt(ssxx*ssyy)
 
 
@@ -110,8 +109,8 @@ def spearman(x, y):
         raise TypeError("kmerdb.distance.spearman expects a Numpy array as its second positional argument")
     from scipy.stats import spearmanr
     cor, pval = spearmanr(x, b=y)
-    logger.debug("Spearman calculation from SciPy")
-    logger.info("Smooth, buttery Spearman correlation coefficients.")
+    self.logger.log_it("Spearman calculation from SciPy", "INFO")
+    self.logger.log_it("\n\n\nSmooth, buttery Spearman correlation coefficients.\n\n\n", "DEBUG")
     return cor, pval
 
 def EMD(x, y):
@@ -136,7 +135,10 @@ def hamming(k, x, y):
             sum += 1
     return (1/4**k) * sum
 
-
+"""
+I read a paper a long time ago about using different metrics like EMS when considering non-euclidean distances and their interpretations in
+areas with limited knowledge or agreement. I don't have the paper at my fingertips, it was in EndNote and that didn't play nice with my Arch install
+"""
 
 # def d2s(x, y):
 #     if type(x) is not np.ndarray:

@@ -43,14 +43,11 @@ import numpy as np
 
 from kmerdb import kmer
 
-import logging
-logger = logging.getLogger(__file__)
 
 
 
 
-
-def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, logger): #rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -90,63 +87,65 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
     #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'both_strands' to be a bool")
     # elif all_metadata is None or type(all_metadata) is not bool:
     #     raise TypeError("kmerdb.parse.parsefile expects the keyword argument 'all_metadata' to be a bool")
+    if logger is None:
+        raise ValueError("Invalid logger")
     data = {} # This is the dictionary of tuples, keyed on k-mer id, and containing 3-tuples ('kmer_id', 'read/start/reverse')
     keys = set()
     rows = []
     N = 4**k
     nullomers = set()
     # Build fasta/fastq parser object to stream reads into memory
-    logger.debug("Initializing parser...")
-    seqprsr = SeqParser(filepath, k)
+    logger.log_it("Initializing parser...", "INFO")
+    seqprsr = SeqParser(filepath, k, logger)
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
 
     # Initialize the kmer array
     try:
         counts = np.zeros(N, dtype="uint64")
     except TypeError as e:
-        logger.error("Invalid dtype for numpy array instantiation")
-        logger.error(e)
+        logger.log_it("Invalid dtype for numpy array instantiation", "ERROR")
+        logger.log_it(e.__str__(), "ERROR")
         raise e
 
-    logger.info("Successfully allocated space for {0} unsigned integers: {1} bytes".format(N, counts.nbytes))
+    logger.log_it("Successfully allocated space for {0} unsigned integers: {1} bytes".format(N, counts.nbytes), "INFO")
         # Instantiate the kmer class
     Kmer = kmer.Kmers(k, verbose=fasta) # A wrapper class to shred k-mers with
 
     recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
     if not fasta:
-        logger.debug("Read exactly {0} records from the seqparser object".format(len(recs)))
+        logger.log_it("Read exactly {0} records from the seqparser object".format(len(recs)), "DEBUG")
         assert len(recs) <= b, "The seqparser should return exactly {0} records at a time".format(b)
     else:
-        logger.debug("Skipping the block size assertion for fasta files")
-    logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
+        logger.log_it("Skipping the block size assertion for fasta files", "DEBUG")
+    logger.log_it("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "INFO")
     all_kmer_metadata = list([] for x in range(N))
     while len(recs): # While the seqprsr continues to produce blocks of reads
 
         num_recs = len(recs)
-        logger.info("Processing a block of {0} reads/sequences".format(num_recs))
+        logger.log_it("Processing a block of {0} reads/sequences".format(num_recs), "INFO")
 
         # Initialize an all_kmer_metadata list
         kmer_metadata = []
         list_of_dicts = list(map(Kmer.shred, recs))
 
         # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
-        logger.debug("\n\nAcquiring linked-list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
+        logger.log_it("\n\nAcquiring linked-list of all k-mer ids from {0} sequence records...\n\n".format(num_recs), "INFO")
         kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
-        logger.debug("Successfully allocated linked-list for all k-mer ids read.")
+
         sus = set()
-        logger.info("Removing any eroneous k-mers without an id, cause by 'N' content, creating new gaps in the k-mer profile...")
-        logger.info("Will substitute IUPAC residues with their respective residues, adding one count for each")
+        logger.log_it("Removing any eroneous k-mers without an id, cause by 'N' content, creating new gaps in the k-mer profile...", "WARNING")
+        logger.log_it("Will substitute IUPAC residues with their respective residues, adding one count for each", "WARNING")
         num_sus = 0
         for i, k in enumerate(kmer_ids):
             if k is None:
                 sus.add(i) # This propagates the N removal, by adding those to the set for removal later.
                 num_sus += 1
 
-        logger.info("Created {0} gaps in the k-mer profile to clean it of N-content".format(num_sus))
+        logger.log_it("Created {0} gaps in the k-mer profile to clean it of N-content".format(num_sus), "INFO")
         if num_sus > 0:
-            logger.warning("{0} uncountable k-mer identified".format(num_sus))
-            logger.warning("Likely caused by the presence of the unspecified nucleotide 'N' in a .fasta file")
-            logger.warning("Will remove from the final committed profile")
+            logger.log_it("{0} uncountable k-mer identified".format(num_sus), "WARNING")
+            logger.log_it("Likely caused by the presence of the unspecified nucleotide 'N' in a .fasta file", "WARNING")
+            logger.log_t("Will remove from the final committed profile", "WARNING")
 
         ########################
         # K-mer cleaning
@@ -160,10 +159,10 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
         # The graph can be explicitly collapsed when you want to, by supplying reads or sequence information, that is contiguous "in your judgement".
         # By introducing these artificial gaps, we expose the errors or unspecified bases through data.
         #
-        logger.info("Found {0} invalid or enumerable k-mers, sequences which have no defined index, i".format(num_sus))
-        logger.debug("In other words, one or more characters in your .fasta or .fastq file were 'N' or otherwise contained IUPAC characters that need to be substituted.")
-        logger.debug("We have chosen to omit k-mer with unspecified nucleotides 'N', and these make gaps in our database explicitly.")
-        logger.info("These can be recovered from the reads if they are needed, and the read ids may be found with the experimental --all-metadata flag")
+        logger.log_it("Found {0} invalid or enumerable k-mers, sequences which have no defined index, i".format(num_sus), "INFO")
+        logger.log_it("In other words, one or more characters in your .fasta or .fastq file were 'N' or otherwise contained IUPAC characters that need to be substituted.", "DEBUG")
+        logger.log_it("We have chosen to omit k-mer with unspecified nucleotides 'N', and these make gaps in our database explicitly.", "DEBUG")
+        logger.log_it("These can be recovered from the reads if they are needed, and the read ids may be found with the experimental --all-metadata flag", "INFO")
         # if all_metadata:
 
         #     logger.warning("\n\n\nGENERATING ALL METADATA\n\n\nThis is extremely expensive and experimental. You have been warned.\n\n\n")
@@ -182,11 +181,11 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
         #     starts = list(filter(lambda s: s is not None, starts))
         #     reverses = list(filter(lambda r: r is not None, reverses))
         # else:
-        logger.debug("Checking each k-mer for IUPAC substitution or N content.")
+        logger.log_it("Checking each k-mer for IUPAC substitution or N content.", "DEBUG")
         for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
             if i in sus:
                 kmer_ids[i] = None
-        logger.info("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions")
+        logger.log_it("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions", "INFO")
         kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
         reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
         starts = []
@@ -198,8 +197,8 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
             raise ValueError("kmerdb.parse.parsefile encountered an invalid kmer_id. Internal error.")
 
 
-        logger.debug("{0} 'clean' kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs))
-        logger.debug("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids), len(starts)))
+        logger.log_it("{0} 'clean' kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs), "DEBUG")
+        logger.log_it("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids), len(starts)), "DEBUG")
         # Assert that all list lengths are equal before adding metadata to k-mers
         # else:
         #     raise RuntimeError("Still have no clue what's going on...")
@@ -221,7 +220,7 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
         #         all_kmer_metadata[single_kmer_id].append((read, start, reverse))
 
         recs = [r for r in seqprsr] # The next block of exactly 'b' reads
-        logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
+        logger.log_it("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "INFO")
     # Get nullomers
     # only nullomer counts
     unique_kmers = int(np.count_nonzero(counts))
@@ -242,12 +241,11 @@ def parsefile(filepath:str, k:int, ): #rows_per_batch:int=100000, b:int=50000, n
     seqprsr.unique_kmers = unique_kmers
     seqprsr.nullomers = num_nullomers
 
-
     
     seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
-    sys.stderr.write("\n\n\nFinished counting k-mers from '{0}'...\n\n\n".format(filepath))
+    logger.log_it("\n\n\nFinished counting k-mers from '{0}'...\n\n\n".format(filepath), "INFO")
 
-    return counts, seqprsr.header_dict(), seqprsr.nullomer_array
+    return counts, seqprsr.header_dict(), seqprsr.nullomer_array, logger.logs
 
 
 
@@ -264,7 +262,7 @@ class SeqParser:
     :ivar num: The number of records to read in from a .fastq
     :ivar k: The choice of k to initialize the calculation of kmer/nullomer counts.
     """
-    def __init__(self, filepath:str, k:int, num:int=100000, ):
+    def __init__(self, filepath:str, k:int, logger, num:int=100000):
         """
         The SeqParser class wraps up some functionality  
         """
@@ -277,6 +275,9 @@ class SeqParser:
             raise TypeError("kmerdb.parse.SeqParser expects an int as its second positional argument")
         elif type(k) is not int:
             raise TypeError("kmerdb.parse.SeqParser expects an int as its third positional argument")
+        elif logger is None:
+            raise ValueError("Invalid logger")
+
         
         self.k = k
         self.num = num
@@ -321,17 +322,17 @@ class SeqParser:
                 
         if self.compressed:
             if self.fastq:
-                logger.info("Opening gzipped fastq file '{0}'...".format(filepath))
+                sys.stderr.write("Opening gzipped fastq file '{0}'...\n".format(filepath))
                 self._handle = SeqIO.parse(gzip.open(self.filepath, 'rt'), "fastq")
             else:
-                logger.info("Opening gzipped fasta file '{0}'...".format(filepath))
+                sys.stderr.write("Opening gzipped fasta file '{0}'...\n".format(filepath))
                 self._handle = SeqIO.parse(gzip.open(self.filepath, 'rt'), "fasta")
         else:
             if self.fastq:
-                logger.info("Opening uncompressed fastq file '{0}'...".format(filepath))
+                sys.stderr.write("Opening uncompressed fastq file '{0}'...\n".format(filepath))
                 self._handle = SeqIO.parse(open(self.filepath, 'r'), "fastq")
             else:
-                logger.info("Opening uncompressed fasta file '{0}'...".format(filepath))
+                sys.stderr.write("Opening uncompressed fasta file '{0}'...\n".format(filepath))
                 self._handle = SeqIO.parse(open(self.filepath, 'r'), "fasta")
         # Get checksums
         self.md5, self.sha256 = self.__checksum()
@@ -385,8 +386,6 @@ class SeqParser:
         except StopIteration as e:
             pass
         except ValueError as e:
-            logger.error(e)
-            logger.error("\n\nFastq format error: '{0}' seems to not be fastq format\n\n")
             raise e
         return self
 
@@ -420,9 +419,11 @@ class SeqParser:
 
 
 class Parseable:
-    def __init__(self, arguments):
+    def __init__(self, arguments, logger=None):
         self.arguments = arguments
+        self.logger = logger
             
+
         
     def parsefile(self, filename):
         """Wrapper function for parse.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
@@ -431,6 +432,6 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k)
+        return parsefile(filename, self.arguments.k, logger=self.logger)
 
 

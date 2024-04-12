@@ -44,13 +44,12 @@ import numpy as np
 from kmerdb import fileutil, parse, kmer, config, util
 
 # Logging configuration
-import logging
-logger = logging.getLogger(__file__)
+global logger
+logger = None
 
 
 
-
-def open(filepath, mode="r", metadata=None, slurp:bool=False):
+def open(filepath, mode="r", metadata=None, slurp:bool=False, logger=None):
     """
     Opens a file for reading or writing. Valid modes are 'xrwbt'. 
     Returns a lazy-loading KDBGReader object or a KDBGWriter object.
@@ -149,6 +148,10 @@ def open(filepath, mode="r", metadata=None, slurp:bool=False):
         raise ValueError("Bad mode %r" % mode)
 
 
+    self.logger = logger
+    self._loggable = logger is not None
+
+
 def bytesize_of_metadata(metadata):
     """
     defers to util.get_bytesize_of_metadata
@@ -191,7 +194,7 @@ def parse_kdbg_table_line(kdbg_table_line:str, sort_arr:bool=False, row_dtype:st
     try:
         np.dtype(row_dtype)
     except TypeError as e:
-        logger.error("Invalid numpy dtype")
+        sys.stderr.write("Invalid numpy dtype\n")
         raise e
     finally:
 
@@ -200,7 +203,7 @@ def parse_kdbg_table_line(kdbg_table_line:str, sort_arr:bool=False, row_dtype:st
         linesplit = kdbg_table_line.rstrip().split("\t")
         
         if len(linesplit) != 4:
-            logger.error("Full line:\n{0}".format(line))
+            sys.stderr.write("Full line:\n{0}".format(line) + "\n")
             raise ValueError("kmerdb.graph.parse_kdbg_table_line encountered a .kdbg line without 4 columns. Invalid format for edge list")
         else:
             i, node1_id, node2_id, weight = linesplit
@@ -226,7 +229,7 @@ def parse_kdbg_table_line(kdbg_table_line:str, sort_arr:bool=False, row_dtype:st
 
             
 
-def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bool=False):
+def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bool=False, logger=None):
     """
     Parse a single sequence file.
     
@@ -266,10 +269,15 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     elif type(both_strands) is not bool:
         raise TypeError("kmerdb.graph.parsefile expects the keyword argument 'both_strands' to be a bool")
 
+    _loggable = logger is not None
+    
+
     N = 4**k
     counts = np.zeros(N, dtype="uint64")
-    
-    logger.debug("Initializing edge list fileparser...")
+
+
+    if _loggable:
+        logger.log_it("Initializing edge list fileparser...", "DEBUG")
     seqprsr = parse.SeqParser(filepath, b, k)
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
     
@@ -278,30 +286,30 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     
     # Actually load in records 'recs'
     recs = [r for r in seqprsr]
-        
-    logger.info("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
+
+
+    if _loggable:
+        logger.log_it("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "INFO")
         
         
     while len(recs):
         num_recs = len(recs)
-        logger.debug("\n\nAcquiring list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
+        #logger.debug("\n\nAcquiring list of all k-mer ids from {0} sequence records...\n\n".format(num_recs))
 
 
         list_of_dicts = list(map(Kmer._shred_for_graph, recs))
 
-        
-        logger.info("k-mer shredding a block of {0} reads/sequences".format(num_recs))
+        if _loggable:
+            logger.log_it("k-mer shredding a block of {0} reads/sequences".format(num_recs), "INFO")
         kmer_ids = list(chain.from_iterable(list_of_dicts))
 
         
-        logger.debug("Successfully allocated linked-list for all k-mer ids read.")
-
         num_kmers = len(kmer_ids)
 
         if num_kmers == 0:
             raise ValueError("No k-mers to add. Something likely went wrong. Please report to the issue tracker")
         else:
-            sys.stderr.write("\nAccumulating all k-mers from this set of records...")
+            sys.stderr.write("\nAccumulating all k-mers from this set of records...\n")
             for kmer in kmer_ids:
                 counts[kmer] += 1
         
@@ -312,27 +320,27 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
         # This will be logged redundantly with the sys.stderr.write method calls at line 141 and 166 of parse.py (in the _next_fasta() and _next_fastq() methods)
         #sys.stderr("\n")
         # JUST LOGGING
-        logger.info("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"))
+        if _loggable:
+            logger.log_it("Read {0} more records from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "DEBUG")
 
 
 
 
-    
-    logger.info("Read {0} k-mers from the input file".format(len(kmer_ids)))
+    if _loggable:
+        logger.log_it("Read {0} k-mers from the input file".format(len(kmer_ids)), "INFO")
 
     sys.stderr.write("\n\n\n")
-    logger.info("K-mer counts read from input(s)")
+    if _loggable:
+        logger.log_it("K-mer counts read from input(s)", "INFO")
     sys.stderr.write("="*40 + "\n")
 
-    logger.info("K-space dimension: {0}".format(4**k))
-    logger.info("Number of k-mers: {0}".format(len(kmer_ids)))
-    sys.stderr.write("\n\n\n")
+    if _loggable:
+        logger.log_it("Constructing weighted edge list...", "INFO")
+    edge_list = make_graph(kmer_ids, k, quiet=quiet, logger=logger)
 
-    
-    logger.info("Constructing weighted edge list...")
-    edge_list = make_graph(kmer_ids, k, quiet=quiet)
-    logger.info("Number of edges: {0}".format(len(edge_list)))
-    sys.stderr.write("\n\nEdge list generation completed...\n")
+    if _loggable:
+        logger.log_it("Number of edges: {0}".format(len(edge_list)), "INFO")
+        logger.log_it("Edge list generation completed...", "INFO")
 
     unique_kmers = int(np.count_nonzero(counts))
     # FIXME
@@ -356,7 +364,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     
     return (edge_list, seqprsr.header_dict(), counts, seqprsr.nullomer_array)
 
-def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
+def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
     """
     Make a neighbor graph from a k-mer id list.
 
@@ -413,6 +421,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
     elif quiet is None or type(quiet) is not bool:
         raise TypeError("kmerdb.graph.make_graph expects the keyword argument quiet to be a bool")
 
+    _loggable = logger is not None
     # Initialize total_list of possible k-mer neighbor pairs from the edge list.
     # Step 1. Complete
 
@@ -539,7 +548,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
         #     print("SUCCESS. This k-mer, current k-mer : {0}|{1} has 8 neighbors. {2} . None should be self".format(k_id, current_kmer, just_eight_edges))
         #     #print(all_edges_in_kspace)
         #     sys.exit(1)
-        logger.info("adjacency space completed...")
+        if _loggable:
+            logger.log_it("adjacency space completed...", "INFO")
         continue
 
         
@@ -584,8 +594,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             pair_ids = tuple(map(kmer.kmer_to_id, pair))
             
             common_seq = current_kmer[1:]
-            logger.debug("Kmer_id: = kmer_ids[i] = |||                {0}".format(current_kmer_id))
-            logger.debug(" -----pair: = '{0}'  <-> '{1}'".format(pair[0], pair[1]))
+            sys.stderr.write("Kmer_id: = kmer_ids[i]     =        {0}\n".format(current_kmer_id))
+            sys.stderr.write(" -----pair: = '{0}'  <-> '{1}'\n".format(pair[0], pair[1]))
             all_edges_in_kspace[pair_ids] = 0
             # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
             """
@@ -594,7 +604,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             assert len(current_kmer) == k
             assert len(common_seq) == k-1
             
-            logger.debug("Validations completed for k-mer {0}.".format(current_kmer_id))
+            #logger.debug("Validations completed for k-mer {0}.".format(current_kmer_id))
             k1 = current_kmer[1:] # 11 characters (k - 1) remove the left most char, so new char goes on end to make the neighbor
             # not_the_king_but_the_rook = None
             k2 = current_kmer[:-1] # 11 characters ( k - 1) remove the final character so new char is prepended
@@ -633,8 +643,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
             debuging problematic pair of k-mer ids
             """
             if pair_ids == bad_pair:
-                logger.error("Problematic pair of k-mer ids identified...")
-                logger.error("Pair: ({0})".format(", ".join(pair_ids)))
+                sys.stderr.write("Problematic pair of k-mer ids identified...\n")
+                sys.stderr.write("Pair: ({0})\n".format(", ".join(pair_ids)))
                 raise ValueError("DEBUGGING PURPOSES ONLY: Identified a pair of k-mers noted as problematic. If you see this error, file an issue at https://github.com/MatthewRalston/kmerdb")
 
             try:
@@ -649,46 +659,63 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
                 assert (common_seq in pair[0]) and (common_seq in pair[1]), "kmerdb.graph expects the common_seq be in both sequences of the pair."
             except AssertionError as e:
                 error_count += 1
-                logger.error(pair)
-                logger.warning("This k-mer pair should have this subsequence in common: {0}".format(common_seq))
-                logger.warning("k1: '{0}'           k2: '{1}'".format(k1, k2))
-                logger.warning("It is explicitly assumed this is from .fastq input")
-                #logger.debug("Types: pair[0] : {0} pair[1] : {1}".format(type(pair[0]), type(pair[1])))
-                logger.debug("'{0}' == '{1}'".format(pair[0][1:], pair[1][:-1]))
-                logger.debug("Is pair0[1:] == pair1[:-1]? : {0}".format(pair[0][1:] == pair[1][:-1]))
-                logger.debug(e)
+                # logger.error(pair)
+                # logger.warning("This k-mer pair should have this subsequence in common: {0}".format(common_seq))
+                # logger.warning("k1: '{0}'           k2: '{1}'".format(k1, k2))
+                # logger.warning("It is explicitly assumed this is from .fastq input")
+                # #logger.debug("Types: pair[0] : {0} pair[1] : {1}".format(type(pair[0]), type(pair[1])))
+                # logger.debug("'{0}' == '{1}'".format(pair[0][1:], pair[1][:-1]))
+                # logger.debug("Is pair0[1:] == pair1[:-1]? : {0}".format(pair[0][1:] == pair[1][:-1]))
+                # logger.debug(e)
                 pass
             try:
                 # Accumulate for each edge pair
                 #if (15633431, 12202077) == pair_ids:
                 if bad_pair == pair_ids:
-                    logger.error("\n\nin accumulator... cannot identify the problem for this pairing again. It is in the wrong order in the key submission, and can't be recovered for some reason\n\n")
-                    logger.error("BAD KEY PAIR DETECTED")
+                    sys.stderr.write("\n\nin accumulator... cannot identify the problem for this pairing again. It is in the wrong order in the key submission, and can't be recovered for some reason\n\n")
+                    sys.stderr.write(bad_pair)
 
-                    logger.error(bad_pair)
-
-                    sys.exit(1)
+                    raise ValueError("Internal Error. Related to debugging problematic pairs during .fastq inter-read pair removal from edge list.")
                 """
                 ACCUMULATOR           --------- DONE
                 """
                 all_edges_in_kspace[pair_ids] += 1
+                """
+
+                You might be thinking "HOLY CRAP THATS A LOT OF MESSAGES" without the --quiet flag.
+
+                That's right. Also:
+
+
+                "Well, why can't you just fix the parser so it *only* returns valid edges from the .fq file?"
+
+                i.e. check whether each k-mer... from each read... is at the final index of the read... right?
+
+
+                So instead, I iterate over the k-mer array one time, and remove the edges. The performance difference between the approaches
+                would be negligible. 
+
+                """
+
+                
                 if quiet is False:
-                    logger.debug("Edge: {0} => {1}".format(pair[0], pair[1]))
-                    logger.debug("""
-  ╱|、
-(˚ˎ 。7  
- |、˜〵          
-じしˍ,)ノ
-""")                        
+                    sys.stderr.write("Edge: {0} => {1}".format(pair[0], pair[1]))
+#                     sys.stderr.write("""
+#  ╱|、
+# (˚ˎ 。7  
+#  |、˜〵          
+# じしˍ,)ノ
+# \n""")                        
             except KeyError as e:
-                logger.error("Invalid key(pair) used to access edge list")
+                sys.stderr.write("Invalid key(pair) used to access edge list\n")
                 sys.stderr.write("PAIR: {0} => {1}\n".format(pair[0], pair[1]))
                 sys.stderr.write("pair ids: {0}\n".format(pair_ids))
-                logger.error(30*"=")
-                for i, p in enumerate(all_edges_in_kspace.keys()):
-                    if bad_pair == pair_ids:
-                        logger.error("Debugging the 'bad pair', problematic k-mer id pair...")
-                        logger.error(pair_ids)
+                sys.stderr.write(30*"=" + "\n")
+                # for i, p in enumerate(all_edges_in_kspace.keys()):
+                #     if bad_pair == pair_ids:
+                #         # Double checking
+                #         logger.error("Debugging the 'bad pair', problematic k-mer id pair...")
+                #         logger.error(pair_ids)
                 raise e
             # print("heeeeeey, wow thens doo the prin funshen")
             # print(pair_ids, pair, "wow thans prin funshun ( ---------)_______________________prin fun-shun_______________________________________(    --------------)")
@@ -709,12 +736,10 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True):
 
 
     if error_count > 0:
-        logger.warning("\n")
-        logger.warning("\n")
-        logger.warning("\n\n\nNOTE: ADJACENCY ERRORS DETECTED: Found {0} 'improper' k-mer pairs/adjacencies from the input file(s),\n where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.\n These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.\n".format(error_count))
+        sys.stderr.write("\n\n\nNOTE: ADJACENCY ERRORS DETECTED: Found {0} 'improper' k-mer pairs/adjacencies from the input file(s),\n where subsequent k-mers in the k-mer id array (produced from the sliding window method over input seqs/reads) did not share k-1 residues in common.\n These *may* be introduced in the array from the last k-mer of one seq/read (in the .fa/.fq) and the first k-mer of the next seq/read.\n".format(error_count))
     sys.stderr.write("\n\n\n")
     sys.stderr.write("All edges populated *and* accumulated across k-mer id arrays from inputs.\n")
-    logger.info("'Graph' generation complete")
+    sys.stderr.write("\n\n\n'Graph' generation complete\n\n")
 
             
     # This variable is unrestricted. A larger k may inflate this var beyond the memory limits of the computer where the observed k-space can be represented with enough resolution through enough profile diversity.
@@ -868,7 +893,7 @@ class KDBGReader(bgzf.BgzfReader):
 
     
     """
-    def __init__(self, filename:str, fileobj:io.IOBase=None, mode:str="r", n1_dtype:str="uint64", n2_dtype:str="uint64", weights_dtype:str="uint64", sort:bool=False, slurp:bool=False):
+    def __init__(self, filename:str, fileobj:io.IOBase=None, mode:str="r", n1_dtype:str="uint64", n2_dtype:str="uint64", weights_dtype:str="uint64", sort:bool=False, slurp:bool=False, logger=None):
         """
         A wrapper around Bio.bgzf.BgzfReader
 
@@ -917,6 +942,9 @@ class KDBGReader(bgzf.BgzfReader):
         elif slurp is not None and type(slurp) is not bool:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'slurp' to be a bool")
 
+        if logger is None:
+            raise ValueError("graph.KDBGReader expects the keyword argument 'logger' to be valid")
+        
         """
 
         Handle fileobj or 
@@ -946,7 +974,7 @@ class KDBGReader(bgzf.BgzfReader):
         self._block_start_offset = None
         self._block_raw_length = None
 
-
+        self.logger = logger
         """
 
         np.array defs
@@ -967,7 +995,7 @@ class KDBGReader(bgzf.BgzfReader):
         self.read_and_validate_kdbg_header()
 
         if slurp is True:
-            logger.info("Reading .kdbg contents into memory")
+            self.logger.log_it("Reading .kdbg contents into memory", "INFO")
             self.slurp(n1_dtype=n1_dtype, n2_dtype=n2_dtype, weights_dtype=weights_dtype)
 
         self.is_int = True
@@ -990,7 +1018,7 @@ class KDBGReader(bgzf.BgzfReader):
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
         # 0th block
-        logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
+        self.logger.log_it("Loading the 0th block from '{0}'...".format(self._filepath), "INFO")
         self._load_block(self._handle.tell())
 
         self._buffer = self._buffer.rstrip(config.header_delimiter)
@@ -1001,12 +1029,12 @@ class KDBGReader(bgzf.BgzfReader):
         num_header_blocks = None
 
         if type(initial_header_data) is str:
-            logger.info("Inappropriate type for the header data.")
-            #logger.info("Um, what the fuck is this in my metadata block?")
+            self.logger.log_it("Inappropriate type for the header data.", "ERROR")
+            #logger.info("Um, what the heckin' is this in my metadata block?")
             raise TypeError("kmerdb.graph.KDBGReader could not parse the YAML formatted metadata in the first blocks of the file")
         elif type(initial_header_data) is OrderedDict:
-            logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
-            logger.info("Assuming YAML blocks until delimiter reached.")
+            self.logger.log_it("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata", "INFO")
+            self.logger.log_it("Assuming YAML blocks until delimiter reached.", "INFO")
 
         """
 
@@ -1020,20 +1048,18 @@ class KDBGReader(bgzf.BgzfReader):
         elif "metadata_blocks" not in initial_header_data.keys():
             raise TypeError("kmerdb.graph.KDBGReader couldn't validate the header YAML")
             
-        logger.debug(initial_header_data)
+        self.logger.log_it(initial_header_data, "INFO")
         
         if initial_header_data["metadata_blocks"] != 1:
-            logger.error("More than 1 metadata block: uhhhhh are we loading any additional blocks")
+            self.logger.log_it("More than 1 metadata block: uhhhhh are we loading any additional blocks", "ERROR")
             raise IOError("Cannot read more than 1 metadata block yet")
 
         for i in range(initial_header_data["metadata_blocks"] - 1):
-            logger.info("Multiple metadata blocks read...")
+            self.logger.log_it("Multiple metadata blocks read, most likely from a composite edge-graph...", "WARNING")
             self._load_block(self._handle.tell())
-            logger.debug("Secondary blocks read")
             addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
             if type(addtl_header_data) is str:
-                logger.error(addtl_header_data)
-                logger.error("Couldn't determine this block.::/")
+                self.logger.log_it(addtl_header_data, "ERROR")
                 raise TypeError("kmerdb.graph.KDBGReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
             elif type(addtl_header_data) is dict:
                 sys.stderr.write("\r")
@@ -1041,16 +1067,14 @@ class KDBGReader(bgzf.BgzfReader):
                 initial_header_data.update(addtl_header_data)
                 num_header_blocks = i
             else:
-                logger.error(addtl_header_data)
+                self.logger.log_it(addtl_header_data, "ERROR")
                 raise RuntimeError("kmerdb.graph.KDBGReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
 
         #raise RuntimeError("kmerdb.graph.KDBGReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
 
     
-        logger.info("Reading additional blocks as YAML...")
-        logger.debug("Reading additional blocks as YAML...")
-        sys.stderr.write("\n")
-        logger.info("Validating the header data against the schema...")
+        self.logger.log_it("Validating the header YAML...", "INFO")
+
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.graph_schema)
             self.metadata = dict(initial_header_data)
@@ -1060,14 +1084,12 @@ class KDBGReader(bgzf.BgzfReader):
             self.n2_dtype = self.metadata["n2_dtype"]
             self.weights_dtype = self.metadata["weights_dtype"]
             self.sorted = self.metadata["sorted"]
-            logger.info("Self assigning dtype to uint64 probably")
-            logger.debug("Checking for metadata inference...")
+
         except jsonschema.ValidationError as e:
-            logger.debug(e)
-            logger.error("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks))
+            self.logger.log_it("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
             raise e
         self.metadata["header_offset"] = self._handle.tell()
-        logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
+        #logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
         #self._reader = gzip.open(self._filepath, 'r')
         self._offsets = deque()
         for values in bgzf.BgzfBlocks(self._handle):
@@ -1128,8 +1150,6 @@ class KDBGReader(bgzf.BgzfReader):
             np.dtype(n2_dtype)
             np.dtype(weights_dtype)
         except TypeError as e:
-            logger.error(e)
-            logger.error("kmerdb.graph.KDBGReader.slurp encountered a TypeError while assessing a numpy dtype")
             raise TypeError("kmerdb.graph.KDBGReader.slurp expects each dtype keyword argument to be a valid numpy data type")
 
         vmem = psutil.virtual_memory()
@@ -1148,11 +1168,11 @@ class KDBGReader(bgzf.BgzfReader):
                 line = next(self)
 
             except StopIteration as e:
-                logger.error("Finished loading .kdbg through slurp (on init)")
+                self.logger.log_it("Finished loading .kdbg through slurp (on init)", "ERROR")
                 raise e
             if line is None:
-                logger.warning("Next returned None. Panic")
-                sys.exit(1)
+                self.logger.log_it("'next' returned None. Panic", "WARNING")
+
                 raise RuntimeError("kmerdb.graph.KDBGReader.slurp Panicked on new line")
 
 
@@ -1194,7 +1214,7 @@ class KDBGWriter(bgzf.BgzfWriter):
     :ivar compresslevel: compression parameter
     """
     
-    def __init__(self, filename:str=None, mode:str="w", metadata:OrderedDict=None, both_strands:bool=False, fileobj:io.IOBase=None, compresslevel:int=6):
+    def __init__(self, filename:str=None, mode:str="w", metadata:OrderedDict=None, both_strands:bool=False, fileobj:io.IOBase=None, compresslevel:int=6, logger=None):
         """
         A wrapper around Bio.bgzf.BgzfWriter
 
@@ -1229,6 +1249,10 @@ class KDBGWriter(bgzf.BgzfWriter):
             raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'fileobj' to be an instance of io.IOBase")
         elif compresslevel is None or type(compresslevel) is not int:
             raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'compresslevel' to be an int")
+
+        self.logger = logger
+        self._loggable = logger is not None
+
         
         if fileobj:
             assert filename is None, "kmerdb.graph expects filename to be None is fileobj handle is provided"
@@ -1242,19 +1266,22 @@ class KDBGWriter(bgzf.BgzfWriter):
                 raise NotImplementedError("Append mode is not implemented yet")
                 # handle = _open(filename, "ab")
             else:
-                logger.error("Mode = {0}".format(mode))
                 raise RuntimeError("Unknown mode for .kdbg file writing class kmerdb.graph.KDBGWriter")
         self._text = "b" not in mode.lower()
         self._handle = _open(filename, "wb")
         self._buffer = b"" if "b" in mode.lower() else ""
         self.compresslevel = compresslevel
 
+
+        self.logger = logger
+        self._loggable = logger is not None
+        
         """
         Write the header to the file
         """
 
-        
-        logger.info("Constructing a new .kdbg file '{0}'...".format(self._handle.name))
+        if self._loggable:
+            self.logger.log_it("Constructing a new .kdbg file '{0}'...".format(self._handle.name), "INFO")
 
 
         # 3-04-2024
@@ -1272,9 +1299,9 @@ class KDBGWriter(bgzf.BgzfWriter):
             self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
             metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
             metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
-            logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
-            logger.debug(self.metadata)
-            logger.debug("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)))
+            if self._loggable:
+                self.logger.log_it("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]), "INFO")
+                self.logger.log_it("Header is being written as follows:\n{0}".format(yaml.dump(self.metadata, sort_keys=False)), "DEBUG")
 
             # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
             # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
@@ -1293,7 +1320,6 @@ class KDBGWriter(bgzf.BgzfWriter):
             self._buffer = ""
             self._handle.flush()
         else:
-            logger.error("Mode: {}".format(mode.lower()))
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
         
 
@@ -1302,9 +1328,9 @@ class KDBGWriter(bgzf.BgzfWriter):
         
 
 class Parseable:
-    def __init__(self, arguments):
+    def __init__(self, arguments, logger):
         self.arguments = arguments
-            
+        self.logger = logger
         
     def parsefile(self, filename):
         """Wrapper function for graph.parsefile to keep arguments succinct for deployment through multiprocessing.Pool
@@ -1312,7 +1338,7 @@ class Parseable:
         :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with kmerdb.graph.parsefile
         :type filename: str
         """
-        return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet)
+        return parsefile(filename, self.arguments.k, quiet=self.arguments.quiet, logger=self.logger)
 
 
 
