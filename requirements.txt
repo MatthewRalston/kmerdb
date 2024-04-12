@@ -13,3 +13,4 @@ biopython>=1.81
 scipy>=1.7.3
 scikit-learn==1.0.2
 matplotlib>=3.5.3
+pandas>=2.2.2

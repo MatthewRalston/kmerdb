@@ -235,10 +235,10 @@ class Kmers:
             if len(set(str(s)) - self.__permitted_chars) == 0 and len(iupac_symbols) > 0 and len(non_iupac_symbols) == 0:
                 seqs = None
                 for c in list(set(s) - standard_letters):
-                    logger.debug("character: {0}".format(c))
-                    logger.debug("K-mer: {0}".format(s))
-                    logger.debug("IUPAC symbols in the whole sequence: {0}".format(iupac_symbols))
-                    logger.debug("Non-IUPAC symbols in the whole sequence: {0}".format(non_iupac_symbols))
+                    # logger.debug("character: {0}".format(c))
+                    # logger.debug("K-mer: {0}".format(s))
+                    # logger.debug("IUPAC symbols in the whole sequence: {0}".format(iupac_symbols))
+                    # logger.debug("Non-IUPAC symbols in the whole sequence: {0}".format(non_iupac_symbols))
                     if c in IUPAC_DOUBLET_CHARS:
                         #logger.info("Doublets being replaced")
                         if seqs is None:
@@ -257,22 +257,22 @@ class Kmers:
                         logger.warning("N content detected")
                         continue
                     else:
-                        logger.error(str(seqRecord))
-                        logger.error("Full sequence above")
-                        logger.error("K-mer: {0}".format(s))
-                        logger.error(s)
+                        sys.stderr.write(str(seqRecord) + "\n")
+                        sys.stderr.write("Full sequence above" + "\n")
+                        sys.stderr.write("K-mer: {0}".format(s) + "\n")
+                        sys.stderr.write(s + "\n")
                         raise RuntimeError("kmerdb.kmer.shred: Non-IUPAC character '{0}' made it into sequences generated from IUPAC doublet/triplet counting of the k-mer '{1}'".format(c, s))
                 if seqs is None and "N" not in s:
-                    logger.warning("Permitted IUPAC symbols: {0}".format(iupac_symbols))
-                    logger.warning("Non-IUPAC symbols detected in sequence '{0}': {1}".format(s, non_iupac_symbols))
-                    logger.error("The following k-mer did not have any IUPAC letters: {0}".format(s))
+                    sys.stderr.write("Permitted IUPAC symbols: {0}".format(iupac_symbols))
+                    sys.stderr.write("Non-IUPAC symbols detected in sequence '{0}': {1}".format(s, non_iupac_symbols))
+                    sys.stderr.write("The following k-mer did not have any IUPAC letters: {0}".format(s))
                     raise RuntimeError("kmerdb.kmer.shred: A sequence was rejected from non-IUPAC symbols")
                 elif seqs is None and "N" in s:
                     continue
                 one_word = "".join(seqs)
                 if len(set(one_word) - self.__permitted_chars) > 0:
-                    logger.error(one_word)
-                    logger.error("Doublets/triplets produced from k-mer '{0}': \n{1}".format(s, seqs))
+                    sys.stderr.write(one_word + "\n")
+                    sys.stderr.write("Doublets/triplets produced from k-mer '{0}': \n{1}".format(s, seqs) + "\n")
                     raise ValueError("kmerdb.kmer.shred: at least one non-IUPAC symbol was found during doublets/triplet expansion of the k-mer '{0}'".format(s))
                 else:
                     for x in seqs:
@@ -291,13 +291,13 @@ class Kmers:
                     # the number of k-mer ids will no-longer match the appended metadata,
                     # So even though the lambda is correct, you have to do separate metadata for each id
             elif len(non_iupac_symbols) > 0:
-                logger.debug("TEST CONDITIONS")
-                logger.debug("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self.__permitted_chars)))
-                logger.debug("IUPAC symbols should be > 0: {0}".format(len(iupac_symbols)))
-                logger.debug("Non-IUPAC characters should be 0: {0}".format(len(non_iupac_symbols)))
-                logger.debug("Non-IUPAC symbols: {0}".format(non_iupac_symbols))
-                logger.debug("IUPAC symbols: {0}".format(iupac_symbols))
-                logger.debug("K-mer: '{0}'".format(str(s)))
+                sys.stderr.write("TEST CONDITIONS:\n")
+                sys.stderr.write("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self.__permitted_chars)) + "\n")
+                sys.stderr.write("IUPAC symbols should be > 0: {0}".format(len(iupac_symbols)) + "\n")
+                sys.stderr.write("Non-IUPAC characters should be 0: {0}".format(len(non_iupac_symbols)) + "\n")
+                sys.stderr.write("Non-IUPAC symbols: {0}".format(non_iupac_symbols) + "\n")
+                sys.stderr.write("IUPAC symbols: {0}".format(iupac_symbols) + "\n")
+                sys.stderr.write("K-mer: '{0}'".format(str(s)) + "\n")
                 raise ValueError("kmerdb.kmer.shred: Non-IUPAC symbol(s) detected")
             else:
                 try:
@@ -311,17 +311,17 @@ class Kmers:
                             reverses.append(True)
                             starts.append(i)
                 except KeyError as e:
-                    logger.warning("One or more non-IUPAC letters found their way into a part of the code they're not supposed to go")
-                    logger.warning("We officially support IUPAC but the statement challenging the sequence content failed, causing a genuine runtime error")
-                    logger.warning("This caused the following KeyError")
-                    logger.warning(e)
-                    logger.error("Letters in the sequence: {0}".format(letters))
-                    logger.errror("Permitted letters: {0}".format(self.__permitted_chars))
+                    sys.stderr.write("One or more non-IUPAC letters found their way into a part of the code they're not supposed to go\n")
+                    sys.stderr.write("We officially support IUPAC but the statement challenging the sequence content failed, causing a genuine runtime error\n")
+                    sys.stderr.write("This caused the following KeyError\n")
+                    sys.stderr.write(e.__str__() + "\n")
+                    sys.stderr.write("Letters in the sequence: {0}".format(letters) + "\n")
+                    sys.stderr.write("Permitted letters: {0}".format(self.__permitted_chars) + "\n")
                     raise RuntimeError("IUPAC standard extra base pairs (R, B, etc.) or non-IUPAC characters detected in the sequence")
             del s
         if self.verbose:
             sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
-            sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {2} unique k-mers\n\n{3} were discarded due to sequence content\n\n".format(len(seqRecord.seq), len(str(seqRecord.seq))-self.k+1, len(list(set(kmers))), len([x for x in kmers if x is None])))
+            sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {2} unique k-mers\n\n{3} were discarded due to sequence content\n\n".format(len(seqRecord.seq), len(str(seqRecord.seq))-self.k+1, len(list(set(kmers))), len([x for x in kmers if x is None])) + "\n")
         return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
 
 
@@ -369,8 +369,8 @@ def kmer_to_id(s):
             try:
                 idx = idx | letterToBinary[c]
             except KeyError as e:
-                logger.error("Entire sequence: {0}".format(s))
-                logger.error("Problematic character: {0}".format(c))
+                sys.stderr.write("Entire sequence: {0}".format(s) + "\n")
+                sys.stderr.write("Problematic character: {0}".format(c) + "\n")
                 raise e
         return idx
 
@@ -388,11 +388,11 @@ def id_to_kmer(id, k):
     :rtype: str
     """
     if type(id) is not int:
-        logger.error("kmer.id_to_kmer was given the following type as an id")
-        logger.error(type(id))
+        sys.stderr.write("kmer.id_to_kmer was given the following type as an id\n")
+        sys.stderr.write(str(type(id)) + "\n")
         raise TypeError("kmerdb.id_to_kmer expects an int as its first positional argument")
     elif type(k) is not int:
-        logger.error(type(k))
+        sys.stderr.write(str(type(k)) + "\n")
         raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
     else:
         kmer = ""
@@ -479,9 +479,12 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
 
 #         )
 
-        logger.debug("kmerdb.kmer.neighbors creating neighbors for k-mer '{0}'...".format(kmer))
-        logger.debug("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type1_ids))))
-        logger.debug("kmerdb.kmer.neighbors creating the neighbor structure for kmer : '{0}' \n: ==========\n'".format(kmer_id) + ", ".join(list(map(str, new_type2_ids))))
+        sys.stderr.write("kmerdb.kmer.neighbors creating neighbors for k-mer {0} : '{1}'...".format(kmer_id, kmer) + "\n")
+        sys.stderr.write(" ========================\n\n")
+        sys.stderr.write(", ".join(list(map(str, new_type1_ids))) + "\n")
+        sys.stderr.write(", ".join(list(map(str, new_type2_ids))) + "\n\n")
+        sys.stderr.write(" ------------------------\n\n")
+        
         if quiet is not True:
             sys.stderr.write("""
         k-id : {0}
@@ -496,6 +499,9 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
 
         {4}
         {5}
-""".format(kmer_id, kmer, new_type1, new_type2, new_type1_ids, new_type2_ids))
+\n""".format(kmer_id, kmer, new_type1, new_type2, new_type1_ids, new_type2_ids))
         #return {"appended_first_char_all_ommitted": new_type1_ids, "prepended_last_char_all_omitted": new_type2_ids}
+
+
+        
         return new_type1_ids + new_type2_ids

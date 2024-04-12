@@ -6,11 +6,28 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 4/10/24 - interface cont.
+** sys.stderr vs logger.log_it(... , "LEVEL")
+*** VERIFY kmer.py
+*** VERIFY parse.py
+*** VERIFY fileutil.py
+*** everything else...
+*** TODO __init__.py
+*** TODO graph.py
+*** TODO python_distances.py
+
+* 4/9/24 - kmerdb+appmap integration
+** VERIFY kmerdb usage + kmerdb help 
+*** TODO shuf
+*** TODO index
+** TODO Stuff
+** pass the step, feature and n_logs in from __init__
+** Pass the logs list from __init__ or down its callstack as available
 
 * 3/29/24 - AppMap
-** Appmap.org v0.7.9
+** IN PROGRESS Appmap.org v0.7.9
 *** 
-** Header
+** IN PROGRESS Header
 
 *** versions (program version)
 *** Interpreter
@@ -36,8 +53,8 @@
                        dependencies  : {0}
 ***** optional
            development_dependencies  : {1}
-*** TODO relevant env variables (PYTHONPATH)
-** Subcommand and features
+*** relevant env variables (PYTHONPATH)
+** IN PROGRESS Subcommand and features
 *** subcommand name section
 **** parameters
 *** Supported features:
@@ -52,10 +69,10 @@
 *** 
 *** 
 ** 
-** pre-log block
+** IN PROGRESS pre-log block
 *** "$1" program arguments
 *** "$ARGV"
-** Spinner placeholder
+** TODO Spinner placeholder
 *** s p a c e r   o . o . o    .( the spinner )
 ** pre-log usage block
 *** Spacer
@@ -64,7 +81,7 @@
 *** 
 *** 
 *** 
-** [ G i t h u b ] block
+** TODO [ G i t h u b ] block
 **** github logo
 ***** 
  .--------------------------------------------------.
@@ -108,7 +125,7 @@
 ***** 
              Development feature: (suggested feature based on error type)
 *** [ x ] ascii file logging only, .logging module, no 'rich' logging yet.
-** [ X ] Log Block
+** TODO [ X ] Log Block
 *** .logging log
 *** 
 *** -----------------------------------
@@ -156,7 +173,7 @@
 
 
     [ 3 ] PROGRAM HAULT, SIGTERM, ERROR CATCHING, BLACKMAGIC x
-** [ X ] Error Block
+** TODO [ X ] Error Block
 *** TRACEBACK LOGGER 1 : (.logging and sys.stderr calls. needs unified interface, capture traceback, callstack, [ loggable line ], loaded modules, grab module versions from requirements.txt, 
 *** 
 *** 

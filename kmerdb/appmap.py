@@ -20,15 +20,17 @@ import os
 import yaml
 from collections import OrderedDict
 
-
-
-
+import jsonschema
 
 
 from kmerdb import config, util
 
 
+
 yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+
+default_logline_choices = (20, 50, 100, 200)
+PINNED_ISSUES = (132, 133, 137)
 
 PROGRAM_BANNER = """
 **** 
@@ -132,19 +134,21 @@ o---O
 """
 
 GITHUB_PROJECT_BANNER = """
-=======================================================
+==============================================================
                   ||      G i t H u b     ||
-=======================================================
+==============================================================
                          Repo: kmerdb
                Feature branch: graph_algo
+
+Issue Tracker: https://github.com/MatthewRalston/kmerdb/issues
 -------------------------------------------------------
 """
 
 
 
 PINNED_ISSUE = """
-                 Pinned issue: #130
-"""
+                 Pinned issue: {0}
+""".format(", ".join(list(map(str, PINNED_ISSUES))))
 
 
 
@@ -156,13 +160,23 @@ class kmerdb_appmap:
 
 
     
-    def __init__(self, argv):
+    def __init__(self, argv, logger=None):
 
+
+        if logger is not None:
+            self.logger = logger
+            self.logfile = logger.logfile
+        else:
+            self.logger = None
+            self.logfile = None
+        self._loggable = logger is not None
+        
+        
         self.MODULE_ROOT = os.path.join("..", os.path.dirname(__file__))
         self.COMMAND_FILE = os.path.join(self.MODULE_ROOT, "__init__.py")
         self.PACKAGE_MANAGER = """
                       package manger : pip
-                        version      : v24.0
+                        version      : >= 24.0
         package root : {0}
         exe file     : {1}
 
@@ -172,8 +186,10 @@ class kmerdb_appmap:
            ARGV : {4}
         """.format(self.MODULE_ROOT, self.COMMAND_FILE, config.requirements_count, config.requirements_dev_count, argv)
         self.REQUIRES_PYTHON = config.REQUIRES_PYTHON
-        self.VERSION_HARDCODED = "                                                                          v :         v{0}\n".format(config.REQUIRES_PYTHON)
+        self.VERSION_HARDCODED = "                                                                          v :      >= v{0}\n".format(config.REQUIRES_PYTHON)
 
+
+        
         #
         # loaded_modules
         #
@@ -185,6 +201,100 @@ class kmerdb_appmap:
         #      optional:
 
         # usage_notes.txt
+        
+        self.PROFILE_BANNER = """
+                          name : profile
+                   description : create a k-mer count vector. g-zipped and tallied.
+        """
+
+        self.PROFILE_PARAMS = OrderedDict({
+            "name": "arguments",
+            "type": "array",
+            "items": [
+                {
+                    "name"  : "k",
+                    "type"  : "parameter",
+                    "value" : "choice of k-mer size parameter 'k'",
+                },
+                {
+                    "name" : "sorted",
+                    "type" : "flag",
+                    "value": "descending in k-mer count"
+                },
+                {
+                    "name"  : "quiet",
+                    "type"  : "flag",
+                    "value" : "Write additional debug level information to stderr?"
+                }
+            ]
+        })
+
+        self.PROFILE_INPUTS = OrderedDict({
+            "name": "inputs",
+            "type": "array",
+            "items": [
+                {
+                    "name"  : "<.fasta|.fastq>",
+                    "type"  : "array",
+                    "value" : "gzipped or uncompressed .fasta or .fastq file(s)"
+                },
+                {
+                    "name"  : ".kdb",
+                    "type"  : "file",
+                    "value" : "4 column table (row number, index number, k-mer id, count)."
+                }
+            ]
+        })
+
+
+        self.PROFILE_FEATURES = OrderedDict({
+            "name": "features",
+            "type": "array",
+            "items": [
+                OrderedDict({
+                    "name": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
+                    "shortname": "parallel OOP sliding window k-mer shredding",
+                    "description": "a Reader class is instantiated, and invoked on every file, supporting message passing and output collation. The data are read sequentially, so a length N = 4^k array is populated from the k-mer counts in the file. A k-mer id and count are recorded in the .kdb file."
+                }),
+                OrderedDict({
+                    "name": "k-mers are tallied, and metadata merged from the input files",
+                    "shortname": "merge counts, metadata from across inputs",
+                    "description": "an final metadata structure and output metrics are collected for display to the user."
+                })
+
+            ]
+        })
+
+
+        self.PROFILE_STEPS = OrderedDict({
+            "name": "steps",
+            "type": "array",
+            "items": [
+                OrderedDict({
+                    "name": "read input file(s) from filesystem into k-mer arrays",
+                    "shortname": "shred inputs into k-mer count arrays",
+                    "description": "shred input sequences into k-mer count vector",
+                }),
+                OrderedDict({
+                    "name": "collate the count array",
+                    "shortname": "collate the count array",
+                    "description": "aggregate counts from different input files"
+                }),
+                OrderedDict({
+                    "name": "merge k-mer arrays and aggregate metadata",
+                    "shortname": "merge k-mer count arrays for aggregate metadata (header)",
+                    "description": "merge counts of nullomers, unique kmers, and total kmers."
+                }),
+                OrderedDict({
+                    "name": "print 'table' Final stats and close output file",
+                    "shortname": "metrics and shutdown",
+                    "description": "print final statistics, typically metadata values, and ensure file is closed."
+                })
+
+            ]
+
+        })
+
 
 
         self.GRAPH_BANNER = """
@@ -194,7 +304,8 @@ class kmerdb_appmap:
 
         self.GRAPH_PARAMS = OrderedDict({
             "name": "arguments",
-            "values": [
+            "type": "array",
+            "items": [
                 {
                     "name"  : "k",
                     "type"  : "int",
@@ -212,7 +323,8 @@ class kmerdb_appmap:
 
         self.GRAPH_INPUTS = OrderedDict({
             "name": "inputs",
-            "values": [
+            "type": "array",
+            "items": [
                 {
                     "name"  : "<.fasta|.fastq>",
                     "type"  : "array",
@@ -232,12 +344,12 @@ class kmerdb_appmap:
             "type": "array",
             "items": [
                 OrderedDict({
-                    "title": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
+                    "name": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
                     "shortname": "parallel OOP sliding window k-mer shredding",
                     "description": "a Reader class is instantiated, and invoked on every file, supporting message passing and output collation. The data are read sequentially, so the possible edges for consideration are available by the identity of the k-mer and necessarily its 8 nearest neighbors. The appropriate pair observed in the dataset, and this pair is considered an 'edge' in the edge space constrained under k. It is added to the edge list by virtue of proximity in the file's base vector. In the case of secondary, tertiary, etc. sequences in the .fa or under massively parallel sequencing conditions (such as that by virtue of sequencing-by-synthesis) the offending edge is removed for the beginning and end of each sequence, and a warning is given to the user. Summary statistics for the entire file are given for each file read, as well as a cohesive structure, provided to the user before edge generation begins"
                 }),
                 OrderedDict({
-                    "title": "k-mer neighbors assessed and tallied, creates a unsorted edge list, weight weights",
+                    "name": "k-mer neighbors assessed and tallied, creates a unsorted edge list, weight weights",
                     "shortname": "weighted undirected graph",
                     "description": "an edge list is generated from all k-mers in the forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers in the sequence data are added to the tally of the k-mer nodes of the de Bruijn graph and the edges provided by the data."
                 })
@@ -273,100 +385,6 @@ class kmerdb_appmap:
             ]
         })
         
-
-        
-        self.PROFILE_BANNER = """
-                          name : profile
-                   description : create a k-mer count vector. g-zipped and tallied.
-        """
-
-        self.PROFILE_PARAMS = OrderedDict({
-            "name": "arguments",
-            "values": [
-                {
-                    "name"  : "k",
-                    "type"  : "parameter",
-                    "value" : "choice of k-mer size parameter 'k'",
-                },
-                {
-                    "name" : "sorted",
-                    "type" : "flag",
-                    "value": "descending in k-mer count"
-                },
-                {
-                    "name"  : "quiet",
-                    "type"  : "flag",
-                    "value" : "Write additional debug level information to stderr?"
-                }
-            ]
-        })
-
-        self.PROFILE_INPUTS = OrderedDict({
-            "name": "inputs",
-            "values": [
-                {
-                    "name"  : "<.fasta|.fastq>",
-                    "type"  : "array",
-                    "value" : "gzipped or uncompressed .fasta or .fastq file(s)"
-                },
-                {
-                    "name"  : ".kdb",
-                    "type"  : "file",
-                    "value" : "4 column table (row number, index number, k-mer id, count)."
-                }
-            ]
-        })
-
-
-        self.PROFILE_FEATURES = OrderedDict({
-            "name": "features",
-            "type": "array",
-            "items": [
-                OrderedDict({
-                    "title": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
-                    "shortname": "parallel OOP sliding window k-mer shredding",
-                    "description": "a Reader class is instantiated, and invoked on every file, supporting message passing and output collation. The data are read sequentially, so a length N = 4^k array is populated from the k-mer counts in the file. A k-mer id and count are recorded in the .kdb file."
-                }),
-                OrderedDict({
-                    "title": "k-mers are tallied, and metadata merged from the input files",
-                    "shortname": "merge counts, metadata from across inputs",
-                    "description": "an final metadata structure and output metrics are collected for display to the user."
-                })
-
-            ]
-        })
-
-
-        self.PROFILE_STEPS = OrderedDict({
-            "name": "steps",
-            "type": "array",
-            "items": [
-                OrderedDict({
-                    "name": "read input file(s) from filesystem into k-mer arrays",
-                    "shortname": "shred inputs into k-mer count arrays",
-                    "description": "shred input sequences into k-mer count vector",
-                }),
-                OrderedDict({
-                    "name": "merge k-mer arrays and aggregate metadata",
-                    "shortname": "merge k-mer count arrays for aggregate metadata (header)",
-                    "description": "merge counts of nullomers, unique kmers, and total kmers."
-                }),
-                OrderedDict({
-                    "name": "collate the count array",
-                    "shortname": "collate the count array",
-                    "description": "aggregate counts from different input files"
-                }),
-                OrderedDict({
-                    "name": "print 'table' Final stats and close output file",
-                    "shortname": "metrics and shutdown",
-                    "description": "print final statistics, typically metadata values, and ensure file is closed."
-                })
-
-            ]
-
-        })
-
-
         
         self.MATRIX_BANNER = """
                           name : matrix
@@ -475,6 +493,11 @@ class kmerdb_appmap:
                         "shortname": "DESeq-2 normalize",
                         "description": "Uses rpy2 to call the R server and pass the data matrix for DESeq-2 normalization"
 
+                    }),
+                    OrderedDict({
+                        "name": "pass unnormalized counts",
+                        "shortname": "unnormalized data",
+                        "description": "Passes the unnormalized data in Data Frame tsv format to STDOUT/file"
                     })
 
                 ]
@@ -571,6 +594,39 @@ class kmerdb_appmap:
                 ]
 
         })
+
+
+
+        
+        self.ALL_PARAMS = {
+            "profile": self.PROFILE_PARAMS["items"],
+            "make_graph": self.GRAPH_PARAMS["items"],
+            "get_matrix": self.MATRIX_PARAMS["items"],
+            "distance": self.DISTANCE_PARAMS["items"]
+        }
+
+        self.ALL_INPUTS = {
+            "profile": self.PROFILE_INPUTS["items"],
+            "make_graph": self.GRAPH_INPUTS["items"],
+            "get_matrix": self.MATRIX_INPUTS["items"],
+            "distance": self.DISTANCE_INPUTS["items"]
+        }
+
+        self.ALL_FEATURES = {
+            "profile": self.PROFILE_FEATURES["items"],
+            "make_graph": self.GRAPH_FEATURES["items"],
+            "get_matrix": self.MATRIX_FEATURES["items"],
+            "distance": self.DISTANCE_FEATURES["items"]
+        }
+
+
+        self.ALL_STEPS = {
+            "profile": self.PROFILE_STEPS["items"],
+            "make_graph": self.GRAPH_STEPS["items"],
+            "get_matrix": self.MATRIX_STEPS["items"],
+            "distance": self.DISTANCE_STEPS["items"]
+        }
+        
         # KMEANS_BANNER = """
         #                   name : kmeans
         #            description : 
@@ -596,202 +652,291 @@ class kmerdb_appmap:
         # Spacer
         sys.stderr.write(DNA_COLUMN_1)
 
+        sys.stderr.write(THREE_LINES)
+
     def print_graph_header(self):
 
         
         sys.stderr.write(self.GRAPH_BANNER)
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
         
         sys.stderr.write(yaml.dump(self.GRAPH_PARAMS))
         
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
         
         sys.stderr.write(yaml.dump(self.GRAPH_INPUTS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.GRAPH_FEATURES))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.GRAPH_STEPS))
+
+        # Spacer
+        sys.stderr.write(DNA_COLUMN_1)
+
+        sys.stderr.write(THREE_LINES)
+
 
     def print_profile_header(self):
         
         sys.stderr.write(self.PROFILE_BANNER)
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
             
         sys.stderr.write(yaml.dump(self.PROFILE_PARAMS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.PROFILE_INPUTS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.PROFILE_FEATURES))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.PROFILE_STEPS))
+
+        # Spacer
+        sys.stderr.write(DNA_COLUMN_1)
+        
+        sys.stderr.write(THREE_LINES)
+
 
     def print_matrix_header(self):
 
         sys.stderr.write(self.MATRIX_BANNER)
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.MATRIX_PARAMS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.MATRIX_INPUTS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.MATRIX_FEATURES))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.MATRIX_STEPS))
+
+        # Spacer
+        sys.stderr.write(DNA_COLUMN_1)
+
+        sys.stderr.write(THREE_LINES)
 
 
     def print_distance_header(self):
 
         sys.stderr.write(self.DISTANCE_BANNER)
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.DISTANCE_PARAMS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.DISTANCE_INPUTS))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.DISTANCE_FEATURES))
 
-        sys.stdedrr.write(THREE_LINES)
+        sys.stderr.write(THREE_LINES)
 
         sys.stderr.write(yaml.dump(self.DISTANCE_STEPS))
 
+        # Spacer
+        sys.stderr.write(DNA_COLUMN_1)
 
 
 
+
+
+
+
+
+    def print_github_block(self):
+
+
+
+        sys.stderr.write(THREE_LINES)
+        
+        sys.stderr.write(DNA_SPACER_1)
+
+        sys.stderr.write(THREE_LINES)
+
+        sys.stderr.write(GITHUB_LOGO)
+
+        sys.stderr.write(THREE_LINES)
+
+        sys.stderr.write(GITHUB_PROJECT_BANNER)
+
+        sys.stderr.write(PINNED_ISSUE)
+
+        sys.stderr.write(THREE_LINES)
+
+        sys.stderr.write(DNA_SPACER_1)
+
+        sys.stderr.write(THREE_LINES)
+
+        
+        
+
+    def exit_gracefully(self, e:Exception, subcommand:str=None, step:int=None, feature:int=None, logs:list=None, n_logs:int=None):
+        """
+        We need to handle exit gracefully. The 'step' and 'feature' categories/flags/ints are passed from __init__ or down its callstack to 
+        """
+        import traceback
+        
+
+        if e is None:
+            raise ValueError("Need an error to exit")
+        elif not isinstance(e, Exception):
+            raise ValueError("Need an error to exit")
+
+        
+        if n_logs is None or type(n_logs) is not int:
+            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument n_logs to be a int")
+        elif logs is None or type(logs) is not list:
+            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument logs to be a list")
+        elif feature is not None and type(feature) is not int:
+            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument feature to be a int")
+        elif step is not None and type(step) is not int:
+            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument step to be a int")
+        elif subcommand is not None and type(subcommand) is not str:
+            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument subcommand to be a str")
+
+
+
+        
+        N = len(logs) 
+        loggable_line = N
+        assert subcommand in config.subcommands, "Unknown subcommand"
+
+
+
+
+        
+
+        # This is the "Error blocks" metadata
+        exit_summary = OrderedDict({
+            "subcommand": subcommand,
+            "kmerdb-version": config.VERSION,
+            "python-version": config.REQUIRES_PYTHON,
+            "feature": feature,
+            "feature_name": self.ALL_FEATURES[subcommand][feature]["name"],
+            "feature_shortname": self.ALL_FEATURES[subcommand][feature]["shortname"],
+            "feature_description": self.ALL_FEATURES[subcommand][feature]["description"],
+            "step" : step,
+            "step_name": self.ALL_STEPS[subcommand][step]["name"],
+            "step_shortname": self.ALL_STEPS[subcommand][step]["shortname"],
+            "step_description": self.ALL_STEPS[subcommand][step]["description"],
+            # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
+            "log_file": self.logfile,
+            "traceback": str(traceback.extract_tb(e.__traceback__)),
+            "last_logged_line": loggable_line, 
+            "error": e.__str__(),
+        })
+
+
+        yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+        
+
+        try:
+            jsonschema.validate(instance=exit_summary, schema=config.exit_summary_schema)
+        except jsonschema.ValidationError as e:
+            sys.stderr.write("Failed to validate the exit summary. Internal Error.\n")
+            raise e
+                
+
+
+
+
+
+
+
+        self.print_github_block()
+
+        """
+        Print last n lines of log
+        """
+        for i in range(n_logs):
+
+            try:
+                if self._loggable:
+                    sys.stderr.write("{0} - last line of log\n".format(n_logs - i))
+                    self.logger.log_it(logs[i], "ERROR")
+                else:
+                    sys.stderr.write("{0} - last line of log\n".format(n_logs - i))
+                    sys.stderr.write(logs[i], "ERROR")
+            except Exception as e:
+                raise e
+                
+        sys.stderr.write("-" * 80 + "\n")
+        if self._loggable:
+            
+            self.logger.log_it("...displaying last {0} lines of the log. Please see '{1}' for more details...".format(n_logs, self.logfile), "ERROR")
+            self.logger.log_it(e.__str__())
+
+            sys.stderr.write(THREE_LINES)
+
+            sys.stderr.write(DNA_SPACER_1)
+
+            sys.stderr.write(THREE_LINES)
+
+            self.logger.log_it("="*40 + "\n", "ERROR")
+
+            self.logger.log_it(" "*20 + "ERROR: Program exit summary:\n", "ERROR")
+            
+            self.logger.log_it("="*40 + "\n", "ERROR")
+            
+            self.logger.log_it("\n" + yaml.dump(exit_summary), "ERROR")
+
+            self.logger.log_it("="*40 + "\n")
+
+            sys.stderr.write(THREE_LINES)
+            
+            
+        else:
+            sys.stderr.write("...displaying last {0} lines of the log. Please see '{1}' for more details...\n".format(n_logs, self.logfile))
+            sys.stderr.write(e.__str__())
+
+            sys.stderr.write(THREE_LINES)
+
+            sys.stderr.write(DNA_SPACER_1)
+
+            sys.stderr.write(THREE_LINES)
+
+            sys.stderr.write("="*40 + "\n\n")
+
+            sys.stderr.write(" "*20 + "ERROR: Program exit summary:\n\n")
+            
+            sys.stderr.write("="*40 + "\n")
+            
+            sys.stderr.write("\n" + yaml.dump(exit_summary) + "\n")
+
+            sys.stderr.write("="*40 + "\n")
+
+            sys.stderr.write(THREE_LINES)
+
+
+
+            
+        return exit_summary
 
 
 # #
 # #          logger and selected log lines
 # #
 
-
-# # LOGGER BANNER + SPACER
-
-
-
-
-# #               POST_LOG_HEADER
-# #
-
-# PROFILE_BANNER = """
-# =======================================================
-#                ||     p r o f i l e     ||
-# =======================================================
-#                     inputs  : 
-#                     outputs :
-#                  output_dir :
-#                     logfile :
-#               relevant_loc  :     # an hash of value: documentation strings and lines-of-code(loc) given a feature or error.
-#            relevant_issues  : 
-
-
-
-#                  parameters : {0}
-# -------------------------------------------------------
-
-# PARAMS_YAML:
-
-
-# parameters : [
-#  - param1 (DEFAULT: SOME_DEFAULT_VALUE, type=) : 
-#  - param2 (some_functionality)  :
-
-
-# -------------------------------------------------------
-
-# """
-# HEADER_BANNER =
-# VIEW_BANNER =
-# MATRIX_BANNER =
-# DISTANCE_BANNER =
-# GRAPH_BANNER = 
-# KMEANS_BANNER =
-# HIERARCHICAL_BANNER = 
-
-
-# # From usage-notes (include description
-# #
-# # parameters:
-# #      - (short), (long), type, description, examples, help 
-# #      - ...
-# #      -
-# #
-
-
-# # ISO-8601
-# RUNTIME
-
-
-# LOGFILE
-
-# EXIT_CODE
-
-# TRACEBACK
-
-# # caught exception
-# LOGGABLE_LINE
-
-
-# # 20, 50, 100, 200 -n
-# LAST_N_LINES_OF_LOG
-
-
-
-# METADATA # [metadata] via YAML representer, key indices, key/values, last program stage
-# METADATA_VALUES_DESCRIPTIONS # Just simple key-value descriptions
-
-
-# METADATA_SCHEMA_TXT # Use YAML representer...
-# METADATA_SCHEMA_DESCRIPTION # What the loops, maps, conditionals/branches, and data structure validation mean in this data structure, how it changes, where invalid scenarios may be involved, which test datasets to use and test command.
-# SCHEMA_COUNT = "                      schema count: {0}".format(schemas_count)
-
-
-# PROGRAM_STAGE_HEADER = """
-# ========================================================
-
-#            s t a g e : 1,2,3,...
-
-# ========================================================
-
-#              name     :
-#          description  :
-
-#                          LOREM IPSUM
-# """
-
-# TYPES_OF_ERRORS = """
-#               name: error1
-#       title   : something_descriptive_for_example
-#           description :
-
-#                  LOREM IPSUM
-
-#           related_issues : (N/A) 133, 132, 101
-#                  exit_codes : 1, 2, 3, ...etc.,
-# """
 
 
 

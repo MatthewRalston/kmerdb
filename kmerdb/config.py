@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.7.8"
+VERSION="0.8.0"
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -26,6 +26,9 @@ requirements_count = 8
 requirements_dev_count = 14 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
 
 subcommands = ["usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"] # kmeans and hierarchical and probability commands deprecated
+subcommand_functions = ("profile", "make_graph", "get_matrix", "index_file", "distances", "kmeans", "hierarchical",)
+default_logline_choices = (20, 50, 100, 200)
+KDB_COLUMN_NUMBER = 4
 
 
 
@@ -131,7 +134,27 @@ kdb_metadata_schema = {
 }
 
 
-
+exit_summary_schema = {
+    "type": "object",
+    "properties": {
+        "subcommand": {"type": "string"},
+        "kmerdb-version": {"type": "string"},
+        "python-version": {"type": "string"},
+        "feature": {"type": "number"},
+        "feature_name": {"type": "string"},
+        "feature_shortname": {"type": "string"},
+        "feature_description": {"type": "string"},
+        "step": {"type": "number"},
+        "step_name": {"type": "string"},
+        "step_shortname": {"type": "string"},
+        "step_description": {"type": "string"},
+        "log_file": {"type": "string"},
+        "traceback": {"type": "string"},
+        "last_logged_line": {"type": "number"},
+        "error": {"type": "string"},        
+    },
+    "required": ["subcommand", "kmerdb-version", "python-version", "feature", "feature_name", "feature_shortname", "feature_description", "step", "step_name", "step_shortname", "step_description", "traceback", "last_logged_line", "error", ]
+}
 
 
 
@@ -200,12 +223,12 @@ primary_output =                "NAME.K.kdbg"
 
 
 
-# pca_variance_fig_filepath = "PCA_variance_accumulation.png"
-# kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
-# kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
-# #ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
-# hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
-# spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
+pca_variance_fig_filepath = "PCA_variance_accumulation.png"
+kmeans_elbow_graph_fig_filepath = "kmeans_elbow_graph.png"
+kmeans_clustering_fig_filepath = "kmeans_clustering_of_kmer_profiles.png"
+#ecopy_rarefaction_fig_filepath = "ecopy_rarefaction_curve.png"
+hierarchical_clustering_dendrogram_fig_filepath = "dendrogram.png"
+spearman_upgma_tree_phy = "kdb_spearman_upgma_tree.phyloxml"
 # files = (pca_variance_fig_filepath, kmeans_elbow_graph_fig_filepath, kmeans_clustering_fig_filepath, ecopy_rarefaction_fig_filepath, hierarchical_clustering_dendrogram_fig_filepath)
 
 #######################################################
@@ -213,46 +236,6 @@ primary_output =                "NAME.K.kdbg"
 #          L o g o s
 
 #######################################################
-
-KMERDB_LOGO = """
- o-O      |||
-o---O     |||             [|[          kmerdb           ]|]
-O---o     |||
- O-o      |||        version :     v{0}
-  O       |||
- o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
-o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
-O---o     |||      Website   : https://matthewralston.github.io/kmerdb
- O-o      |||
-""".format(VERSION)
-
-GITHUB_LOGO = """
-.--------------------------------------------------.
-|                 .mmMMMMMMMMMMMMMmm.              |
-|             .mMMMMMMMMMMMMMMMMMMMMMMMm.          |
-|          .mMMMMMMMMMMMMMMMMMMMMMMMMMMMMMm.       |
-|        .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.     |
-|      .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.   |
-|     MMMMMMMM'  `"MMMMM"""""""MMMM""`  'MMMMMMMM  |
-|    MMMMMMMMM                           MMMMMMMMM |
-|   MMMMMMMMMM:                         :MMMMMMMMMM|
-|  .MMMMMMMMMM                           MMMMMMMMMM.
-|  MMMMMMMMM"                             "MMMMMMMMM
-|  MMMMMMMMM                               MMMMMMMMM
-|  MMMMMMMMM                               MMMMMMMMM
-|  MMMMMMMMMM                             MMMMMMMMMM
-|  `MMMMMMMMMM                           MMMMMMMMMMM
-|   MMMMMMMMMMMM.                     .MMMMMMMMMMMMM
-|    MMMMMM  MMMMMMMMMM         MMMMMMMMMMMMMMMMMMM|
-|     MMMMMM  'MMMMMMM           MMMMMMMMMMMMMMMM` |
-|      `MMMMMM  "MMMMM           MMMMMMMMMMMMMM`   |
-|        `MMMMMm                 MMMMMMMMMMMM`     |
-|          `"MMMMMMMMM           MMMMMMMMM"`       |
-|             `"MMMMMM           MMMMMM"`          |
-|                 `""M           M""`              |
-'--------------------------------------------------'
-"""
-
 
 
 
@@ -283,40 +266,6 @@ SPONGEBOB = """
 #          E n v i r o n m e n t
 
 #######################################################
-
-
-
-
-
-
-LANGUAGE = """
-
-
-                                                                      lang :         python
-                                                                         v :         v3.8.0
-                                                                             
-                                                                                      
-                                                                                     
-"""
-
-# A language specific version number
-#PYTHON_VERSION = """
-
-                                                               
-#"""
-
-# A package manager version
-PIP_VERSION = """
-                      package manger : pip
-                        version      : v24.0
-"""
-
-
-
-DEPENDENCY_COUNT = """
-                       dependencies  : {0}
-           development_dependencies  : {1}
-""".format(requirements_count, requirements_dev_count)
 
 
 
@@ -356,97 +305,6 @@ GITHUB_PROJECT_INFO = """
 
 
 
-
-
-
-
-
-#######################################################
-
-#          s p a c e r s
-
-#######################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-FIVE_LINES = """
-
-
-
-
-
-"""
-
-DNA_SPACER_1 = """
-=================================
-=================================
-
-
-O       o O       o O       o O
-| O   o | | O   o | | O   o | | O
-| | O | | | | O | | | | O | | | |
-| o   O | | o   O | | o   O | | o
-o       O o       O o       O O
-
-
-=================================
-"""
-
-DNA_SPACER_lol = """
-=================================
-=================================
-Carbon rules everything around me
-
-O       o O       o O       o O
-| O   o | | O   o | | O   o | | O
-| | O | | | | O | | | | O | | | |
-| o   O | | o   O | | o   O | | o
-o       O o       O o       O O
-
-
-=================================
-"""
-
-
-DNA_COLUMN_1 = """
-O---o
- O-o
-  O
- o-O
-o---O
-O---o
- O-o
-  O
- o-O
-o---O
-O---o
- O-o
-  O
- o-O
-o---O
-"""
-
-
-
-
-
-
-"""
-# "@->- -|>" ... (@->-)
-# "..., -|> ?"
-"""
-
-
 #######################################################
 
 #          F o o t e r s
@@ -480,7 +338,13 @@ conda_environment_validated? : CONDA_READY
 
 
 
+thanks = "\n\n\n" + "="*40 + """\n
 
+  kmerdb v{0}    -     view -h|--help (or usage subcommand) for detailed information.
+
+
+  please report any issues to https://github.com/MatthewRalston/kmerdb/issues and thanks.
+""".format(VERSION)
 
 
 
@@ -492,7 +356,7 @@ conda_environment_validated? : CONDA_READY
 #DONE = + usage + issue_tracker
 # Accept the citation notice with 'kmerdb citation'
 DONE = """
-DONE
+DONE\n
 """
 
 
