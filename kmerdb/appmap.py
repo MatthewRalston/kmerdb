@@ -138,7 +138,7 @@ GITHUB_PROJECT_BANNER = """
                   ||      G i t H u b     ||
 ==============================================================
                          Repo: kmerdb
-               Feature branch: graph_algo
+               Feature branch: interface
 
 Issue Tracker: https://github.com/MatthewRalston/kmerdb/issues
 -------------------------------------------------------
@@ -204,7 +204,7 @@ class kmerdb_appmap:
         
         self.PROFILE_BANNER = """
                           name : profile
-                   description : create a k-mer count vector. g-zipped and tallied.
+                   description : create a k-mer count vector. g-zipped/.bgzf
         """
 
         self.PROFILE_PARAMS = OrderedDict({
@@ -224,7 +224,7 @@ class kmerdb_appmap:
                 {
                     "name"  : "quiet",
                     "type"  : "flag",
-                    "value" : "Write additional debug level information to stderr?"
+                    "value" : "write additional debug level information to stderr?"
                 }
             ]
         })
@@ -241,7 +241,7 @@ class kmerdb_appmap:
                 {
                     "name"  : ".kdb",
                     "type"  : "file",
-                    "value" : "4 column table (row number, index number, k-mer id, count)."
+                    "value" : "K-mer count vector in a 4 column table (index number, k-mer id, count, and frequency)."
                 }
             ]
         })
@@ -252,14 +252,14 @@ class kmerdb_appmap:
             "type": "array",
             "items": [
                 OrderedDict({
-                    "name": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
+                    "name": "k-mer count array produced as sequences are read by sliding window approach. (Un)compressed support for .fa/.fq.",
                     "shortname": "parallel OOP sliding window k-mer shredding",
-                    "description": "a Reader class is instantiated, and invoked on every file, supporting message passing and output collation. The data are read sequentially, so a length N = 4^k array is populated from the k-mer counts in the file. A k-mer id and count are recorded in the .kdb file."
+                    "description": "N = 4^k count-vector from one or more sequence files. (index, k-mer id, count, and frequency [as float64])"
                 }),
                 OrderedDict({
                     "name": "k-mers are tallied, and metadata merged from the input files",
                     "shortname": "merge counts, metadata from across inputs",
-                    "description": "an final metadata structure and output metrics are collected for display to the user."
+                    "description": "a final metadata structure and output metrics are collected for display to the user."
                 })
 
             ]
@@ -299,7 +299,7 @@ class kmerdb_appmap:
 
         self.GRAPH_BANNER = """
                           name : graph
-                   description : create edge nodes in (block) .gz compressed format from .fasta or .fq format.
+                   description : create edge list in (block) .gz format from .fasta|.fa or .fastq format.
         """
 
         self.GRAPH_PARAMS = OrderedDict({
@@ -333,7 +333,7 @@ class kmerdb_appmap:
                 {
                     "name"  : ".kdbg",
                     "type"  : "file",
-                    "value" : "edge list."
+                    "value" : "Output edge list path."
                 }
             ]
         })
@@ -344,14 +344,14 @@ class kmerdb_appmap:
             "type": "array",
             "items": [
                 OrderedDict({
-                    "name": "k-mer id arrays organized linearly as file is read through sliding window. (Un)compressed support for .fa/.fq.",
-                    "shortname": "parallel OOP sliding window k-mer shredding",
-                    "description": "a Reader class is instantiated, and invoked on every file, supporting message passing and output collation. The data are read sequentially, so the possible edges for consideration are available by the identity of the k-mer and necessarily its 8 nearest neighbors. The appropriate pair observed in the dataset, and this pair is considered an 'edge' in the edge space constrained under k. It is added to the edge list by virtue of proximity in the file's base vector. In the case of secondary, tertiary, etc. sequences in the .fa or under massively parallel sequencing conditions (such as that by virtue of sequencing-by-synthesis) the offending edge is removed for the beginning and end of each sequence, and a warning is given to the user. Summary statistics for the entire file are given for each file read, as well as a cohesive structure, provided to the user before edge generation begins"
+                    "name": "k-mer count arrays, linear, produced as file is read through sliding window. (Un)compressed support for .fa/.fq.",
+                    "shortname": "parallel faux-OP sliding window k-mer shredding",
+                    "description": "Sequential k-mers from the input .fq|.fa files are added to the De Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics for the entire file are given for each file read, + a transparent data structure."
                 }),
                 OrderedDict({
-                    "name": "k-mer neighbors assessed and tallied, creates a unsorted edge list, weight weights",
+                    "name": "k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights",
                     "shortname": "weighted undirected graph",
-                    "description": "an edge list is generated from all k-mers in the forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers in the sequence data are added to the tally of the k-mer nodes of the de Bruijn graph and the edges provided by the data."
+                    "description": "an edge list of a De Bruijn graph is generated from all k-mers in the forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers in the sequence data are added to the tally of the k-mer nodes of the de Bruijn graph and the edges provided by the data."
                 })
             ]
         })
@@ -372,7 +372,7 @@ class kmerdb_appmap:
                     "description": "merge counts of nullomers, unique kmers, and total kmers."
                 }),
                 OrderedDict({
-                    "name": "collate the weighted edge list from graph.parsefile's Parser object during parallel file reading. This returns a edge_list, header, counts, and a nullomer_array.",
+                    "name": "collate the weighted edge lists after reading multiple files. Output data consists of a edge_list, analogous metadata-header as YAML, kmer_counts, and nullomer_ids.",
                     "shortname": "extract undirected weighted graph",
                     "description": "consists of info from a .kdb file and a .kdbg file. The node IDs, the edges, and the number of times the pair was observed from forward sequences in the provided dataset"
                 }),
@@ -398,7 +398,7 @@ class kmerdb_appmap:
                 {
                     "name" : "function",
                     "type": "parameter",
-                    "value" : "dimensionality reduction, DESeq2 normalization (via rpy2: assumes you have DESeq2 installed via Bioconductor [OPTIONAL DEPENDENCY]), (pass) no-transformation, or a k-mer Frequency matrix. [PCA, tSNE, DESeq2, pass, Frequency]",
+                    "value" : "dimensionality reduction, DESeq2 normalization (via rpy2, (pass) no-transformation, or a k-mer Frequency matrix. [PCA, tSNE, DESeq2, pass, Frequency]",
                 },
                 {
                     "name" : "n",
