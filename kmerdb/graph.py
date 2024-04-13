@@ -942,8 +942,8 @@ class KDBGReader(bgzf.BgzfReader):
         elif slurp is not None and type(slurp) is not bool:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'slurp' to be a bool")
 
-        if logger is None:
-            raise ValueError("graph.KDBGReader expects the keyword argument 'logger' to be valid")
+        # if logger is None:
+        #     raise ValueError("graph.KDBGReader expects the keyword argument 'logger' to be valid")
         
         """
 
@@ -975,6 +975,7 @@ class KDBGReader(bgzf.BgzfReader):
         self._block_raw_length = None
 
         self.logger = logger
+        self._loggable = logger is not None
         """
 
         np.array defs
@@ -995,12 +996,15 @@ class KDBGReader(bgzf.BgzfReader):
         self.read_and_validate_kdbg_header()
 
         if slurp is True:
-            self.logger.log_it("Reading .kdbg contents into memory", "INFO")
+            if self._loggable:
+                self.logger.log_it("Reading .kdbg contents into memory", "INFO")
             self.slurp(n1_dtype=n1_dtype, n2_dtype=n2_dtype, weights_dtype=weights_dtype)
 
         self.is_int = True
-        handle.close()
-        self._handle.close()
+        if handle is not None:
+            handle.close()
+        if self._handle is not None:
+            self._handle.close()
         self._handle = None
         handle = None
         fileobj=None
@@ -1018,7 +1022,8 @@ class KDBGReader(bgzf.BgzfReader):
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
         # 0th block
-        self.logger.log_it("Loading the 0th block from '{0}'...".format(self._filepath), "INFO")
+        if self._loggable:
+            self.logger.log_it("Loading the 0th block from '{0}'...".format(self._filepath), "INFO")
         self._load_block(self._handle.tell())
 
         self._buffer = self._buffer.rstrip(config.header_delimiter)
@@ -1029,10 +1034,11 @@ class KDBGReader(bgzf.BgzfReader):
         num_header_blocks = None
 
         if type(initial_header_data) is str:
-            self.logger.log_it("Inappropriate type for the header data.", "ERROR")
+            if self._loggable:
+                self.logger.log_it("Inappropriate type for the header data.", "ERROR")
             #logger.info("Um, what the heckin' is this in my metadata block?")
             raise TypeError("kmerdb.graph.KDBGReader could not parse the YAML formatted metadata in the first blocks of the file")
-        elif type(initial_header_data) is OrderedDict:
+        elif type(initial_header_data) is OrderedDict and self._loggable:
             self.logger.log_it("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata", "INFO")
             self.logger.log_it("Assuming YAML blocks until delimiter reached.", "INFO")
 
@@ -1047,19 +1053,23 @@ class KDBGReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.graph.KDBGReader couldn't validate the header YAML")
         elif "metadata_blocks" not in initial_header_data.keys():
             raise TypeError("kmerdb.graph.KDBGReader couldn't validate the header YAML")
-            
-        self.logger.log_it(initial_header_data, "INFO")
+
+        if self._loggable:
+            self.logger.log_it(initial_header_data, "INFO")
         
         if initial_header_data["metadata_blocks"] != 1:
-            self.logger.log_it("More than 1 metadata block: uhhhhh are we loading any additional blocks", "ERROR")
+            if self._loggable:
+                self.logger.log_it("More than 1 metadata block: uhhhhh are we loading any additional blocks", "ERROR")
             raise IOError("Cannot read more than 1 metadata block yet")
 
         for i in range(initial_header_data["metadata_blocks"] - 1):
-            self.logger.log_it("Multiple metadata blocks read, most likely from a composite edge-graph...", "WARNING")
+            if self._loggable:
+                self.logger.log_it("Multiple metadata blocks read, most likely from a composite edge-graph...", "WARNING")
             self._load_block(self._handle.tell())
             addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
             if type(addtl_header_data) is str:
-                self.logger.log_it(addtl_header_data, "ERROR")
+                if self._loggable:
+                    self.logger.log_it(str(addtl_header_data), "ERROR")
                 raise TypeError("kmerdb.graph.KDBGReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
             elif type(addtl_header_data) is dict:
                 sys.stderr.write("\r")
@@ -1067,13 +1077,14 @@ class KDBGReader(bgzf.BgzfReader):
                 initial_header_data.update(addtl_header_data)
                 num_header_blocks = i
             else:
-                self.logger.log_it(addtl_header_data, "ERROR")
+                if self._loggable:
+                    self.logger.log_it(str(addtl_header_data), "ERROR")
                 raise RuntimeError("kmerdb.graph.KDBGReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
 
         #raise RuntimeError("kmerdb.graph.KDBGReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
 
-    
-        self.logger.log_it("Validating the header YAML...", "INFO")
+        if self._loggable:
+            self.logger.log_it("Validating the header YAML...", "INFO")
 
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.graph_schema)
@@ -1086,7 +1097,8 @@ class KDBGReader(bgzf.BgzfReader):
             self.sorted = self.metadata["sorted"]
 
         except jsonschema.ValidationError as e:
-            self.logger.log_it("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
+            if self._loggable:
+                self.logger.log_it("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
             raise e
         self.metadata["header_offset"] = self._handle.tell()
         #logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
@@ -1168,10 +1180,12 @@ class KDBGReader(bgzf.BgzfReader):
                 line = next(self)
 
             except StopIteration as e:
-                self.logger.log_it("Finished loading .kdbg through slurp (on init)", "ERROR")
+                if self._loggable:
+                    self.logger.log_it("Finished loading .kdbg through slurp (on init)", "ERROR")
                 raise e
             if line is None:
-                self.logger.log_it("'next' returned None. Panic", "WARNING")
+                if self._loggable:
+                    self.logger.log_it("'next' returned None. Panic", "WARNING")
 
                 raise RuntimeError("kmerdb.graph.KDBGReader.slurp Panicked on new line")
 
