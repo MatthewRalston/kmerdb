@@ -644,6 +644,10 @@ class kmerdb_appmap:
         
 
     def print_program_header(self):
+        """
+        Only used in 'usage' method. Spacer at bottom is permissible because this may be used externally to usage.
+        """
+        
         sys.stderr.write(PROGRAM_BANNER)
         sys.stderr.write(INTERPRETER)
         sys.stderr.write(self.VERSION_HARDCODED)
@@ -655,7 +659,12 @@ class kmerdb_appmap:
         sys.stderr.write(THREE_LINES)
 
     def print_graph_header(self):
+        """
+        'kmerdb usage graph'
 
+        Writes input files, parameters, steps, and features as verbose --help on the parameters effects on the runtime.
+
+        """
         
         sys.stderr.write(self.GRAPH_BANNER)
 
@@ -675,14 +684,15 @@ class kmerdb_appmap:
 
         sys.stderr.write(yaml.dump(self.GRAPH_STEPS))
 
-        # Spacer
-        sys.stderr.write(DNA_COLUMN_1)
-
-        sys.stderr.write(THREE_LINES)
 
 
     def print_profile_header(self):
-        
+        """
+        'kmerdb usage profile'
+
+        Writes input files, parameters, steps, and features as verbose --help on the parameters effects on the runtime.
+
+        """
         sys.stderr.write(self.PROFILE_BANNER)
 
         sys.stderr.write(THREE_LINES)
@@ -701,13 +711,15 @@ class kmerdb_appmap:
 
         sys.stderr.write(yaml.dump(self.PROFILE_STEPS))
 
-        # Spacer
-        sys.stderr.write(DNA_COLUMN_1)
-        
-        sys.stderr.write(THREE_LINES)
 
 
     def print_matrix_header(self):
+        """
+        'kmerdb usage matrix'
+
+
+        Writes input files, parameters, steps, and features as verbose --help on the parameters effects on the runtime.
+        """
 
         sys.stderr.write(self.MATRIX_BANNER)
 
@@ -727,13 +739,14 @@ class kmerdb_appmap:
 
         sys.stderr.write(yaml.dump(self.MATRIX_STEPS))
 
-        # Spacer
-        sys.stderr.write(DNA_COLUMN_1)
-
-        sys.stderr.write(THREE_LINES)
-
 
     def print_distance_header(self):
+        """
+
+        'kmerdb usage distance'
+
+        Writes input files, parameters, steps, and features as verbose --help on the parameters effects on the runtime.
+        """
 
         sys.stderr.write(self.DISTANCE_BANNER)
 
@@ -753,18 +766,12 @@ class kmerdb_appmap:
 
         sys.stderr.write(yaml.dump(self.DISTANCE_STEPS))
 
-        # Spacer
-        sys.stderr.write(DNA_COLUMN_1)
-
-
-
-
-
-
 
 
     def print_github_block(self):
-
+        """
+        Github repo block. May be useful to some users when browsing logilfe.
+        """
 
 
         sys.stderr.write(THREE_LINES)
