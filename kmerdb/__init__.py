@@ -2149,7 +2149,7 @@ def cli():
 
 
     usage_parser = subparsers.add_parser("usage", help="provide expanded usage information on parameters and functions provided")
-    usage_parser.add_argument("-m", "--method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), required=True, help="Print expanded usage statement")
+    usage_parser.add_argument("method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), help="Print expanded usage statement")
     usage_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     usage_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     usage_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
