@@ -6,6 +6,12 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* DONE 4/12/24 - 0.8.0 release (see release 0.8.0 on github) and README+
+  CLOSED: [2024-04-12 Fri 22:32]
+
+** DONE tested, pushed, pull request merged, readme changes made on interface, merged.
+   CLOSED: [2024-04-12 Fri 22:32]
+
 * 4/10/24 - interface cont.
 ** sys.stderr vs logger.log_it(... , "LEVEL")
 *** VERIFY kmer.py

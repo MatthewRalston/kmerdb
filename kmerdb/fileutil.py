@@ -265,8 +265,8 @@ class KDBReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'frequencies_dtype' to be a str")
         elif slurp is None or type(slurp) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'slurp' to be a bool")
-        elif logger is None:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'logger' to be valid")
+        # elif logger is None:
+        #     raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'logger' to be valid")
 
         
         
