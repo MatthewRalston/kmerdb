@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.0"
+VERSION="0.8.1"
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 

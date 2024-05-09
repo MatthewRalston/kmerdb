@@ -1099,7 +1099,28 @@ class KDBGReader(bgzf.BgzfReader):
         except jsonschema.ValidationError as e:
             if self._loggable:
                 self.logger.log_it("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
-            raise e
+
+                self.logger.log_it("""
+
+
+Failed to validate YAML header.
+
+-------------------------------
+
+
+
+ You can store unique k-mer counts, total nullomer counts, and other metadata alongside the weighted edge list with the 'kmerdb graph' command
+
+
+ ...then try again to view the header with 'kmerdb header'
+
+
+
+""", "ERROR")
+
+                
+                self.logger.log_it(e.__str__, "ERROR")
+            raise ValueError("Requires kmerdb v{0} format YAML header. Body is .tsv format table, .bgzf file.       - weighted edge list        (idx, node1, node2, weight)")
         self.metadata["header_offset"] = self._handle.tell()
         #logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
         #self._reader = gzip.open(self._filepath, 'r')
