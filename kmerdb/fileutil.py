@@ -38,7 +38,7 @@ from Bio import SeqIO, bgzf
 
 #sys.path.append('..')
 
-from kmerdb import kmer, util, config
+from kmerdb import kmer, util, config, appmap
 
 # Logging configuration
 global logger
@@ -377,8 +377,35 @@ class KDBReader(bgzf.BgzfReader):
             self.counts = np.zeros(4**self.metadata["k"], dtype=self.metadata["count_dtype"])
             self.frequencies = np.zeros(4**self.metadata["k"], dtype=self.metadata["frequencies_dtype"])
         except jsonschema.ValidationError as e:
-            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks))
-            raise e
+            if self._loggable:
+                self.logger.log_it("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
+                self.logger.log_it("""
+
+
+Failed to validate YAML header.
+
+-------------------------------
+
+
+
+ You can store unique k-mer counts, total nullomer counts, and other metadata alongside a k-mer count vector with the 'kmerdb profile' command
+
+
+
+{0}
+
+ ...then try again to view the header with 'kmerdb header' or the whole file : 'kmerdb view -H kmer_count_vector.12.kdb'
+
+
+
+""".format(appmap.command_1_usage, "ERROR")
+
+                self.logger.log_it(e.__str__, "ERROR")
+            raise ValueError("Requires kmerdb v{0} format YAML header. Body is .tsv format table, .bgzf file.      - k-mer count vector        (idx, k-mer id, count, frequency)".format(config.VERSION))
+
+            
+
+
         self.metadata["header_offset"] = self._handle.tell()
         if self._loggable:
             self.logger.log_it("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]), "DEBUG")

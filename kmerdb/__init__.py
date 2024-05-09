@@ -63,16 +63,17 @@ def print_argv():
     argv = sys.argv
     sys.stderr.write(" ".join(argv[0:4]) + " ...\n")
 
-def citation():
+def citation(arguments):
 
     MODULE_ROOT = os.path.dirname(__file__)
     citation_file = os.path.join(MODULE_ROOT,  'CITATION.txt')
     if os.access(citation_file, os.R_OK):
-        with open(citation_file, 'w') as cit_file:
-            cit_file.write("")
 
-    sys.stderr.write("On the real, we gotta eat.")
-    sys.stderr.write("Consider a +1 on Github to keep it real...")
+        sys.stderr.write("Removing '{0}'\n".format(citation_file))
+        os.remove(citation_file)
+
+    sys.stderr.write("On the real, gotta eat.\n")
+    sys.stderr.write("Consider a +1 on Github to keep it real...\n\n")
 
 def index_file(arguments):
     from kmerdb import fileutil, index
@@ -1110,11 +1111,12 @@ def header(arguments):
     if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
         raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
     elif not os.path.exists(arguments.kdb):
-        raise IOError("Viewable .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
+        raise IOError("Input .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
 
     if sfx == ".kdb":
         kdb = fileutil.open(arguments.kdb, mode='r', sort=arguments.re_sort, slurp=True)
         metadata = kdb.metadata
+            
         kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
         if metadata["version"] != config.VERSION:
@@ -1129,9 +1131,13 @@ def header(arguments):
         if kdb.metadata["version"] != config.VERSION:
             logger.log_it(".kdb file version is out of date, may be incompatible with current fileutil.KDBReader class", "WARNING")
 
+
+            
         N = 4**kdb.metadata["k"]
         metadata = kdb.metadata
 
+    else:
+        raise ValueError("Input to 'kmerdb header' is a .kdb or .kdbg (gzipped .tsv) file of a count vector or a graph. Requires YAML metadata header.Try creating a k-mer count profile with 'kmerdb profile' or edge list with 'kmerdb graph'")
     if arguments.json:
         print(dict(kdb.metadata))
     else:
@@ -1194,6 +1200,8 @@ def view(arguments):
     if sfx == ".kdb":
         with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
             metadata = kdb_in.metadata
+
+            
             kmer_ids_dtype = metadata["kmer_ids_dtype"]
             N = 4**metadata["k"]
             if metadata["version"] != config.VERSION:
@@ -1297,6 +1305,8 @@ def view(arguments):
         kdbg_in = graph.open(arguments.kdb_in, mode='r', slurp=True)
         metadata = kdbg_in.metadata
 
+        
+
         n1_dtype      = metadata["n1_dtype"]
         n2_dtype      = metadata["n2_dtype"]
         weights_dtype = metadata["weights_dtype"]
@@ -1366,8 +1376,10 @@ def view(arguments):
                         #kdb_out._handle.flush()
                         #kdb_out._handle.close()
                         sys.stderr.write(config.DONE)
+    else:
+        raise ValueError("Input files in kmerdb are tab delimited .csv files, either a count vector or a edge list (block gzip compression). Requires a YAML metadata header. Try making a k-mer count profile/vector with 'kmerdb profile -k 12 <input_1.fa>' ")
 
-
+            
 def assembly(arguments):
     from kmerdb import graph
 
@@ -2049,11 +2061,13 @@ def citation_info():
             sys.stderr.write(citation + "\n\n\n")
             sys.stderr.write("Run 'kmerdb citation' to silence.\n")
     else:
-        raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
+        sys.stderr.write("Thanks for using/citing kmerdb")
+    # else:
+    #     raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
 
 def get_program_header(arguments):
-    import appmap.py
+    import appmap
     import sys
 
 
@@ -2071,7 +2085,7 @@ def cli():
 
     import sys
 
-    from kmerdb import config
+    from kmerdb import config, appmap
 
     
     argv = sys.argv
@@ -2097,7 +2111,7 @@ def cli():
     subparsers = parser.add_subparsers(help="Use --help with sub-commands")
 
 
-    profile_parser = subparsers.add_parser("profile", help="Parse data into the database from one or more sequence files")
+    profile_parser = subparsers.add_parser("profile", help=appmap.command_1_description)
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
 
     profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
@@ -2122,7 +2136,7 @@ def cli():
     profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
-    graph_parser = subparsers.add_parser("graph", help="Generate an adjacency list from .fa/.fq files")
+    graph_parser = subparsers.add_parser("graph", help=appmap.command_2_description)
     graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
 
     graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
@@ -2165,10 +2179,11 @@ def cli():
     help_parser.set_defaults(func=expanded_help)
     
     
-    view_parser = subparsers.add_parser("view", help="View the contents of the .kdb file")
+    view_parser = subparsers.add_parser("view", help="View the contents of the .kdb or .kdbg file")
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     view_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    view_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     view_parser.add_argument("-H", "--header", action="store_true", help="Include header in the output")
     view_parser.add_argument("--re-sort", action="store_true", help="Sort the k-mer profile before displaying") # FIXME
     view_parser.add_argument("--un-sort", action="store_true", help="Unsort the k-mer profile before displaying") # FIXME 
@@ -2179,16 +2194,17 @@ def cli():
     view_parser.add_argument("kdb_out", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be written to (Optional)")
     view_parser.set_defaults(func=view)
 
-    header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb file and exit")
+    header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb or .kdbg file and exit")
     header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     header_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     header_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    header_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     header_parser.add_argument("-j", "--json", help="Print as JSON. DEFAULT: YAML")
     header_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     header_parser.set_defaults(func=header)
 
 
-    matrix_parser = subparsers.add_parser("matrix", help="Generate a reduced-dimensionality matrix of the 4^k * n (k-mers x samples) data matrix.")
+    matrix_parser = subparsers.add_parser("matrix", help=appmap.command_3_description)
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     matrix_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
@@ -2219,11 +2235,11 @@ def cli():
     # rarefy_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default=None, help="THe output csv/tsv of rarefied data")
     # rarefy_parser.set_defaults(func=rarefy)
 
-    kmeans_parser = subparsers.add_parser("kmeans", help="Cluster the files according to their k-mer profile")
+    kmeans_parser = subparsers.add_parser("kmeans", help=appmap.command_7_description)
     kmeans_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     kmeans_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
-    kmeans_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     kmeans_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
+    kmeans_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     kmeans_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter of the input csv/tsv to parse, presumably produced by 'kdb matrix'.")
     kmeans_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write.")
     kmeans_parser.add_argument("--distance", type=str, default='e', choices=['e', 'b', 'c', 'a', 'u', 'x', 's', 'k'], help="Different distance metrics offered by kcluster. It is highly advised that you check both this source and their documentation to see how this is implemented.")
@@ -2235,17 +2251,18 @@ def cli():
     kmeans_parser.add_argument("method", choices=["sklearn", "Biopython"], default="Biopython", help="The Python implementation of k-means to use. The Biopython method is selected for access to alternative distance metrics")
     kmeans_parser.set_defaults(func=kmeans)
 
-    hierarchical_parser = subparsers.add_parser("hierarchical", help="Use scipy.cluster.hierarchy to generate a dendrogram from a distance matrix")
+    hierarchical_parser = subparsers.add_parser("hierarchical", help=appmap.command_8_description)
     hierarchical_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     hierarchical_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
-    hierarchical_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     hierarchical_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
+    hierarchical_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
+
     hierarchical_parser.add_argument("-d", "--delimiter", type=str, default="\t", help="The delimiter to use when reading the csv.")
     hierarchical_parser.add_argument("-i", "--input", type=argparse.FileType("r"), default=None, help="The input distance matrix for hierarchical clustering")
-    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["single", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting in R to use")
+    hierarchical_parser.add_argument("-m", "--method", type=str, choices=["single", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting to use")
     hierarchical_parser.set_defaults(func=hierarchical)
     
-    dist_parser = subparsers.add_parser("distance", help="Calculate various distance metrics between profiles")
+    dist_parser = subparsers.add_parser("distance", help=appmap.command_4_description)
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     dist_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     dist_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")        
@@ -2285,7 +2302,7 @@ def cli():
     dist_parser.set_defaults(func=distances)
 
 
-    index_parser = subparsers.add_parser("index", help="Create a index file that can be held in memory")
+    index_parser = subparsers.add_parser("index", help=appmap.command_9_description)
     index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     index_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     index_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
@@ -2293,7 +2310,7 @@ def cli():
     index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     index_parser.set_defaults(func=index_file)
 
-    shuf_parser = subparsers.add_parser("shuf", help="Create a shuffled .kdb file")
+    shuf_parser = subparsers.add_parser("shuf", help=appmap.command_10_description)
     shuf_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     shuf_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     shuf_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
@@ -2322,8 +2339,9 @@ def cli():
     citation_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     citation_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     citation_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    citation_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     citation_parser.set_defaults(func=citation)
-    
+
     args=parser.parse_args()
     global logger
     global exit_code
