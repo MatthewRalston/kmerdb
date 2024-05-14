@@ -215,7 +215,6 @@ def distances(arguments):
 
 
 
-
     global feature
     global step
 
@@ -335,7 +334,13 @@ def distances(arguments):
         profiles = np.array(df)
         #profiles = np.transpose(np.array(df))
         columns = list(df.columns)
-        assert profiles.shape[0] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
+
+
+
+        # profiles.shape = [row number, column number]
+        #
+        
+        assert profiles.shape[1] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
         n = len(columns)
 
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
@@ -346,8 +351,11 @@ def distances(arguments):
         try:
             df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
-            logger.log_it(e, "ERROR")
             logger.log_it("Pandas error on DataFrame reading. Perhaps a null dataset being read?", "ERROR")
+            raise e
+        except FileNotFoundError as e:
+            logger.log_it(e.__str__(), "ERROR")
+            logger.log_it("Input file not found", "ERROR")
             raise e
         #profiles = np.transpose(np.array(df))
         profiles = np.array(df)
@@ -767,11 +775,11 @@ def get_matrix(arguments):
             pca = PCA(n_components=arguments.n)
             pca.fit(np.transpose(df))
             sys.stderr.write("\n\n\n")
-            sys.stderr.write("-"*30)
+            sys.stderr.write("-"*30+ "\n")
             
             sys.stderr.write("Explained variances: {0}\n".format(pca.explained_variance_ratio_))
-            sys.stderr.write("Log-likelihoods: {0}\n".format(pca.score_samples(normalized)))
-            sys.stderr.write("Log-likelihood of all samples: {0}\n".format(pca.score(normalized)))
+            sys.stderr.write("Log-likelihoods: {0}\n".format(pca.score_samples(np.transpose(df))))
+            sys.stderr.write("Log-likelihood of all samples: {0}\n".format(pca.score(np.transpose(df))))
             sys.stderr.write("MLE estimate of components for dimensionality reduction produced this shape: {0}\n".format(pca.components_.shape))
 
             score_matrix = pca.transform(np.transpose(df))
@@ -1107,14 +1115,14 @@ def header(arguments):
 
     sfx = os.path.splitext(arguments.kdb)[-1]
     metadata = None
-    
+
     if sfx != ".kdb" and sfx != ".kdbg": # A filepath with invalid suffix
         raise IOError("Viewable .kdb(g) filepath does not end in '.kdb' or '.kdbg'")
     elif not os.path.exists(arguments.kdb):
         raise IOError("Input .kdb(g) filepath '{0}' does not exist on the filesystem".format(arguments.kdb_in))
 
     if sfx == ".kdb":
-        kdb = fileutil.open(arguments.kdb, mode='r', sort=arguments.re_sort, slurp=True)
+        kdb = fileutil.open(arguments.kdb, mode='r', sort=False, slurp=False)
         metadata = kdb.metadata
             
         kmer_ids_dtype = metadata["kmer_ids_dtype"]
@@ -1127,7 +1135,7 @@ def header(arguments):
         assert kdb.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
         metadata = kdb.metadata
     elif sfx == ".kdbg":
-        kdb = graph.open(arguments.kdb, mode='r')
+        kdb = graph.open(arguments.kdb, mode='r', slurp=False)
         if kdb.metadata["version"] != config.VERSION:
             logger.log_it(".kdb file version is out of date, may be incompatible with current fileutil.KDBReader class", "WARNING")
 
@@ -1138,6 +1146,7 @@ def header(arguments):
 
     else:
         raise ValueError("Input to 'kmerdb header' is a .kdb or .kdbg (gzipped .tsv) file of a count vector or a graph. Requires YAML metadata header.Try creating a k-mer count profile with 'kmerdb profile' or edge list with 'kmerdb graph'")
+
     if arguments.json:
         print(dict(kdb.metadata))
     else:
@@ -1208,7 +1217,7 @@ def view(arguments):
                 logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
             if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
                 if arguments.header:
-                    yaml.add_representer(OrderedDict, util.represent_ordereddict)
+                    yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
                     print(yaml.dump(metadata, sort_keys=False))
                     print(config.header_delimiter)
             logger.log_it("Reading from file...", "INFO")
@@ -1953,14 +1962,14 @@ def profile(arguments):
 
         raise TypeError("Incorrect dtype.")
 
-    logger.log_it("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers), "ERROR")
+    logger.log_it("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers), "DEBUG")
     
     kmer_ids = np.array(range(N), dtype=metadata["kmer_ids_dtype"])
     profile = np.array(range(N), dtype=metadata["profile_dtype"])
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
     
-    logger.log_it("Initialization of profile completed, using approximately {0} bytes per profile".format(counts.nbytes), "INFO")
+    logger.log_it("Initialization of profile completed, using approximately {0} bytes for profile".format(counts.nbytes), "INFO")
     
     yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
@@ -2061,7 +2070,7 @@ def citation_info():
             sys.stderr.write(citation + "\n\n\n")
             sys.stderr.write("Run 'kmerdb citation' to silence.\n")
     else:
-        sys.stderr.write("Thanks for using/citing kmerdb")
+        sys.stderr.write("Thanks for using/citing kmerdb\n")
     # else:
     #     raise IOError("Cannot locate the extra package data file 'kmerdb/CITATION', which should have been distributed with the program")
 
@@ -2343,6 +2352,7 @@ def cli():
     citation_parser.set_defaults(func=citation)
 
     args=parser.parse_args()
+    
     global logger
     global exit_code
 
@@ -2381,32 +2391,36 @@ def cli():
     kmerdb_appmap = appmap.kmerdb_appmap( argv , logger )
     kmerdb_appmap.print_program_header()
 
-    sys.stderr.write("Beginning program...\n")
 
+
+    
+    sys.stderr.write("Beginning program...\n")
 
     if args.debug is True:
         args.func(args)
     else:
+        logger.log_it("Running with error summary feature enabled, bypass with --debug for vague/invalid exceptions", "DEBUG")
+        
         try:
-
             args.func(args)
+            
             exit_code = 0
 
         except TypeError as e:
-
-            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, traceback=traceback, step=step, feature=feature, logs=logger.logs, n_logs=args["n_logs"])
+            
+            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             exit_code = 1
         
             raise e
         except ValueError as e:
         
-            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, traceback=traceback, step=step, feature=feature, logs=logger.logs, n_logs=args["n_logs"])
+            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             exit_code = 2
         
             raise e
         except KeyError as e:
         
-            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, traceback=traceback, step=step, feature=feature, logs=logger.logs, n_logs=args["n_logs"])
+            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             exit_code = 3
         
             raise e
@@ -2423,16 +2437,23 @@ def cli():
         
             raise e
         except ArgumentError as e:
-        
+
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             exit_code = 6
         
             raise e
         except AssertionError as e:
-        
+
+            print("CAUGHT ASSERTION ERROR")
+            
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             exit_code = 7
         
+            raise e
+        except FileNotFoundError as e:
+            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
+            
+            exit_code = 8
             raise e
         except Exception as e:
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
@@ -2440,7 +2461,6 @@ def cli():
         
             raise e
         finally:
-
             sys.stderr.write("Program ran for {0} seconds...\n\n\n".format(time.time() - start))
             sys.stderr.write(config.thanks)
             sys.stderr.write(config.DONE)

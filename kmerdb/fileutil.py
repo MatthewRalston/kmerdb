@@ -398,7 +398,7 @@ Failed to validate YAML header.
 
 
 
-""".format(appmap.command_1_usage, "ERROR")
+""".format(appmap.command_1_usage, "ERROR"))
 
                 self.logger.log_it(e.__str__, "ERROR")
             raise ValueError("Requires kmerdb v{0} format YAML header. Body is .tsv format table, .bgzf file.      - k-mer count vector        (idx, k-mer id, count, frequency)".format(config.VERSION))

@@ -17,16 +17,18 @@
 
 
 
-VERSION="0.8.1"
+VERSION="0.8.2"
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 
-requirements_count = 8
-requirements_dev_count = 14 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
+requirements_count = 9
+requirements_dev_count = 9 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
 
 subcommands = ["usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"] # kmeans and hierarchical and probability commands deprecated
-subcommand_functions = ("profile", "make_graph", "get_matrix", "index_file", "distances", "kmeans", "hierarchical",)
+subcommand_functions = ["expanded_help", "profile", "make_graph", "get_matrix", "index_file", "shuf", "get_matrix", "distances"]
+
+#subcommand_functions = ("profile", "make_graph", "get_matrix", "index_file", "distances", "kmeans", "hierarchical",)
 default_logline_choices = (20, 50, 100, 200)
 KDB_COLUMN_NUMBER = 4
 
@@ -150,10 +152,11 @@ exit_summary_schema = {
         "step_description": {"type": "string"},
         "log_file": {"type": "string"},
         "traceback": {"type": "string"},
-        "last_logged_line": {"type": "number"},
+        "error_file_name": {"type": "string"},
+        "error_line_number": {"type": "number"},
         "error": {"type": "string"},        
     },
-    "required": ["subcommand", "kmerdb-version", "python-version", "feature", "feature_name", "feature_shortname", "feature_description", "step", "step_name", "step_shortname", "step_description", "traceback", "last_logged_line", "error", ]
+    "required": ["subcommand", "kmerdb-version", "python-version", "feature", "feature_name", "feature_shortname", "feature_description", "step", "step_name", "step_shortname", "step_description", "traceback", "error_file_name", "error_line_number", "error", ]
 }
 
 
