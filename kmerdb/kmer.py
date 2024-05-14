@@ -479,13 +479,14 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
 
 #         )
 
-        sys.stderr.write("kmerdb.kmer.neighbors creating neighbors for k-mer {0} : '{1}'...".format(kmer_id, kmer) + "\n")
-        sys.stderr.write(" ========================\n\n")
-        sys.stderr.write(", ".join(list(map(str, new_type1_ids))) + "\n")
-        sys.stderr.write(", ".join(list(map(str, new_type2_ids))) + "\n\n")
-        sys.stderr.write(" ------------------------\n\n")
         
         if quiet is not True:
+            sys.stderr.write("kmerdb.kmer.neighbors creating neighbors for k-mer {0} : '{1}'...".format(kmer_id, kmer) + "\n")
+            sys.stderr.write(" ========================\n\n")
+            sys.stderr.write(", ".join(list(map(str, new_type1_ids))) + "\n")
+            sys.stderr.write(", ".join(list(map(str, new_type2_ids))) + "\n\n")
+            sys.stderr.write(" ------------------------\n\n")
+
             sys.stderr.write("""
         k-id : {0}
         kmer : \"    {1}        \"

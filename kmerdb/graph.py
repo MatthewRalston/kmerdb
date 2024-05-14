@@ -594,8 +594,11 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
             pair_ids = tuple(map(kmer.kmer_to_id, pair))
             
             common_seq = current_kmer[1:]
-            sys.stderr.write("Kmer_id: = kmer_ids[i]     =        {0}\n".format(current_kmer_id))
-            sys.stderr.write(" -----pair: = '{0}'  <-> '{1}'\n".format(pair[0], pair[1]))
+
+
+            if quiet is False:
+                sys.stderr.write("Kmer_id: = kmer_ids[i]     =        {0}\n".format(current_kmer_id))
+                sys.stderr.write(" -----pair: = '{0}'  <-> '{1}'\n".format(pair[0], pair[1]))
             all_edges_in_kspace[pair_ids] = 0
             # Create the neighbor lists from the list of chars, prepended or appended to the k-mer suffix/prefix
             """
@@ -729,9 +732,10 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
             p2str = str(pair_ids[1])
             p1str = p1str + (maxlen - len(p1str))*" "
             p2str = p2str + (maxlen - len(p2str))*" "
-            
-            sys.stderr.write("k-mer 'pair' ({0}, {1}) adjacency from input file(s) verified".format(p1str, p2str))
-            sys.stderr.write("\r")
+
+            if quiet is False:
+                sys.stderr.write("k-mer 'pair' ({0}, {1}) adjacency from input file(s) verified".format(p1str, p2str))
+                sys.stderr.write("\r")
             continue
 
 
