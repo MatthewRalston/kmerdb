@@ -1870,12 +1870,69 @@ COMMAND_10_STEPS = OrderedDict({
 
 })
 
+ALL_PARAMS = {
+    "profile": COMMAND_1_PARAMS["items"],
+    "make_graph": COMMAND_2_PARAMS["items"],
+    "get_matrix": COMMAND_3_PARAMS["items"],
+    "distance": COMMAND_4_PARAMS["items"],
+    "view": COMMAND_5_PARAMS["items"],
+    "header": COMMAND_6_PARAMS["items"],
+    "kmeans": COMMAND_7_PARAMS["items"],
+    "hierarchical": COMMAND_8_PARAMS["items"],
+    "index": COMMAND_9_PARAMS["items"],
+    "shuf": COMMAND_10_PARAMS["items"]
 
-class kmerdb_appmap:
+}
+
+ALL_INPUTS = {
+    "profile": COMMAND_1_INPUTS["items"],
+    "make_graph": COMMAND_2_INPUTS["items"],
+    "get_matrix": COMMAND_3_INPUTS["items"],
+    "distance": COMMAND_4_INPUTS["items"],
+    "view": COMMAND_5_INPUTS["items"],
+    "header": COMMAND_6_INPUTS["items"],
+    "kmeans": COMMAND_7_INPUTS["items"],
+    "hierarchical": COMMAND_8_INPUTS["items"],
+    "index": COMMAND_9_INPUTS["items"],
+    "shuf": COMMAND_10_INPUTS["items"]
+}
+
+ALL_FEATURES = {
+    "profile": COMMAND_1_FEATURES["items"],
+    "make_graph": COMMAND_2_FEATURES["items"],
+    "get_matrix": COMMAND_3_FEATURES["items"],
+    "distances": COMMAND_4_FEATURES["items"],
+    "view": COMMAND_5_FEATURES["items"],
+    "header": COMMAND_6_FEATURES["items"],
+    "kmeans": COMMAND_7_FEATURES["items"],
+    "hierarchical": COMMAND_8_FEATURES["items"],
+    "index": COMMAND_9_FEATURES["items"],
+    "shuf": COMMAND_10_FEATURES["items"]
+
+
+}
+
+
+ALL_STEPS = {
+
+    "profile": COMMAND_1_STEPS["items"],
+    "make_graph": COMMAND_2_STEPS["items"],
+    "get_matrix": COMMAND_3_STEPS["items"],
+    "distances": COMMAND_4_STEPS["items"],
+    "view": COMMAND_5_STEPS["items"],
+    "header": COMMAND_6_STEPS["items"],
+    "kmeans": COMMAND_7_STEPS["items"],
+    "hierarchical": COMMAND_8_STEPS["items"],
+    "index": COMMAND_9_STEPS["items"],
+    "shuf": COMMAND_10_STEPS["items"]
+}
+
 
 
 
         
+class kmerdb_appmap:
+
 
 
     
@@ -1928,62 +1985,6 @@ class kmerdb_appmap:
         
 
 
-        self.ALL_PARAMS = {
-            "profile": COMMAND_1_PARAMS["items"],
-            "make_graph": COMMAND_2_PARAMS["items"],
-            "get_matrix": COMMAND_3_PARAMS["items"],
-            "distance": COMMAND_4_PARAMS["items"],
-            "view": COMMAND_5_PARAMS["items"],
-            "header": COMMAND_6_PARAMS["items"],
-            "kmeans": COMMAND_7_PARAMS["items"],
-            "hierarchical": COMMAND_8_PARAMS["items"],
-            "index": COMMAND_9_PARAMS["items"],
-            "shuf": COMMAND_10_PARAMS["items"]
-
-        }
-
-        ALL_INPUTS = {
-            "profile": COMMAND_1_INPUTS["items"],
-            "make_graph": COMMAND_2_INPUTS["items"],
-            "get_matrix": COMMAND_3_INPUTS["items"],
-            "distance": COMMAND_4_INPUTS["items"],
-            "view": COMMAND_5_INPUTS["items"],
-            "header": COMMAND_6_INPUTS["items"],
-            "kmeans": COMMAND_7_INPUTS["items"],
-            "hierarchical": COMMAND_8_INPUTS["items"],
-            "index": COMMAND_9_INPUTS["items"],
-            "shuf": COMMAND_10_INPUTS["items"]
-        }
-
-        ALL_FEATURES = {
-            "profile": COMMAND_1_FEATURES["items"],
-            "make_graph": COMMAND_2_FEATURES["items"],
-            "get_matrix": COMMAND_3_FEATURES["items"],
-            "distance": COMMAND_4_FEATURES["items"],
-            "view": COMMAND_5_FEATURES["items"],
-            "header": COMMAND_6_FEATURES["items"],
-            "kmeans": COMMAND_7_FEATURES["items"],
-            "hierarchical": COMMAND_8_FEATURES["items"],
-            "index": COMMAND_9_FEATURES["items"],
-            "shuf": COMMAND_10_FEATURES["items"]
-
-
-        }
-
-
-        ALL_STEPS = {
-
-            "profile": COMMAND_1_STEPS["items"],
-            "make_graph": COMMAND_2_STEPS["items"],
-            "get_matrix": COMMAND_3_STEPS["items"],
-            "distance": COMMAND_4_STEPS["items"],
-            "view": COMMAND_5_STEPS["items"],
-            "header": COMMAND_6_STEPS["items"],
-            "kmeans": COMMAND_7_STEPS["items"],
-            "hierarchical": COMMAND_8_STEPS["items"],
-            "index": COMMAND_9_STEPS["items"],
-            "shuf": COMMAND_10_STEPS["items"]
-        }
         
         # KMEANS_BANNER = """
         #                   name : kmeans
@@ -2357,58 +2358,85 @@ class kmerdb_appmap:
         We need to handle exit gracefully. The 'step' and 'feature' categories/flags/ints are passed from __init__ or down its callstack to 
         """
         import traceback
-        
-
-        if e is None:
-            raise ValueError("Need an error to exit")
-        elif not isinstance(e, Exception):
-            raise ValueError("Need an error to exit")
-
-        
-        if n_logs is None or type(n_logs) is not int:
-            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument n_logs to be a int")
-        elif logs is None or type(logs) is not list:
-            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument logs to be a list")
-        elif feature is not None and type(feature) is not int:
-            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument feature to be a int")
-        elif step is not None and type(step) is not int:
-            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument step to be a int")
-        elif subcommand is not None and type(subcommand) is not str:
-            raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument subcommand to be a str")
 
 
+        # if e is None:
+        #     raise ValueError("Need an error to exit")
+        # elif not isinstance(e, Exception):
+        #     raise ValueError("Need an error to exit")
 
         
-        N = len(logs) 
-        loggable_line = N
-        assert subcommand in config.subcommands, "Unknown subcommand"
-
+        # if n_logs is None or type(n_logs) is not int:
+        #     raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument n_logs to be a int")
+        # elif logs is None or type(logs) is not list:
+        #     raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument logs to be a list")
+        # elif feature is not None and type(feature) is not int:
+        #     raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument feature to be a int")
+        # elif step is not None and type(step) is not int:
+        #     raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument step to be a int")
+        # elif subcommand is not None and type(subcommand) is not str:
+        #     raise TypeError("kmerdb.appmap.exit_gracefully expects the keyword argument subcommand to be a str")
 
 
 
         
+        N = min(len(logs), n_logs)
 
+        tb = traceback.extract_tb(e.__traceback__)
+        last_traceback_FrameSummary = tb[-1]
+        error_file_name = last_traceback_FrameSummary.filename
+        error_line_number = last_traceback_FrameSummary.lineno
+
+        
+        #assert subcommand in config.subcommand_functions, "Unknown subcommand"
+
+        if self._loggable:
+            self.logger.log_it("Program error! Collecting error metadata and formatting...", "ERROR")
         # This is the "Error blocks" metadata
-        exit_summary = OrderedDict({
+
+        # print(subcommand)
+        # print(config.VERSION)
+        # print(config.REQUIRES_PYTHON)
+        # print(feature)
+        # print(ALL_FEATURES[subcommand][feature]["name"])
+        # print(ALL_FEATURES[subcommand][feature]["shortname"])
+        # print(ALL_FEATURES[subcommand][feature]["description"])
+        # print(step)
+        # print(ALL_STEPS[subcommand][step]["name"])
+        # print(ALL_STEPS[subcommand][step]["shortname"])
+        # print(ALL_STEPS[subcommand][step]["description"])
+        #     # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
+        # print(self.logfile)
+        # print(str(tb))
+        # print(error_file_name)
+        # print(error_line_number)
+        # print(e.__str__())
+
+        
+        e_sum = {
             "subcommand": subcommand,
             "kmerdb-version": config.VERSION,
             "python-version": config.REQUIRES_PYTHON,
             "feature": feature,
-            "feature_name": self.ALL_FEATURES[subcommand][feature]["name"],
-            "feature_shortname": self.ALL_FEATURES[subcommand][feature]["shortname"],
-            "feature_description": self.ALL_FEATURES[subcommand][feature]["description"],
+            "feature_name": ALL_FEATURES[subcommand][feature]["name"],
+            "feature_shortname": ALL_FEATURES[subcommand][feature]["shortname"],
+            "feature_description": ALL_FEATURES[subcommand][feature]["description"],
             "step" : step,
-            "step_name": self.ALL_STEPS[subcommand][step]["name"],
-            "step_shortname": self.ALL_STEPS[subcommand][step]["shortname"],
-            "step_description": self.ALL_STEPS[subcommand][step]["description"],
+            "step_name": ALL_STEPS[subcommand][step]["name"],
+            "step_shortname": ALL_STEPS[subcommand][step]["shortname"],
+            "step_description": ALL_STEPS[subcommand][step]["description"],
             # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
             "log_file": self.logfile,
-            "traceback": str(traceback.extract_tb(e.__traceback__)),
-            "last_logged_line": loggable_line, 
+            "traceback": str(tb),
+            "error_file_name": error_file_name,
+            "error_line_number": error_line_number,
             "error": e.__str__(),
-        })
+        }
 
+        
+        exit_summary = OrderedDict(e_sum)
 
+        
         yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
         
 
@@ -2418,19 +2446,16 @@ class kmerdb_appmap:
             sys.stderr.write("Failed to validate the exit summary. Internal Error.\n")
             raise e
                 
-
-
-
-
-
-
-
         self.print_github_block()
 
         """
         Print last n lines of log
         """
-        for i in range(n_logs):
+
+
+
+        
+        for i in range(N):
 
             try:
                 if self._loggable:
@@ -2438,7 +2463,7 @@ class kmerdb_appmap:
                     self.logger.log_it(logs[i], "ERROR")
                 else:
                     sys.stderr.write("{0} - last line of log\n".format(n_logs - i))
-                    sys.stderr.write(logs[i], "ERROR")
+                    sys.stderr.write(logs[i])
             except Exception as e:
                 raise e
                 
