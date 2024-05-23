@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.2"
+VERSION="0.8.3"
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -25,10 +25,10 @@ header_delimiter = "\n" + ("="*24) + "\n"
 requirements_count = 9
 requirements_dev_count = 9 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
 
-subcommands = ["usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"] # kmeans and hierarchical and probability commands deprecated
-subcommand_functions = ["expanded_help", "profile", "make_graph", "get_matrix", "index_file", "shuf", "get_matrix", "distances"]
+# 12 subcommands, and associated function names in __init__.py
+subcommands = ["profile", "graph", "matrix", "distance", "kmeans", "hierarchical", "view", "header", "index", "shuf", "usage", "help"]
+subcommand_functions = ["profile", "make_graph", "get_matrix", "distances", "kmeans", "hierarchical", "view", "header", "index_file", "shuf", "expanded_help", "expanded_help"]
 
-#subcommand_functions = ("profile", "make_graph", "get_matrix", "index_file", "distances", "kmeans", "hierarchical",)
 default_logline_choices = (20, 50, 100, 200)
 KDB_COLUMN_NUMBER = 4
 

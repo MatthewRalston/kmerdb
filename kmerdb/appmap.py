@@ -164,16 +164,7 @@ COMMAND INFO
 
 
 
-command_1_name = "profile"
-command_2_name = "make_graph"
-command_3_name = "get_matrix"
-command_4_name = "distance"
-command_5_name = "view"
-command_6_name = "header"
-command_7_name = "kmeans"
-command_8_name = "hierarchical"
-command_9_name = "index"
-command_10_name = "shuf"
+command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name = config.subcommands
 
 COMMANDS = [
     command_1_name, #"profile",
@@ -186,7 +177,12 @@ COMMANDS = [
     command_8_name, #"hierarchical",
     command_9_name, #"index",
     command_10_name, #"shuf",
+    command_11_name, #"usage",
+    command_12_name #"help"
 ]
+
+
+
 
         
 command_1_description = "create a k-mer count vector from fasta input. g-zipped/.bgzf   -  4 column table with YAML header."
@@ -1872,40 +1868,39 @@ COMMAND_10_STEPS = OrderedDict({
 
 ALL_PARAMS = {
     "profile": COMMAND_1_PARAMS["items"],
-    "make_graph": COMMAND_2_PARAMS["items"],
-    "get_matrix": COMMAND_3_PARAMS["items"],
+    "graph": COMMAND_2_PARAMS["items"],
+    "matrix": COMMAND_3_PARAMS["items"],
     "distance": COMMAND_4_PARAMS["items"],
+    "kmeans": COMMAND_7_PARAMS["items"],
+    "hierarchical": COMMAND_8_PARAMS["items"],    
     "view": COMMAND_5_PARAMS["items"],
     "header": COMMAND_6_PARAMS["items"],
-    "kmeans": COMMAND_7_PARAMS["items"],
-    "hierarchical": COMMAND_8_PARAMS["items"],
     "index": COMMAND_9_PARAMS["items"],
     "shuf": COMMAND_10_PARAMS["items"]
-
 }
 
 ALL_INPUTS = {
     "profile": COMMAND_1_INPUTS["items"],
-    "make_graph": COMMAND_2_INPUTS["items"],
-    "get_matrix": COMMAND_3_INPUTS["items"],
+    "graph": COMMAND_2_INPUTS["items"],
+    "matrix": COMMAND_3_INPUTS["items"],
     "distance": COMMAND_4_INPUTS["items"],
-    "view": COMMAND_5_INPUTS["items"],
-    "header": COMMAND_6_INPUTS["items"],
     "kmeans": COMMAND_7_INPUTS["items"],
     "hierarchical": COMMAND_8_INPUTS["items"],
+    "view": COMMAND_5_INPUTS["items"],
+    "header": COMMAND_6_INPUTS["items"],
     "index": COMMAND_9_INPUTS["items"],
     "shuf": COMMAND_10_INPUTS["items"]
 }
 
 ALL_FEATURES = {
     "profile": COMMAND_1_FEATURES["items"],
-    "make_graph": COMMAND_2_FEATURES["items"],
-    "get_matrix": COMMAND_3_FEATURES["items"],
-    "distances": COMMAND_4_FEATURES["items"],
-    "view": COMMAND_5_FEATURES["items"],
-    "header": COMMAND_6_FEATURES["items"],
+    "graph": COMMAND_2_FEATURES["items"],
+    "matrix": COMMAND_3_FEATURES["items"],
+    "distance": COMMAND_4_FEATURES["items"],
     "kmeans": COMMAND_7_FEATURES["items"],
     "hierarchical": COMMAND_8_FEATURES["items"],
+    "view": COMMAND_5_FEATURES["items"],
+    "header": COMMAND_6_FEATURES["items"],
     "index": COMMAND_9_FEATURES["items"],
     "shuf": COMMAND_10_FEATURES["items"]
 
@@ -1916,13 +1911,13 @@ ALL_FEATURES = {
 ALL_STEPS = {
 
     "profile": COMMAND_1_STEPS["items"],
-    "make_graph": COMMAND_2_STEPS["items"],
-    "get_matrix": COMMAND_3_STEPS["items"],
-    "distances": COMMAND_4_STEPS["items"],
-    "view": COMMAND_5_STEPS["items"],
-    "header": COMMAND_6_STEPS["items"],
+    "graph": COMMAND_2_STEPS["items"],
+    "matrix": COMMAND_3_STEPS["items"],
+    "distance": COMMAND_4_STEPS["items"],
     "kmeans": COMMAND_7_STEPS["items"],
     "hierarchical": COMMAND_8_STEPS["items"],
+    "view": COMMAND_5_STEPS["items"],
+    "header": COMMAND_6_STEPS["items"],
     "index": COMMAND_9_STEPS["items"],
     "shuf": COMMAND_10_STEPS["items"]
 }
@@ -2394,23 +2389,25 @@ class kmerdb_appmap:
             self.logger.log_it("Program error! Collecting error metadata and formatting...", "ERROR")
         # This is the "Error blocks" metadata
 
-        # print(subcommand)
-        # print(config.VERSION)
-        # print(config.REQUIRES_PYTHON)
-        # print(feature)
-        # print(ALL_FEATURES[subcommand][feature]["name"])
-        # print(ALL_FEATURES[subcommand][feature]["shortname"])
-        # print(ALL_FEATURES[subcommand][feature]["description"])
-        # print(step)
-        # print(ALL_STEPS[subcommand][step]["name"])
-        # print(ALL_STEPS[subcommand][step]["shortname"])
-        # print(ALL_STEPS[subcommand][step]["description"])
-        #     # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
-        # print(self.logfile)
-        # print(str(tb))
-        # print(error_file_name)
-        # print(error_line_number)
-        # print(e.__str__())
+
+        sys.stderr.write("Aggregating program metadata, if this fails without error without the --debug flag, please report to the GitHub issue tracker with the title 'Error summary convenience function'.")
+        sys.stderr(subcommand)
+        sys.stderr(config.VERSION)
+        sys.stderr(config.REQUIRES_PYTHON)
+        sys.stderr(feature)
+        sys.stderr(ALL_FEATURES[subcommand][feature]["name"])
+        sys.stderr(ALL_FEATURES[subcommand][feature]["shortname"])
+        sys.stderr(ALL_FEATURES[subcommand][feature]["description"])
+        sys.stderr(step)
+        sys.stderr(ALL_STEPS[subcommand][step]["name"])
+        sys.stderr(ALL_STEPS[subcommand][step]["shortname"])
+        sys.stderr(ALL_STEPS[subcommand][step]["description"])
+            # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
+        sys.stderr(self.logfile)
+        sys.stderr(str(tb))
+        sys.stderr(error_file_name)
+        sys.stderr(error_line_number)
+        sys.stderr(e.__str__())
 
         
         e_sum = {
