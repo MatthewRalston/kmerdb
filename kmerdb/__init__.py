@@ -2232,7 +2232,7 @@ def cli():
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
 
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
-    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "DESeq2", "pass", "Frequency"], default=None, help="Choice of distance metric between two profiles")
+    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "DESeq2", "pass", "Frequency"], default=None, help="Choice of dimensionality reduction, normalization method (DESeq2), or pass (no action)")
     matrix_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     matrix_parser.set_defaults(func=get_matrix)
     
@@ -2380,7 +2380,18 @@ def cli():
 
     #signal.signal(signal.SIGINT, graceful_interrupt)
     #signal.signal(signal.SIGTERM, graceful_termination)
-    subcommand_name = vars(args)['func'].__name__
+
+
+    # Extract the __init__ function invoked from argparsed arguments.
+    function_name = vars(args)['func'].__name__
+
+    # Now, map to the correct subcommand name via config
+
+    if function_name in ["usage", "help", "citation"]:
+        subcommand_name = function_name
+    else:
+        subcommand_name = config.subcommands[config.subcommand_functions.index(function_name)]
+
 
 
     from kmerdb import config
@@ -2436,24 +2447,27 @@ def cli():
             exit_code = 5
         
             raise e
+        except IOError as e:
+            exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
+            exit_code = 6
+            raise e
+        
         except ArgumentError as e:
 
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
-            exit_code = 6
+            exit_code = 7
         
             raise e
         except AssertionError as e:
 
-            print("CAUGHT ASSERTION ERROR")
-            
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
-            exit_code = 7
+            exit_code = 8
         
             raise e
         except FileNotFoundError as e:
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
             
-            exit_code = 8
+            exit_code = 9
             raise e
         except Exception as e:
             exit_summary = kmerdb_appmap.exit_gracefully(e , subcommand=subcommand_name, step=step, feature=feature, logs=logger.logs, n_logs=args.num_log_lines or None)
