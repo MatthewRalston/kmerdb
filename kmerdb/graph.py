@@ -1207,7 +1207,8 @@ Failed to validate YAML header.
             except StopIteration as e:
                 if self._loggable:
                     self.logger.log_it("Finished loading .kdbg through slurp (on init)", "ERROR")
-                raise e
+                #raise e
+                pass
             if line is None:
                 if self._loggable:
                     self.logger.log_it("'next' returned None. Panic", "WARNING")

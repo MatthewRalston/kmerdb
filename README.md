@@ -1,7 +1,7 @@
 # README - kmerdb
-> Python CLI and module for k-mer profiles, similarities, and graph databases
+> Python CLI and module for k-mer profiles, similarities, and graph files
 
-NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count and DeBruijn graph formats.
+NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn graph edge-list formats.
 
 ## Development Status
 [![Downloads](https://static.pepy.tech/personalized-badge/kmerdb?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads)](https://pypi.org/project/kmerdb)
@@ -20,9 +20,11 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count and DeBruijn graph fo
 
 ## Summary 
 
-k-mer counts or De Bruijn graph of .fa(.gz)/.fq(.gz) sequence data can be converted to `.kdb` (+new! `.kdbg` De Bruijn graph) format, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided. The output file is compatible with `zlib`.
+k-mer counts from .fa(.gz)/.fq(.gz) sequence data can be stored in `.kdb` file format, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided. This file is compatible with `zlib`.
 
-`pip install kmerdb` is a Python CLI designed for k-mer counting and De Bruijn graphs. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of the `bgzf` formatted `.kdb` (k-mer database) file. 
+Install with `pip install kmerdb`
+
+`kmerdb` is a Python CLI designed for k-mer counting and k-mer graph edge-lists. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of a `bgzf` formatted file. 
 
 Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quickstart) for more information about the format, the library, and the project.
 
@@ -32,13 +34,13 @@ Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quicks
 ```bash
 # Usage    --help option    --debug mode
 kmerdb --help # [+ --debug mode]
-kmerdb usage -m graph
+kmerdb usage graph
 
-# Output:
+**** 
  o-O      |||
 o---O     |||             [|[          kmerdb           ]|]
 O---o     |||
- O-o      |||        version :     v0.8.0
+ O-o      |||        version :     v0.8.2
   O       |||
  o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
 o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
@@ -49,24 +51,126 @@ O---o     |||      Website   : https://matthewralston.github.io/kmerdb
 
                       package manger : pip
                         version      : >= 24.0
-        package root : /path2py/lib/python3.12/site-packages/kmerdb
-        exe file     : /path2py/lib/python3.12/site-packages/kmerdb/__init__.py
+        package root : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb
+        exe file     : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb/__init__.py
 
-                      required packages : 8
-                   development packages : 14
+                      required packages : 9
+                   development packages : 9
 
-           ARGV : ['/path2py/bin/kmerdb', 'usage', '-m', 'graph']
+           ARGV : ['/home/user/.local/share/virtualenvs/kdb-venv/bin/kmerdb', 'usage', 'graph']
         
-...
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+
+
+
 
 Beginning program...
 
-                          name : graph
-                   description : create edge nodes in (block) .gz compressed format from .fasta or .fq format.
-        
 
-* features
 
+
+                          [ name ] :         graph
+
+                   description : create a edge list in (block) .gz format from .fasta|.fa or .fastq format.
+
+
+
+
+   :     4 column output : [ row idx | k-mer id node #1 | k-mer id node #2 | edge weight (adjacency count) ]
+
+   :  make a deBruijn graph, count the number of k-mer adjacencies,  printing the edge list to STDOUT
+
+
+
+
+                  +=============+====================+====================+=================================+
+                  <    row idx  |  k-mer id node #1  |  k-mer id node #2  |  edge weight (adjacency count)  >
+                  |             |                    |                    |                                 |
+                  |             +
+                  |
+                  |
+                  |
+                  |
+                  |
+
+
+
+
+
+--------------------------
+
+
+                    kmerdb graph -k 12 input_1.fa [example_2.fastq] output.12.kdbg
+
+                    [-]    inputs : 
+
+                           Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)
+
+                    [-]    parameters : 
+
+                           uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging. --
+
+
+
+                    [-]    [ usage ]  :  kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+name: arguments
+type: array
+items:
+- name: k
+  type: int
+  value: choice of k-mer size
+- name: quiet
+  type: flag
+  value: Write additional debug level information to stderr?
+
+
+
+
+name: inputs
+type: array
+items:
+- name: <.fasta|.fastq>
+  type: array
+  value: gzipped or uncompressed input .fasta or .fastq file(s)
+- name: .kdbg
+  type: file
+  value: Output edge-list filepath.
+
+
+
+
+name: features
+type: array
+items:
 - name: k-mer count arrays, linear, produced as file is read through sliding window.
     (Un)compressed support for .fa/.fq.
   shortname: parallel faux-OP sliding window k-mer shredding
@@ -74,7 +178,6 @@ Beginning program...
     Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS
     (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics
     for the entire file are given for each file read, + a transparent data structure.
-		
 - name: k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights
   shortname: weighted undirected graph
   description: an edge list of a De Bruijn graph is generated from all k-mers in the
@@ -82,31 +185,7 @@ Beginning program...
     in the sequence data are added to the tally of the k-mer nodes of the de Bruijn
     graph and the edges provided by the data.
 
-
-
-
-* steps
-
-- name: read input file(s) from filesystem into k-mer arrays
-  shortname: shred inputs into k-mer count arrays
-  description: shred input sequences into k-mer count vector
-  
-- name: merge k-mer arrays and aggregate metadata
-  shortname: merge k-mer count arrays for aggregate metadata (header)
-  description: merge counts of nullomers, unique kmers, and total kmers.
-  
-- name: collate the weighted edge lists after reading multiple files. Output data
-    consists of a edge_list, analogous metadata-header as YAML, kmer_counts, and nullomer_ids.
-  shortname: extract undirected weighted graph
-  description: consists of info from a .kdb file and a .kdbg file. The node IDs, the
-    edges, and the number of times the pair was observed from forward sequences in
-    the provided dataset
-	
-- name: print 'table' Final stats and close output file
-  shortname: metrics and shutdown
-  description: print final statistics, typically metadata values, and ensure file
-    is closed.
-
+...
 
 
 
@@ -132,7 +211,7 @@ kmerdb header profile_1.8.kdb
 ## Optional normalization, dim reduction, and distance matrix features:
 
 # K-mer count matrix - Cython Pearson coefficient of correlation [ ssxy/sqrt(ssxx*ssyy) ]
-kmerdb matrix pass *.8.kdb | kmerdb distance pearson -i STDIN
+kmerdb matrix pass *.8.kdb | kmerdb distance pearson STDIN
 # 
 # kmerdb matrix DESeq2 *.8.kdb
 # kmerdb matrix PCA *.8.kdb
@@ -158,18 +237,30 @@ kmerdb hierarchical -i dist.tsv
 ```
 
 
+## Usage example
+
+![kmerdb.gif](kmerdb.gif)
+
+
+
+
 ## Installation
 
 ### OSX and Linux release:
 
 ```sh
-pip install --python-version 3.7.4 --pre kmerdb
+pip install kmerdb
 ```
 
 #### Optional DESeq2 normalization
 
-DESeq2 is an optional R dependency for rpy2-mediated normalization.
+DESeq2 is an optional R dependency for rpy2-mediated normalization. Make sure development libraries are installed from the repository.
 
+
+```
+pip install -r requirements-dev.txt
+```
+Next, install DESeq2 via bioconductor.
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
@@ -195,7 +286,7 @@ Important features to usage that may be important may not be fully documented as
 For example, the IUPAC treatment is largely custom, and does the sensible thing when ambiguous bases are found in fasta files, but it could use some polishing. For example, the '`N`' residue rejection creates gaps in the k-mer profile from the real dataset by admittedly ommitting certain k-mer counts.
 This is one method for counting k-mers and handling ambiguity. Fork it and play with it a bit.
 
-Also, the parallel handling may not always be smooth, if you're trying to load dozens of 12+ mer profiles into memory. This would especially matter in the matrix command, before the matrix is generated. You can use single-core if your machine can't collate that much into main memory at once, depending on how deep the fastq dataset is, and the `--block-size` parameter in `kmerdb profile` is likely going to facilitate your memory overhead by reading chunks of `--block-size` reads into memory at once while accumulating the k-mer counts in a `uint64` array. Even when handling small-ish k-mer profiles, you may bump into memory overheads rather quickly. 
+Also, the parallel handling may not always be smooth, if you're trying to load dozens of 12+ mer profiles into memory. This would especially matter in the matrix command, before the matrix is generated. You can use single-core if your machine can't collate that much into main memory at once, depending on how deep the fastq dataset is. Even when handling small-ish k-mer profiles, you may bump into memory overheads rather quickly. 
 
 Besides that, I'd suggest reading the source, the differente elements of the [main page](https://matthewralston.github.io/kmerdb) or the [RTD documentation](https://kdb.readthedocs.io/en/stable/).
 

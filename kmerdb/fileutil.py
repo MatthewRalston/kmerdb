@@ -512,7 +512,8 @@ Failed to validate YAML header.
                             if self._loggable:
                                 self.logger.log_it("Finished loading initial profile through slurp-on-init", "ERROR")
                                 self.logger.log_it("Read profile from: {0}".format(self._filepath), "ERROR")
-                            raise e
+                            #raise e
+                            continue
                         if line is None:
                             if self._loggable:
                                 self.logger.log_it("'next' was None... Internal Error", "ERROR")
