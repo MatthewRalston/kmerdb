@@ -11,12 +11,12 @@ toc: true
 * [Introduction](#introduction)
 * [Install](#install)
 * [Usage](#usage)
-    * [kdb profile](#kdb-profile)
-    * [kdb view](#kdb-view)
-    * [kdb distance](#kdb-distance)
-    * [kdb matrix](#kdb-matrix)
-    * [kdb kmeans](#kdb-kmeans)
-    * [kdb rarefy](#kdb-rarefy)
+    * [kmerdb profile](#kmerdb-profile)
+    * [kmerdb view](#kmerdb-view)
+    * [kmerdb matrix](#kmerdb-matrix)
+	* [kmerdb distance](#kmerdb-distance)
+    * [kmerdb kmeans](#kmerdb-kmeans)
+    * [kmerdb hierarchical](#kmerdb-hierarchical)
 * [Documentation](#documentation)
 * [Development](#development)
     * [Unit testing](#unit-testing)
@@ -30,11 +30,11 @@ toc: true
 
 # Introduction
 
-## What is `.kdb`?
+## What is `kmerdb`?
 
-The K-mer database (.kdb) is a file format and command-line utility (CLI) for accessing precomputed k-mers from sequencing data. .kdb views k-mer graph databases as a fundamental technology to look at biological sequence identities and abundances. K-mer methods have been noted as fast and are used in areas from NGS quality control to phylogenomic investigations.
+The K-mer database profile `kmerdb` is a file format (.kdb) and command-line utility (CLI) for creating k-mer count vector profiles from sequencing data. kmerdb views k-mers and their De Bruijn graphs as fundamental tools for biological sequence abundances and sequence similarities. K-mer methods have been noted as fast and are used in areas from NGS quality control to phylogenomic investigations.
 
-.kdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a header or metadata section, much like .bam files. It is essentially a tab-delimited format with the last column unstructured for k-mer specific metadata. Input files and total k-mer counts are stored in the metadata block at the top of the file
+kmerdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a metadata header section, much like .bam files. It is essentially a tab-delimited format with a YAML header. Input file checksums, unique and total k-mer counts, and nullomer counts are stored in the metadata block at the top of the file.
 
 Please visit the [Install](#/install) page for details on installation.
 
@@ -45,11 +45,11 @@ See the original blog post on the concept [here](https://matthewralston.github.i
 
 The kdb project was designed to facilitate conversation between heavily optimized legacy codebases without much public attention, like Jellyfish, regarding the utility of standardizing k-mer frameworks. These frameworks are used throughout assembly and alignment hashing/seed-matching strategies. The primary goal of this project is documenting data shapes, compression strategies (which of course related to efficiency of storage, transmission, rapid access, etc.), and anticipating UI possibilities with the increases in read/write speeds afforded by improving SSD technologies and utilization of more channels of more rapid interfaces for data transmission (i.e. m2, NVMe, PCIx). 
 
-## kdb is a file format
+## `kmerdb` makes k-mer count vectors
 
-The k-mer database format is rather simple. It contains a metadata section, followed by a tab delimited format with an unstructured JSON as the final column. Both sections are combined in a compressed layer facilitated by Biopython's bio.bgzf module. 
+The k-mer database count vector profile file format is rather simple. It contains a YAML metadata header section, followed by a tab delimited format. Both sections are combined in a compressed layer facilitated by Biopython's `bio.bgzf` module. 
 
-Each file can be inspected with the view and header commands detailed in the [section below](#kdb-view).
+Each file can be inspected with the 'view' and 'header' commands detailed in the [section below](#kdb-view).
 
 
 # Install
@@ -60,15 +60,15 @@ Each file can be inspected with the view and header commands detailed in the [se
 [![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
 [![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
 
-[pip]: https://pypi.org/project/kdb/
-[Pythons]: https://pypi.org/project/kdb/
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
-[RTD]: https://kdb.readthedocs.io/en/latest/
+[pip]: https://pypi.org/project/kmerdb
+[Pythons]: https://pypi.org/project/kmerdb/
+[Coveralls]: https://coveralls.io/r/MatthewRalston/kmerdb?branch=master
+[RTD]: https://kmerdb.readthedocs.io/en/latest/
 
 The current version on PyPI is shown above.
 
 ```bash
-pip install kdb
+pip install kmerdb
 ```
 
 See the [install](/installation) page for development install instructions.
@@ -82,240 +82,381 @@ See the [install](/installation) page for development install instructions.
 Use '-h' to view detailed usage information about the subcommands
 
 ```bash
->./bin/kdb -h
-usage: kdb [-h] {profile,header,view,matrix,rarefy,cluster,distance,index} ...
+# Usage    --help option    --debug mode
+kmerdb --help # [+ --debug mode]
+kmerdb usage graph
 
-positional arguments:
-  {profile,header,view,matrix,rarefy,cluster,distance,index}
-                        Use --help with sub-commands
-    profile             Parse data into the database from one or more sequence
-                        files
-    header              Print the YAML header of the .kdb file and exit
-    view                View the contents of the .kdb file
-    matrix              Generate a reduced-dimensionality matrix of the n *
-                        4^k (sample x k-mer) data matrix.
-    rarefy              Generate rarefaction information using
-                        ecopy.diversity.rarefy for the supplied .kdb files
-    cluster             Cluster the files according to their k-mer profile
-    distance            Calculate various distance metrics between profiles
-    index               Create a index file that can be held in memory
+**** 
+ o-O      |||
+o---O     |||             [|[          kmerdb           ]|]
+O---o     |||
+ O-o      |||        version :     v0.8.2
+  O       |||
+ o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
+o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
+O---o     |||      Website   : https://matthewralston.github.io/kmerdb
+ O-o      |||
+                                                                       lang :         python
+                                                                          v :      >= v3.7.4
 
-optional arguments:
-  -h, --help            show this help message and exit
+                      package manger : pip
+                        version      : >= 24.0
+        package root : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb
+        exe file     : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb/__init__.py
+
+                      required packages : 9
+                   development packages : 9
+
+           ARGV : ['/home/user/.local/share/virtualenvs/kdb-venv/bin/kmerdb', 'usage', 'graph']
+        
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+O---o
+ O-o
+  O
+ o-O
+o---O
+
+
+
+
+Beginning program...
+
+
+
+
+                          [ name ] :         graph
+
+                   description : create a edge list in (block) .gz format from .fasta|.fa or .fastq format.
+
+
+
+
+   :     4 column output : [ row idx | k-mer id node #1 | k-mer id node #2 | edge weight (adjacency count) ]
+
+   :  make a deBruijn graph, count the number of k-mer adjacencies,  printing the edge list to STDOUT
+
+
+
+
+                  +=============+====================+====================+=================================+
+                  <    row idx  |  k-mer id node #1  |  k-mer id node #2  |  edge weight (adjacency count)  >
+                  |             |                    |                    |                                 |
+                  |             +
+                  |
+                  |
+                  |
+                  |
+                  |
+
+
+
+
+
+--------------------------
+
+
+                    kmerdb graph -k 12 input_1.fa [example_2.fastq] output.12.kdbg
+
+                    [-]    inputs : 
+
+                           Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)
+
+                    [-]    parameters : 
+
+                           uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging. --
+
+
+
+                    [-]    [ usage ]  :  kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+name: arguments
+type: array
+items:
+- name: k
+  type: int
+  value: choice of k-mer size
+- name: quiet
+  type: flag
+  value: Write additional debug level information to stderr?
+
+
+
+
+name: inputs
+type: array
+items:
+- name: <.fasta|.fastq>
+  type: array
+  value: gzipped or uncompressed input .fasta or .fastq file(s)
+- name: .kdbg
+  type: file
+  value: Output edge-list filepath.
+
+
+
+
+name: features
+type: array
+items:
+- name: k-mer count arrays, linear, produced as file is read through sliding window.
+    (Un)compressed support for .fa/.fq.
+  shortname: parallel faux-OP sliding window k-mer shredding
+  description: Sequential k-mers from the input .fq|.fa files are added to the De
+    Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS
+    (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics
+    for the entire file are given for each file read, + a transparent data structure.
+- name: k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights
+  shortname: weighted undirected graph
+  description: an edge list of a De Bruijn graph is generated from all k-mers in the
+    forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers
+    in the sequence data are added to the tally of the k-mer nodes of the de Bruijn
+    graph and the edges provided by the data.
+
+...
+
+
+
+#   +
+
+# [ 3 main features: ]     k-mer counts (kmerdb profile -k 12 <input.fa|.fq> [<input.fa|.fq>])    'De Bruijn' graph (kmerdb graph)         [matrices, distances, and clustering!]
+
+# Create a [composite] profile of k-mer counts from sequence files. (.fasta|.fastq|.fa.gz|.fq.gz)
+kmerdb profile -k 8 example_1.fq.gz [example_2.fq.gz] profile_1.8.kdb
+
+# Build a weighted edge list (+ node ids/counts = De Bruijn graph)
+kmerdb graph -k 12 example_1.fq.gz example_2.fq.gz edges_1.kdbg
+
+# View k-mer count vector
+kmerdb view profile_1.8.kdb # -H for full header
+
+# Note: zlib compatibility
+#zcat profile_1.8.kdb
+
+# View header (config.py[kdb_metadata_schema#L84])
+kmerdb header profile_1.8.kdb
+
+## Optional normalization, dim reduction, and distance matrix features:
+
+# K-mer count matrix - Cython Pearson coefficient of correlation [ ssxy/sqrt(ssxx*ssyy) ]
+kmerdb matrix pass *.8.kdb | kmerdb distance pearson STDIN
+# 
+# kmerdb matrix DESeq2 *.8.kdb
+# kmerdb matrix PCA *.8.kdb
+# kmerdb matrix tSNE *.8.kdb
+#   # <pass> just makes a k-mer count matrix from k-mer count vectors.
+# 
+
+# Distances on count matrices [ SciPy ]  pdists + [ Cython ] Pearson correlation, scipy Spearman and scipy correlation pdist calculations are available ]
+kmerdb distance -h
+# 
+#
+# usage: kmerdb distance [-h] [-v] [--debug] [-l LOG_FILE] [--output-delimiter OUTPUT_DELIMITER] [-p PARALLEL] [--column-names COLUMN_NAMES] [--delimiter DELIMITER] [-k K]
+#                       {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule} [<kdbfile1 kdbfile2 ...|input.tsv|STDIN> ...]
+
+# +
+
+#    Kmeans (sklearn, BioPython)
+kmerdb kmeans -k 4 -i dist.tsv
+#    BioPython Phylip tree + upgma
+kmerdb hierarchical -i dist.tsv
+
 ```
 
-## kdb profile
+## kmredb profile
 
-A typical workflow first requires the generation of k-mer profiles. The following command will generate multiple profiles at `$K`-mer resolution simultaneously.
+A typical workflow first requires the generation of k-mer count vector profiles. The following command will generate multiple profiles at `$K`-mer resolution simultaneously.
 
 ```bash
-parallel './bin/kdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
+parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
 ```
 
-## kdb view
+NOTE: the test datasets include with the kmerdb git repository may be used to practice creating profiles, count matrices, distance matrices, and clustering output from small microbial genomic datasets.
+
+## kmerdb
 
 As mentioned before under [KDB format](#kdb-is-a-file-format), the kdb file consists of a header or metadata section, followed by data blocks until the end of the file. The header is YAML formatted and the data blocks are formatted as tab-separated value files (.tsv), with the last/right-most column being a JSON formatted metadata column. For developers, the YAML schema can be found in the config.py file.
 ```bash
 # This should display the entire header of most files
->zcat test/data/foo.12.kdb | head -n 30 
+>zcat example.8.kdb | head -n 30 
 # This will also display just the header
->./bin/kdb header test/data/foo.12.kdb
+>kmerdb header example.8.kdb
 # The -H flag includes the header in the uncompressed output
->./bin/kdb view -H test/data/foo.12.kdb
-version: 0.0.2
+>kmerdb view -H example.8.kdb
+version: 0.8.3
 metadata_blocks: 1
-k: 12
+k: 8
+total_kmers: 4132866
+unique_kmers: 64103
+unique_nullomers: 1433
 metadata: false
+sorted: false
+kmer_ids_dtype: uint64
+profile_dtype: uint64
+count_dtype: uint64
+frequencies_dtype: float64
 tags: []
 files:
 - filename: test/data/Cacetobutylicum_ATCC824.fasta.gz
-  md5: 919357d5173cfa372e1e9a0f2b89c996
-  mononucleotides:
-	  A: 1427820
-	  C: 637998
-	  G: 640100
-	  T: 1426962
-  nullomers: 12880136
-  sha256: b98be262a9904a3c2f84caa455679b7cebab7b2e9e15ca3105c69e001595abd6
-  total_kmers: 8265716
+  md5: 0a0f73e1c8b8285703e29279bafaabef
+  sha256: f9081291b62ff3387f1ca6ee2484669c849ed1840fdf2dd9dc3a0c93e9e87951
   total_reads: 2
-  unique_kmers: 3897080
+  total_kmers: 4132866
+  unique_kmers: 64103
+  nullomers: 1433
+header_offset: 324
 
-0       4
-1       1
-2       0
+
+========================
+
+0	0	572	0.00013840274521361204
+1	1	454	0.00010985112994227251
+2	2	716	0.0001732453943582976
+3	3	1256	0.00030390532865086844
+
+     ...
+
 ```
 
-## kdb distance
 
-Suppose you want a distance matrix between profiles; this is made easy with the distance command
+## kmerdb matrix
+
+Input to the matrix command is either a space separated list (positional arguments) of `.kdb` files, OR a input .tsv file OR otherwise, a .tsv can be read from STDIN by using 'STDIN' as the final positional argument.
+
+The matrix subcommand generates the count matrix either un-normalized, normalized (via DESeq2), or with PCA or t-SNE dimensionality reduction applied. Note that default behavior of PCA if -n is not specified is to generate an elbow graph for the user to pick the appropriate choice of principal components for downstream analyses. The -n parameter is passed to the n_components parameter of sklearn.decomposition.PCA, which is commonly used for PCA in Python.
+
+
 
 ```bash
->./bin/kdb distance correlation test/data/*.$K.kdb
-```
-
-The result is a symmetric matrix in tsv format with column headers formed from the filenames minus their extensions. It is presumed that to properly analyze the distance matrix, you would name the files after their sample name or their species, or some other identifying features.
-
-
-
-## kdb matrix
-
-The kdb matrix command generates the count matrix either un-normalized, normalized (via ecopy), or with PCA or t-SNE dimensionality reduction applied. Note that default behavior of PCA if -n is not specified is to generate an elbow graph for the user to pick the appropriate choice of principal components for downstream analyses. The -n parameter is passed to the n_components parameter of sklearn.decomposition.PCA, which is commonly used for PCA in Python.
-
-```bash
->./bin/kdb matrix -h
-usage: kdb matrix [-h] [-v] [-k K] [-n N] [-d DELIMITER]
-                  [--perplexity PERPLEXITY]
-                  {PCA,tSNE,Normalized,Unnormalized} <.kdb> [<.kdb> ...]
+>kmerdb matrix -h
+usage: kmerdb matrix [-h] [-v] [--debug] [-l LOG_FILE] [-nl {20,50,100,200}]
+                     [-p PARALLEL] [--with-index]
+                     [--column-names COLUMN_NAMES] [--delimiter DELIMITER]
+                     [--output-delimiter OUTPUT_DELIMITER]
+                     [--no-normalized-ints] [-k K] [-n N]
+                     [--perplexity PERPLEXITY]
+                     {PCA,tSNE,DESeq2,pass,Frequency}
+                     [<kdbfile1 kdbfile2 ...|input.tsv|STDIN> ...]
 
 positional arguments:
-  {PCA,tSNE,Normalized,Unnormalized}
-                        Choice of distance metric between two profiles
-  <.kdb>                Two or more .kdb files
+  {PCA,tSNE,DESeq2,pass,Frequency}
+                        Choice of dimensionality reduction, normalization
+                        method (DESeq2), or pass (no action)
+  <kdbfile1 kdbfile2 ...|input.tsv|STDIN>
+                        Two or more .kdb files, or another count matrix in
+                        tsv/csv
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v, --verbose         Prints warnings to the console by default
+  --debug               Debug mode. Do not format errors and condense log
+  -l LOG_FILE, --log-file LOG_FILE
+                        Destination path to log file
+  -nl {20,50,100,200}, --num-log-lines {20,50,100,200}
+                        Number of logged lines to print to stderr. Default: 50
+  -p PARALLEL, --parallel PARALLEL
+                        Read files in parallel
+  --with-index          Print the row indices as well
+  --column-names COLUMN_NAMES
+                        A filepath to a plaintext flat file of column names.
+  --delimiter DELIMITER
+                        The choice of delimiter to parse the input .tsv with.
+                        DEFAULT: ' '
+  --output-delimiter OUTPUT_DELIMITER
+                        The output delimiter of the final csv/tsv to write.
+                        DEFAULT: ' '
+  --no-normalized-ints  Don't round normalized counts to the nearest integer
   -k K                  The k-dimension that the files have in common
   -n N                  The number of dimensions to reduce with PCA or t-SNE.
                         DEFAULT: an elbow graph will be generated if -n is not
                         provided to help the user choose -n
-  -d DELIMITER, --delimiter DELIMITER
-                        The choice of delimiter to parse the DataFrame with
   --perplexity PERPLEXITY
                         The choice of the perplexity for t-SNE based
                         dimensionality reduction
-
->./bin/kdb matrix -n 3 PCA test/data/*.$K.kdb
+>kmerdb matrix -n 3 PCA test/data/*.$K.kdb # Will use principal components analysis/SVD to reduce the dimensions of the count matrix
 ```
 
+## kmerdb distance
 
-## kdb kmeans
+Similar to the matrix subcommand, arguments to 'kmerdb distance' are multiple .kdb files, a input.tsv file, or the keyword 'STDIN' to read from standard input.
+
+Suppose you want a distance matrix between profiles; this is made easy with the distance command, and prints the distance matrix as .tsv to STDOUT
+
+```bash
+>kmerdb distance correlation test/data/*.$K.kdb
+```
+
+The result is a symmetric matrix in tsv format with column headers formed from the filenames with the extensions/suffixes removed.
+
+
+
+## kmerdb kmeans
 
 Now you would like to cluster your count matrix, perhaps after reducing dimensionality of the dataset. tSNE is a recommended choice for using the count matrix to differentiate between strains or species. PCA is equally useful in understanding the differences between species and reducing the dimensionality to something reasonable is an important first step before clustering.
 
 
 ```bash
 # You may supply any arbitrary count tsv to cluster, and it will run that directly.
->./bin/kdb cluster -k 3 example.tsv
+>kmerdb kmeans -k 3 -i example.tsv
 
 # Alternatively, you may pipe the result from kdb matrix directly to kdb cluster.
-# The matrix command will not produce PCA reduced dimension matrix unless the -n parameter
-# is identified from the elbow graph it will produce as a side effect.
->./bin/kdb matrix PCA -n 3 test/data/*.$K.kdb | ./bin/kdb cluster -k 3
+# The matrix command will not produce PCA reduced dimension matrix unless the -n parameter is passed as well.
+# The choice of dimensions, n, can be identified from the elbow graph produced if -n is not passed.
+>kmerdb matrix PCA -n 3 test/data/*.$K.kdb | kmerdb kmeans -k 3 -i STDIN
 
 # Alternatively, t-SNE may be used to project the data into 2 dimensions for visualization.
->./bin/kdb matrix tSNE -n 2 test/data/*.$K.kdb | ./bin/kdb cluster -k 3
+>kmerdb matrix tSNE -n 2 test/data/*.$K.kdb | kmerdb cluster -k 3 -i STDIN
 ```
 
-## kdb rarefy
+## kmerdb hierarchical
 
-Suppose you want supply a normalized matrix directly to [ecopy](https://github.com/Auerilas/ecopy) for rarefaction analysis. The rarefaction command requires a tsv and may be piped directly from 'kdb matrix'.
+Usage for the 'hierarchical' subcommand is very similar to 'kmeans'. Be sure to use -i (or STDIN) to specify input, as its not positional in this command.
 
-
-```bash
-# You may supply any arbitrary count tsv to rarefy, and it will run that directly.
->./bin/kdb rarefy example.tsv
-
-# Alternatively, you may pipe the result from kdb matrix directly to kdb rarefy.
->./bin/kdb matrix Unnormalized test/data/*.$K.kdb | ./bin/kdb rarefy
-```
 
 
 # Documentation
 
-
-Documentation for the (sub)module can be found here: [https://kdb.readthedocs.io/en/stable](https://kdb.readthedocs.io/en/stable)
-
-Additionally, running the matrix, kmeans, or rarefy commands (which are arguably more complex in their usage) should be run with the DEBUG (-vv) verbosity setting on. This will yield additional information about the expected pipeline usage. That statement is echoed here.
+Documentation for the functions, parameters, positional arguments, and steps used by the subcommands may be obtained from the argparse -h,--help arguments, the 'usage' command (e.g. `kmerdb usage profile`), the README.md file, or the module's docstrings in the ReadTheDocs documentation.
 
 
-```bash
-The workflow is roughly as follows:
-
-# # # # # # # # # #  #
-# profile generation #
-# # # # # # # # # #  #
-# I have included -p and -b parameters that influence the rate of profile generation.
-# The block size (-b) is primarily for the number of .fastq(.gz) records to read at a time.
-# The -p parallel feature works within fastq parsing to process k-mer shredding/counting.
-#
-# -k $K is the parameter that specifies the k-mer resolution
-#
-# This command uses SQLite3 behind the scenes for on-disk k-mer counting
-# since memory is rate limiting for profile generation when dealing 
-# with biologically conventional choices of k (20 < k < 35).
-parallel 'kdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
-
-
-
-# # # # # # #
-# analysis  #
-# # # # # # #
-################################
-# W A R N I N G :  M E M O R Y #
-################################
-# The first step of either rarefaction or clustering is to generate the k-mer profile matrix
-# The matrix is not a new concept, it is just samples as columns of profiles. 
-# Without metadata or graphical information embedded in the format, 
-# we can create a matrix and do data science with the information.
-# However, because the profiles are exponential in k, a linear increase in k 
-# hypothetically results in an improvement of resolution that is at least superlinear in k.
-# Therefore, the amount of memory can be calculated by the integer size times the profile resolution
-# times the number of samples.
-#
-#
-##################
-# Cluster analysis
-##################
-# The first step ('kdb matrix') generates one from different profiles with the same choice of k.
-# This command uses ecopy to normalize between sample k-mer total counts before PCA/tSNE.
-# -n $N is the dimensionality of either PCA or tSNE. A good choice for tSNE is 2.
-# If the command is run with PCA without a selected dimensionality, an elbow graph
-# will be produced named '{0}'. Please use this graph to select
-# the number of principal components to use.
-# The pipeline will not continue until -n $N is selected by the user.
-# It is not recommended to feed Unnormalized or Normalized matrices directly to 'kdb kmeans'
-# 
-# The PCA/tSNE matrix will be dimReduced ($N) * N, where N is the number of samples/files/profiles.
-#
-# And finally, a k-means clustering will be done on the reduced dimensionality dataset
-# Note here that the -k $K is not related to the choice of substring length 'k' for profile generation.
-# The 'kdb kmeans' command produces two figures, first is an elbow graph looking at up to N clusters.
-# This elbow graph will be written to '{1}'.
-# The second is the more typical scatterplot of the first two reduced dimensions
-# and the k-means clustering labels shown over the scatter.
-# This file will be written to '{2}'.
-kdb matrix [-n $N] [ PCA | tSNE ] test/data/*.$K.kdb | kdb kmeans -k $K
-
-#
-# If you wanted to save a matrix from kdb matrix for use on your own
-# it is recommended that you consider gzip compressing it if it is the Normalized or Unnormalized matrix
-# which we will see is used downstream in the rarefaction analytical pathway.
-#
-##################
-# Rarefaction
-##################
-# The Unnormalized and Normalized matrices go to ecopy's rarefy function to produce a rarefaction plot
-# This plot will be written to '{3}'.
-kdb matrix [ Unnormalized | Normalized ] test/data/*.$K.kdb | kdb rarefy
-```
 
 
 # Development
 
 
-[![PyPI version](https://img.shields.io/pypi/v/kdb.svg)][pip]
-[![Python versions](https://img.shields.io/pypi/pyversions/kdb.svg)][Pythons]
-[![Travis Build Status](https://travis-ci.org/MatthewRalston/kdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kdb)
-[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kdb/master.svg)][Coveralls]
-[![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
+[![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
+[![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
+[![Travis Build Status](https://travis-ci.org/MatthewRalston/kmerdb.svg?branch=master)](https://travis-ci.org/MatthewRalston/kmerdb)
+[![Coveralls code coverage](https://img.shields.io/coveralls/MatthewRalston/kmerdb/master.svg)][Coveralls]
+[![ReadTheDocs status](https://readthedocs.org/projects/kmerdb/badge/?version=stable&style=flat)][RTD]
 
 
-[pip]: https://pypi.org/project/kdb/
-[Pythons]: https://pypi.org/project/kdb/
-[Coveralls]: https://coveralls.io/r/MatthewRalston/kdb?branch=master
-[RTD]: https://kdb.readthedocs.io/en/latest/
+[pip]: https://pypi.org/project/kmerdb/
+[Pythons]: https://pypi.org/project/kmerdb/
+[Coveralls]: https://coveralls.io/r/MatthewRalston/kmerdb?branch=master
+[RTD]: https://kmerdb.readthedocs.io/en/latest/
 
 ## Unit testing
 
@@ -341,14 +482,15 @@ python setup.py test
 
 The following section is designed to give developers a flavor of how to use the kdb modules for development purposes. The first topic of the API is importing.
 
+```py
 ```python
 # Simple full module import
-import kdb
-# specific modules
-from kdb import distance
-from kdb import fileutil, index
-```
 
+# specific modules
+from kmerdb import distance
+from kmerdb import fileutil, graph
+```
+````
 
 ## Reading
 
@@ -356,42 +498,34 @@ The next obvious topic is reading kdb files. It's very easy to read them line by
 
 ```python
 
+import yaml
 from kdb import fileutil
 
 files = ["foo.kdb", "bar.kdb", "baz.kdb"]
 
-objects = [fileutil.open(f, 'r') for f in files]
+profiles = [fileutil.open(f, 'r', slurp=True) for f in files]
 
-#full_matrix = [o.slurp() for o in objects]
+print(yaml.dump(profiles[0].metadata)) # Prints the YAML header
 
->for o in objects:
-.  for line in o:
-.    print(line) # Calculate something with each k-mer count
+foo_profile = profiles[0]
+# foo.metadata # YAML metadata
+# foo.kmer_ids # kmer_ids
+# foo.counts # a NumPy array of the counts
+
+>for i, c in enumerate(o.counts):
+    print(i, c) # Calculate something with each k-mer count
 0    56
 1    24
 
-```
-## Writing
 
-Then we have the topic of writing kdb files. It's very easy again with the built in open method creating and returning instances of class KDBWriter (in this case). It's just a matter of iterating over your data and supplying it to the write method, which forwards to the Bio.bgzf write method through my wrapper class KDBWriter.
-
-
-```python
-
-from kdb import fileutil
-
-with fileutil.open(f, 'w', header) as kdbfile:
-  for x in list:
-    kdbfile.write("\t".join(x) + "\n")
-
-```
+Check out the readthedocs or `__init__` source file for more details on module usage.
 
 # License
 
 
 Created by Matthew Ralston - [Scientist, Programmer, Musician](http://matthewralston.github.io) - [Email](mailto:mrals89@gmail.com)
 
-Distributed under the Apache license. See 'LICENSE.txt' for the copy distributed with this project. Open source software is not for everyone, but for those of us starting out and trying to put the ecosystem ahead of ego, we march into the information age with this ethos.
+Distributed under the Apache v2.0 license. See 'LICENSE.txt' for the copy distributed with this project. Open source software is not for everyone.
 
 
 # Acknowledgements
@@ -401,7 +535,6 @@ Thank you to the authors of kPAL and Jellyfish for the early inspiration. And th
 
 The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project has begun under GPL v3.0 and hopefully could gain some interest.
 
-Also thank you to patelvivek (github/viviensio) for the Github ribbon I previously used
 Thanks to free-icon for the download icon used on the home page. It is also cited at the bottom of each page.
 
 

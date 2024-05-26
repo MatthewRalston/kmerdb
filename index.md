@@ -8,9 +8,9 @@ author: null
 show_tile: false
 ---
 
-The K-mer database (.kdb) is a file format and command-line utility (CLI) for accessing precomputed k-mers from sequencing data. .kdb views k-mer graph databases as a fundamental technology to look at biological sequence identities and abundances. K-mer methods have been noted as fast and are used in areas from NGS quality control to phylogenomic investigations.
+The K-mer database profile `kmerdb` is a file format (.kdb) and command-line utility (CLI) for creating k-mer count vector profiles from sequencing data. kmerdb views k-mers and their De Bruijn graphs as fundamental tools for biological sequence abundances and sequence similarities. K-mer methods have been noted as fast and are used in areas from NGS quality control to phylogenomic investigations.
 
-.kdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a header or metadata section, much like .bam files. It is essentially a tab-delimited format with the last column unstructured for k-mer specific metadata. Input files and total k-mer counts are stored in the metadata block at the top of the file
+kmerdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a metadata header section, much like .bam files. It is essentially a tab-delimited format with a YAML header. Input file checksums, unique and total k-mer counts, and nullomer counts are stored in the metadata block at the top of the file.
 
 Please visit the [Install](#/install) page for details on installation.
 

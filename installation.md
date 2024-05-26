@@ -20,15 +20,15 @@ image: assets/images/installation-symbol.png
 Install the latest version from PyPI
 
 ```bash
-pip install kdb
+pip install kmerdb
 ```
 
 Install locally for development
 
 ```bashn
-git clone git@github.com:MatthewRalston/kdb.git
-cd kdb
+git clone git@github.com:MatthewRalston/kmerdb.git
+cd kmerdb
 pip install -r requirements.txt
-pip install -e .
+pip install .
 ```
 
