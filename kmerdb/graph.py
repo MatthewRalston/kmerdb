@@ -108,9 +108,13 @@ def open(filepath, mode="r", metadata=None, slurp:bool=False, logger=None):
     """
     if type(filepath) is not str:
         raise TypeError("kmerdb.graph.open expects a str as its first positional argument")
+    # elif not os.access(filepath, os.R_OK):
+    #     raise ValueError("kmerdb.graph.open expects an existing filepath as its first positional argument")
     elif type(mode) is not str:
         raise TypeError("kmerdb.graph.open expects the keyword argument 'mode' to be a str")
-    elif ("w" in mode or "x" in mode) and (metadata is None or not isinstance(metadata, OrderedDict)):
+    elif (mode == "w" or mode == "x") and (metadata is not None and (isinstance(metadata, OrderedDict) or type(metadata) is dict)):
+        pass
+    elif (mode == "w" or mode == "x") and metadata is not None:
         raise TypeError("kmerdb.graph.open expects an additional metadata dictionary")
     elif type(slurp) is not bool:
         raise TypeError("kmerdb.graph.open expects a boolean for the keyword argument 'slurp'")
@@ -185,7 +189,7 @@ def parse_kdbg_table_line(kdbg_table_line:str, sort_arr:bool=False, row_dtype:st
     """
 
     if type(kdbg_table_line) is not str:
-        raise TypeError("kmerdb.graph.parse_line expects a str as its first positional argument")
+        raise TypeError("kmerdb.graph.parse_kdbg_table_line expects a str as its first positional argument")
     elif type(kdbg_table_line) is str and kdbg_table_line == "":
         raise StopIteration("empty table line")
     
@@ -550,7 +554,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
         #     sys.exit(1)
         if _loggable:
             logger.log_it("adjacency space completed...", "INFO")
-        continue
+        pass
 
         
     """
@@ -736,7 +740,7 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
             if quiet is False:
                 sys.stderr.write("k-mer 'pair' ({0}, {1}) adjacency from input file(s) verified".format(p1str, p2str))
                 sys.stderr.write("\r")
-            continue
+            pass
 
 
     if error_count > 0:
@@ -932,6 +936,9 @@ class KDBGReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'fileobj' to be a file object")
         if filename is not None and type(filename) is not str:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'filename' to be a str")
+        elif not os.access(filename, os.R_OK):
+            raise ValueError("kmerdb.graph.open expects an existing filepath as its first positional argument")
+
         elif mode is not None and type(mode) is not str:
             raise TypeError("kmerdb.graph.KDBGReader expects the keyword argument 'mode' to be a str")
         elif n1_dtype is not None and type(n1_dtype) is not str:
@@ -1281,7 +1288,7 @@ class KDBGWriter(bgzf.BgzfWriter):
             raise TypeError("kmerdb.graph.KDBGWriter expects the filename to be a str")
         elif mode is None or type(mode) is not str:
             raise TypeError("kmerdb.graph.KDBGWriter expects the mode to be a str")
-        elif metadata is None or type(metadata) is not OrderedDict:
+        elif metadata is None or (type(metadata) is not OrderedDict and type(metadata) is not dict):
             raise TypeError("kmerdb.graph.KDBGWriter - invalid metadata argument")
         elif both_strands is None or type(both_strands) is not bool:
             raise TypeError("kmerdb.graph.KDBGWriter expects the keyword argument 'both_strands' to be a bool")
@@ -1302,11 +1309,13 @@ class KDBGWriter(bgzf.BgzfWriter):
                 raise ValueError("Must use write or append mode, not %r" % mode)
             elif "wb" == mode:
                 pass
+            elif mode == "w":
+                pass
             elif "a" in mode.lower():
                 raise NotImplementedError("Append mode is not implemented yet")
                 # handle = _open(filename, "ab")
             else:
-                raise RuntimeError("Unknown mode for .kdbg file writing class kmerdb.graph.KDBGWriter")
+                raise RuntimeError("Unknown mode for .kdbg file writing class kmerdb.graph.KDBGWriter: {0}".format(mode))
         self._text = "b" not in mode.lower()
         self._handle = _open(filename, "wb")
         self._buffer = b"" if "b" in mode.lower() else ""
@@ -1356,8 +1365,12 @@ class KDBGWriter(bgzf.BgzfWriter):
                 self._buffer = b""
                 self._handle.flush()
         elif "w" == mode.lower() or "x" == mode.lower():
-            self.write(yaml.dump(metadata, sort_keys=False))
-            self._buffer = ""
+            metadata_yaml_str = yaml.dump(metadata, sort_keys=False)
+            metadata_bytes = bytes(metadata_yaml_str, 'utf-8')
+            mode = "b"
+            self._buffer = b""
+            self.write(metadata_bytes)
+
             self._handle.flush()
         else:
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")

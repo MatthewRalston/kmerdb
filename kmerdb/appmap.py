@@ -164,7 +164,7 @@ COMMAND INFO
 
 
 
-command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name = config.subcommands
+command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name, command_13_name = config.subcommands
 
 COMMANDS = [
     command_1_name, #"profile",
@@ -178,7 +178,8 @@ COMMANDS = [
     command_9_name, #"index",
     command_10_name, #"shuf",
     command_11_name, #"usage",
-    command_12_name #"help"
+    command_12_name, #"help"
+    command_13_name #"version"
 ]
 
 

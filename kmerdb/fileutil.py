@@ -44,132 +44,7 @@ from kmerdb import kmer, util, config, appmap
 global logger
 logger = None
 
-
-# S3 configuration
-#s3prefix = "s3://"
-
-
-
-
 is_integer = re.compile("^[-+]?[0-9]+$")
-findall_float = re.compile(r"[-+]?(?:\d*\.\d+|\d+)")
-
-def is_all_fasta(filenames):
-    """Tests if all the strings in a list are fasta format.
-    
-    :param filenames:
-    :type list:
-    :returns bool:
-    :rtype bool:
-    """
-    if type(filenames) is not list:
-        raise TypeError("kmerdb.fileutil.is_all_fasta() expects a list as its first positional argument")
-    elif not all(type(s) is str for s in filenames):
-        raise TypeError("kmerdb.fileutil.is_all_fasta() expects a list of str as its first positional argument")
-    return all((f.endswith('.fa') or f.endswith('.fasta') or f.endswith('.fa.gz') or f.endswith('.fasta.gz') or f.endswith('.fna') or f.endswith('.fna.gz')) for f in filenames)
-
-
-def isfloat(num):
-    """
-    Thanks to the author of:
-    https://www.programiz.com/python-programming/examples/check-string-number
-
-
-    :param num: Check if a string is a float, or could be converted to a float
-    :type num: str
-    :returns: Whether or not the string can be parsed as a float
-    :rtype: bool
-    """
-    if type(num) is str:
-        #logger.debug("Type of number being interpreted through pure Python : {0}".format(type(num)))
-        findall_float.match(num)
-        #logger.debug(re.match(findall_float, num))
-        return re.match(findall_float, num) is not None
-    elif type(num) is float:
-        return True
-    elif type(num) is int:
-        return False
-    else:
-        #logger.error(type(num))
-        #logger.error(num.dtype)
-        raise TypeError("kmerdb.fileutil.isfloat expects a single str as a positional argument")
-
-
-# def _s3_file_download(self, seqpath, temporary=True):
-#     """
-#     Note: the file will be downloaded into a temporary file that needs to be deleted afterwards
-#     It will create the temporary file with respect to the TMP bash variable 'export TMP=/some/temporary/location'
-#     :param seqpath: The s3 identifier of a object. 's3://bucket/example.fasta'
-#     :type seqpath: str
-#     :returns: The location of a downloaded gennomic Fasta file
-#     :rtype: str
-#     """
-#     import boto3
-#     s3 = boto3.resource('s3')
-#     s3client = boto3.client('s3')
-
-
-
-#     if type(seqpath) is not str:
-#         raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects a str 'seqpath' as its first positional argument")
-#     elif seqpath[0:5] != s3prefix:
-#         raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects a s3 object reference its first positional argument. e.g. 's3://bucket/example.txt'")
-#     elif type(temporary) is not bool:
-#         raise TypeError("kmerdb.fileutil.SeqReader.__s3_file_download expects the keyword argument temporary to be a bool")
-#     seqpath = seqpath.lstrip(s3prefix)
-#     pathsegs =seqpath.split('/')
-#     bucket = pathsegs.pop(0)
-#     fname = os.path.basename(seqpath)
-#     key = '/'.join(pathsegs)
-#     if seqpath[-3:] == ".gz":
-#         suffix = '.' + '.'.join(seqpath.split('.')[-2:])
-#     else:
-#         suffix = path.splitext(seqpath)[1]
-#     if temporary is True:
-#         filepath = tempfile.NamedTemporaryFile(mode='w+b', suffix=suffix, delete=False)
-#         logger.info("Downloading '{0}' => '{1}'...".format(seqpath, filepath.name))
-#     else:
-#         filepath = open(fname, 'w+b')
-#         logger.info("Downloading '{0}' => '{1}'...".format(seqpath, fname))
-#     obj = s3.Object(bucket, key)
-#     obj.download_fileobj(filepath)
-#     filepath.close()
-#     return filepath.name
-
-def parse_line(line):
-    """
-    Parses a line according to the expected .kdb syntax, and returns the python data types expected as a tuple.
-
-    :param line:
-    :type line: str
-    :returns: kmer_id, count, metadata
-    :rtype: tuple
-    """
-    
-    if type(line) is not str:
-        raise TypeError("kmerdb.fileutil.parse_line expects to a str as its first positional argument")
-    elif type(line) is str and line == "":
-        return None
-    else:
-        linesplit = line.rstrip().split("\t")
-        if len(linesplit) != 3:
-            #logger.error("Full line:\n{0}".format(line))
-            raise ValueError("kmerdb.fileutil.parse_line() encountered a .kdb line without 3 columns, a violation of the format")
-        else:
-            kmer_id, count, kmer_metadata = linesplit
-            if isfloat(count):
-                kmer_id, count = int(kmer_id), float(count)
-            else:
-                kmer_id, count = int(kmer_id), int(count)
-            kmer_metadata = yaml.safe_load(kmer_metadata)
-            if type(kmer_metadata) is dict:
-                return kmer_id, count, kmer_metadata
-            else:
-                #logger.error("Improperly formatted k-mer metadata field")
-                #logger.error(line)
-                raise ValueError("kmerdb.fileutil.parse_line(): Improperly formatted k-mer metadata field")
-
-
 
 def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False, logger=None):
     """
@@ -192,9 +67,15 @@ def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False, l
     """
     if type(filepath) is not str:
         raise TypeError("kmerdb.fileutil.open expects a str as its first positional argument")
+    ## We don't want this because it won't write a new .kdb file on mode='w'
+    # elif os.access(filepath, os.R_OK) is False:
+    #     raise ValueError("kmerdb.fileutil.open expects a valid filepath as its first positional argument")
     elif type(mode) is not str:
         raise TypeError("kmerdb.fileutil.open expects the keyword argument 'mode' to be a str")
-    elif ("w" in mode or "x" in mode) and (metadata is None or not isinstance(metadata, OrderedDict)):
+
+    if (mode == "w" or mode == "x") and (metadata is not None and (isinstance(metadata, OrderedDict) or type(metadata) is dict)):
+        pass
+    elif (mode == "w" or mode == "x"):
         raise TypeError("kmerdb.fileutil.open expects an additional metadata dictionary")
     elif type(sort) is not bool:
         raise TypeError("kmerdb.fileutil.open expects a boolean for the keyword argument 'sort'")
@@ -251,6 +132,9 @@ class KDBReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'filename' to be a str")
+        elif os.access(filename, os.R_OK) is False:
+            raise ValueError("kmerdb.fileutil.KDBReader expects a valid filepath as its first positional argument")
+
         elif sort is None or type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'sort' to be a bool")
         elif max_cache is None or type(max_cache) is not int:
@@ -443,17 +327,6 @@ Failed to validate YAML header.
         return
 
         #
-    def read_line(self):
-        """
-        Returns in order, a parsed line from the .kdb file as follows:
-
-        :returns: (kmer_id:int, count:int, metadata:dict)
-        :rtype: tuple
-        """
-
-        line = self.readline()
-        return parse_line(line)
-
     
     def __iter__(self):
         return self
@@ -513,7 +386,7 @@ Failed to validate YAML header.
                                 self.logger.log_it("Finished loading initial profile through slurp-on-init", "ERROR")
                                 self.logger.log_it("Read profile from: {0}".format(self._filepath), "ERROR")
                             #raise e
-                            continue
+                            pass
                         if line is None:
                             if self._loggable:
                                 self.logger.log_it("'next' was None... Internal Error", "ERROR")
@@ -537,7 +410,7 @@ Failed to validate YAML header.
                         #self.logger.log_it("{0}\t{1}\t{2}\t'{3}'".format(x, kmer_id, _count, _frequency), "DEBUG")
                         kmer_ids.append(kmer_id)
 
-                        if isfloat(_count):
+                        if util.isfloat(_count):
                             parsed_integer_string = is_integer.match(_count)
                             if parsed_integer_string is not None:
                                 count = int(_count)
@@ -557,7 +430,7 @@ Failed to validate YAML header.
 
                         #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                         try:
-                            if isfloat(_frequency):
+                            if util.isfloat(_frequency):
                                 try:
                                     pis = is_integer.match(_frequency)
                                 except TypeError as e:
@@ -630,7 +503,7 @@ Failed to validate YAML header.
                         _frequency = float(_frequency)
                         kmer_id = int(kmer_id)
 
-                        if isfloat(_count):
+                        if util.isfloat(_count):
                             s = findall_float.match(_count)
                             if s is not None:
                                 count = float(_count)
@@ -655,7 +528,7 @@ Failed to validate YAML header.
                         i+=1
                         #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                         try:
-                            if isfloat(_frequency):
+                            if util.isfloat(_frequency):
                                 assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
                             else:
                                 assert float(frequency) == float(_frequency), "Frequency did not match expected value based on the count..."
@@ -758,9 +631,9 @@ class KDBWriter(bgzf.BgzfWriter):
         self.logger = logger
         self._loggable = logger is not None
 
-        
-        if not isinstance(metadata, OrderedDict):
-            raise TypeError("kmerdb.fileutil.KDBWriter expects a valid metadata object as its first positional argument")
+
+        if type(metadata) is not dict and not isinstance(metadata, OrderedDict):
+            raise TypeError("kmerdb.fileutil.KDBWriter expects a valid metadata dictionary as its first positional argument")
         try:
             if self._loggable:
                 self.logger.log_it("Validating metadata schema against the config.py header schema", "DEBUG")
@@ -827,8 +700,12 @@ class KDBWriter(bgzf.BgzfWriter):
                 self._buffer = b""
                 self._handle.flush()
         elif "w" == mode.lower() or "x" == mode.lower():
-            self.write(yaml.dump(metadata, sort_keys=False))
-            self._buffer = ""
+            metadata_yaml_str = yaml.dump(metadata, sort_keys=False)
+            metadata_bytes = bytes(metadata_yaml_str, 'utf-8')
+            mode = "b"
+            self._buffer = b""            
+            self.write(metadata_bytes)
+
             self._handle.flush()
         else:
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")

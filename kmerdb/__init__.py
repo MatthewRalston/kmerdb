@@ -58,6 +58,11 @@ global exit_summary
 exit_summary = None
 
 
+def version(arguments):
+    from kmerdb import config
+
+    print(config.VERSION)
+
 
 def print_argv():
     argv = sys.argv
@@ -2327,6 +2332,14 @@ def cli():
     shuf_parser.add_argument("kdb_in", type=str, help="An indexed k-mer database file (.kdb)")
     shuf_parser.add_argument("kdb_out", type=str, help="The output shuffled k-mer database file (.kdb)")
     shuf_parser.set_defaults(func=shuf)
+
+
+    version_parser = subparsers.add_parser("version", help=appmap.command_13_name)
+    version_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    version_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    version_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
+    version_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    version_parser.set_defaults(func=version)
 
     
     # markov_probability_parser = subparsers.add_parser("probability", help=u"""
