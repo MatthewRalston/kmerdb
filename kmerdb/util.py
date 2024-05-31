@@ -22,11 +22,14 @@ import os
 import gzip
 import tempfile
 import yaml, json
+import re
 from collections import deque, OrderedDict
 
 
 from kmerdb import config
 
+
+findall_float = re.compile(r"[-+]?(?:\d*\.\d+|\d+)")
 
 
 
@@ -56,4 +59,44 @@ def represent_yaml_from_collections_dot_OrderedDict(dumper, data):
 
     return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
+
+def is_all_fasta(filenames):
+    """Tests if all the strings in a list are fasta format.
+    
+    :param filenames:
+    :type list:
+    :returns bool:
+    :rtype bool:
+    """
+    if type(filenames) is not list:
+        raise TypeError("kmerdb.util.is_all_fasta() expects a list as its first positional argument")
+    elif not all(type(s) is str for s in filenames):
+        raise TypeError("kmerdb.util.is_all_fasta() expects a list of str as its first positional argument")
+    return all((f.endswith('.fa') or f.endswith('.fasta') or f.endswith('.fa.gz') or f.endswith('.fasta.gz') or f.endswith('.fna') or f.endswith('.fna.gz')) for f in filenames)
+
+
+def isfloat(num):
+    """
+    Thanks to the author of:
+    https://www.programiz.com/python-programming/examples/check-string-number
+
+
+    :param num: Check if a string is a float, or could be converted to a float
+    :type num: str
+    :returns: Whether or not the string can be parsed as a float
+    :rtype: bool
+    """
+    if type(num) is str:
+        #logger.debug("Type of number being interpreted through pure Python : {0}".format(type(num)))
+        findall_float.match(num)
+        #logger.debug(re.match(findall_float, num))
+        return re.match(findall_float, num) is not None
+    elif type(num) is float:
+        return True
+    elif type(num) is int:
+        return False
+    else:
+        #logger.error(type(num))
+        #logger.error(num.dtype)
+        raise TypeError("kmerdb.util.isfloat expects a single str as a positional argument")
 
