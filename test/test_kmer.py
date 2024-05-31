@@ -83,7 +83,7 @@ class Test_Kmers(unittest.TestCase):
         self.assertEqual(testKmers.k, 3)
             
     def test_shred(self):
-        seqrec = SeqRecord.SeqRecord(Seq.Seq(self.seq, Seq.IUPAC.unambiguous_dna))
+        seqrec = SeqRecord.SeqRecord(Seq.Seq(self.seq, Seq.IUPACData.unambiguous_dna_letters))
         shredded = self.kmer.shred(seqrec)
         self.assertIs(type(shredded), dict)
         

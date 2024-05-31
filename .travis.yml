@@ -1,11 +1,11 @@
 language: python
 python:
-  - "3.7.4"
-  - "3.8.4"
+  - "3.12.2"
 before_install:
   - sudo apt-get -y install r-base
 install:
   - pip install .
+  - pip install -r requirements-dev.txt
   - pip install pytest pytest-cov coveralls
 script:
   - pytest --cov=kmerdb/
