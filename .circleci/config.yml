@@ -1,0 +1,49 @@
+version: '2.1'
+
+orbs:
+  python: circleci/python@2.1.1
+
+jobs:
+  build:
+    executor:
+      name: python/default
+      tag: '3.11'
+    steps:
+      - checkout
+      - run:
+          command: rm .python-version
+      - python/install-packages:
+          pkg-manager: pipenv
+      - run:
+          command: pipenv run pip install setuptools
+      - python/install-packages:
+          pip-dependency-file: requirements.txt
+          pkg-manager: pipenv
+      - python/install-packages:
+          pip-dependency-file: requirements-dev.txt
+          pkg-manager: pipenv
+  test:
+    executor: python/default
+    steps:
+      - run:
+          command: |
+            pipenv run coverage run -m pytest
+          name: Pytest
+      - run:
+          command: |
+            pipenv run coverage report
+          name: Coverage report
+      - run:
+          command: |
+            pipenv run coverage html
+          name: Coverage HTML
+      - store_artifacts:
+          path: htmlcov
+
+workflows:
+  main:
+    jobs:
+      - build
+      - test
+
+    
