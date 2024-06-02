@@ -1,20 +1,23 @@
 version: '2.1'
-
 orbs:
   python: circleci/python@2.1.1
-
+  codecov: codecov/codecov@4.0.1
 jobs:
-  build:
+  build_then_test:
     executor:
       name: python/default
-      tag: '3.11'
+      tag: '3.12.3'
     steps:
       - checkout
       - run:
           command: rm .python-version
+      - run:
+          command: python3 --version
+          name: Check python version
       - python/install-packages:
           pkg-manager: pipenv
       - run:
+          name: 'Ensure Setuptools is installed'
           command: pipenv run pip install setuptools
       - python/install-packages:
           pip-dependency-file: requirements.txt
@@ -22,28 +25,35 @@ jobs:
       - python/install-packages:
           pip-dependency-file: requirements-dev.txt
           pkg-manager: pipenv
-  test:
-    executor: python/default
-    steps:
+      - run:
+          name: 'Install development dependencies too'
+          command: |
+            pipenv run pip install coverage pytest
       - run:
           command: |
             pipenv run coverage run -m pytest
-          name: Pytest
+          name: 'Pytest'
       - run:
+          name: 'Junit format Pytest'
           command: |
-            pipenv run coverage report
-          name: Coverage report
+            mkdir test-results
+            pipenv run pytest --junitxml=test-results/junit.xml
       - run:
           command: |
             pipenv run coverage html
-          name: Coverage HTML
+          name: 'Coverage HTML'
+      - run:
+          name: 'CodeCov'
+          command: |
+            pipenv run python -m codecov
       - store_artifacts:
           path: htmlcov
-
+      - store_test_results:
+          path: test-results
+      - codecov/upload
 workflows:
   main:
     jobs:
-      - build
-      - test
+      - build_then_test
 
     

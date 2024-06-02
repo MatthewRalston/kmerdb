@@ -4,19 +4,23 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-numpy = ">=1.21.2"
-pyyaml = ">=6.0.1"
-jsonschema = ">=4.17.3"
-psutil = ">=4.2.0"
-cython = ">=3.0.8"
-biopython = ">=1.81"
-scipy = ">=1.7.3"
-scikit-learn = "==1.0.2"
-matplotlib = ">=3.5.3"
-"3.7.4" = "*"
+numpy = "*"
+pyyaml = "*"
+jsonschema = "*"
+psutil = "*"
+cython = "*"
+biopython = "*"
+scipy = "*"
+scikit-learn = "*"
+matplotlib = "*"
+pandas = "*"
+pytest = "*"
+coverage = "*"
+pytest-cov = "*"
+codecov = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.11"
-
+python_version = "3.12"
+python_full_version = "3.12.3"
