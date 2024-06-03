@@ -10,7 +10,7 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main)
-
+[![codecov](https://codecov.io/gh/MatthewRalston/kmerdb/graph/badge.svg?token=8VB0RVRTSV)](https://codecov.io/gh/MatthewRalston/kmerdb)
 [![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
 
 
