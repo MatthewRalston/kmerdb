@@ -27,8 +27,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmerdb"
-version = "0.8.3"
-description = "Yet another corretion to the 'yet another correction to just a k-mer counter...'"
+version = "0.8.4"
+description = "Yet another correction to the 'yet another correction to just a k-mer counter...'"
 readme = "README.md"
 authors = [{name="Matt Ralston <mralston.development@gmail.com>", email="mralston.development@gmail.com"}]
 license = { file = "LICENSE.txt" }
@@ -82,8 +82,8 @@ dependencies = [
              "setuptools>=69.2.0",
 	     ]
 
-requires-python = ">=3.7.4"
-#requires-python = ">=3.12.2"
+#requires-python = ">=3.7.4"
+requires-python = ">=3.12.2"
 
 [project.optional-dependencies]
 dev = [
