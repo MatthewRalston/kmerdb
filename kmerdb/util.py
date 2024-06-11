@@ -60,6 +60,17 @@ def represent_yaml_from_collections_dot_OrderedDict(dumper, data):
     return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
 
+def is_gz_file(filepath):
+    import gzip
+    try:
+        
+        with gzip.open(filepath, 'rb') as f:
+            f.readline()
+        return True
+    except OSError as e:
+        return False
+
+
 def is_all_fasta(filenames):
     """Tests if all the strings in a list are fasta format.
     
