@@ -18,19 +18,62 @@
 
 
 
-import logging
-logger = logging.getLogger(__file__)
+
+
 
 import math
 import numpy as np
 import multiprocessing as mp
 cimport numpy as cnp
 cimport cython
+
 import sys
 #from numba import jit
 #import functools
 
+import logging
+logger = logging.getLogger(__file__)
 
+
+
+def d2_distance(a, b, sharedval, presence_only:bool=False):
+    val = d2(a, b, presence_only=presence_only)
+    sharedval.value = val
+
+
+cpdef long d2(int[:] a, int[:] b, bint presence_only):
+    cdef int d = 0
+
+    if len(a) != len(b):
+        raise ValueError("arrays must have equal size")
+    else:
+        for i in range(len(a)):
+            if a[i] == b[i]:
+                d += 1
+            elif presence_only is True and a[i] > 0 and b[i] > 0:
+                d += 1
+        return d
+
+
+cpdef long lr(int[:] a,  int[:] ea):
+    """
+    The likelihood ratio statistic may be calculated from an array of word (k-tuple) abundances and their expectations.
+    """
+    cdef likelihood_ratio = 0
+
+    if len(a) != len(ea):
+        raise ValueError("arrays must have matching length")
+
+    else:
+        for i in range(len(a)):
+            ratio = a[i]/ea[i]
+            likelihood_ratio += a[i] * math.log2(ratio)
+
+        return 2*likelihood_ratio
+
+
+
+    
 def pearson_correlation(a, b, total_kmers, sharedr):
     r = correlation(a, b, total_kmers)
     sharedr.value = r

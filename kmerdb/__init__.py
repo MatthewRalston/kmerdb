@@ -83,10 +83,14 @@ def citation(arguments):
 def index_file(arguments):
     from kmerdb import fileutil, index
     from kmerdb.config import DONE
-    
-    with fileutil.open(arguments.kdb, mode='r') as kdb:
+
+
+    idx = []
+    with fileutil.open(arguments.kdb, mode='r', slurp=True, with_index=True) as kdb:
         k = kdb.metadata['k']
-    line_index = index.open(arguments.kdb, mode="xt", k=k)
+        metadata = kdb.metadata
+            
+        line_index = index.open(filepath=arguments.kdb, indexfilepath=arguments.kdb + "i", mode="u", idx=kdb.index, force=arguments.force, DEBUG=arguments.debug)
     sys.stderr.write(DONE)
 
 
@@ -2317,10 +2321,14 @@ def cli():
 
 
     index_parser = subparsers.add_parser("index", help=appmap.command_9_description)
+
+    index_parser.add_argument("--force", action="store_true", help="Force index creation (if previous index exists")
     index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     index_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     index_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     index_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+
+    
     index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     index_parser.set_defaults(func=index_file)
 

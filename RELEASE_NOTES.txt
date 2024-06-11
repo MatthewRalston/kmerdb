@@ -1,4 +1,10 @@
 =============
+| v0.8.3    |
+=============
+Some bugs cleaned up, smoother interface, custom error handling option disabled by --debug, usage/help subcommands in addition to -h,--help, better verbosity/clarity in UX, and working on multi-k mode, D2 stats, and index bugfix.
+
+
+=============
 | v0.7.8    |
 =============
 Still fixing a lot of issue wrt the interface (logging info) and stepping through neighbor list creation/validations, adjacencies format specification, other issues w.r.t main __init__.py profile and graph subcommands (profile, make_kdbg in __init__.py, [ALL] fileutil.py )

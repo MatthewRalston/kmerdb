@@ -6,7 +6,23 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-
+* 4/25/24 - a small RNAidea (and other RNA families)
+** k-mer compositions and mutational families in small-RNA rich species
+** k-mer compositions of riboswitches
+** k-mer compositions of introns, exons (in eukaryotic) and promoters, terminators, orfs, orf families, and operons.
+* k-mer distances benchmark
+** Cython pearson
+** scikit spearman and correlation distance
+** statsmodel statistics
+*** 
+*** sm.add_constant(x1) # The b_{0} param in the ordinary Least Squares fit. 
+*** results = sm.OLS(y, x).fit()
+*** results.summary()
+** associated graphics for inferences
+*** pearson vs ols R2 from statsmodel
+*** spearman vs pearson vs k on test dataset. Matrix representation in example_report2.
+*** numpy or cython implementation of regression model.
+*** 
 * 4/13/24 - Assembly
 ** Networkx
  Assemble or markov probability, markov chains, contig definition, locality
@@ -30,16 +46,23 @@
 >>> G = nx.Graph()
 >>> G.add_nodes_from(kmer_ids)
 >>> G.add_edges_from(edge_list)
+>>> if nx.is_planar(G) is False:
+>>>     raise ValueError("Need planar graph to continue")
+>>> g = nx.generic_graph_view(G)
+
+>>> #nx.is_tournament(g) #should not be a tournament
+>>> #nx.tournament.hamiltonian_path(g)
+>>> # Utility function - # of walks
+>>> # num_walks = number_of_walks(g, length=walk_length)
+>>> 
+>>> final_g = restricted_view(G, hidden_nodes, hidden_edges)
 >>> degree_sequence = sorted((d for n, d in G.degree()), reverse=True)
 >>> dmax = max(degree_sequence)
 >>> dmax
 7
->>> fig = plt.figure("Degree of Cdiff k-mers for k=8")
+>>> fig = plt.figure("Degree of Cdiff k-mers for k=8 (Max neighbors = 8)")
 >>> axgrid = fig.add_gridspec(5,4)
 >>> ax0
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-NameError: name 'ax0' is not defined
 >>> ax0 = fig.add_subplot(axgrid[3:, :2])
 >>> ax0 = fig.add_subplot(axgrid[0:3, :])
 >>> Gcc = G.subgraph(sorted(nx.connected_components(G), key=len, reverse=True)[0])
