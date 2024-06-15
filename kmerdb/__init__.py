@@ -1788,6 +1788,57 @@ def profile(arguments):
     :param arguments: argparse Namespace
     :type arguments:
     """
+    
+    logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
+    logger.log_it(str(arguments), "DEBUG")
+
+    # The number of specified processors should be available
+    logger.log_it("Validating processor count for parallelization...", "DEBUG")
+    if arguments.parallel <= 0 or arguments.parallel > cpu_count()+1:
+        raise argparse.ArgumentError("-p, --parallel must be a valid processor count.")
+
+    ## 6/11/24 removed because reasons
+    # The extension should be .kdb because I said so.
+    # logger.log_it("Checking extension of output file...", "INFO")
+    # if os.path.splitext(arguments.kdb)[-1] != ".kdb":
+    #     raise IOError("Destination .kdb filepath does not end in '.kdb'")
+
+
+
+
+
+    
+
+    
+    if arguments.k is None:
+        if arguments.minK is None or arguments.maxK is None:
+            raise ValueError("In multi-k mode, arguments --minK and --maxK are required.")
+        else:
+            logger.log_it("Running in multi-k mode", "INFO")
+            for k in range(minK, maxK+1):
+                new_args = clone.deepclone(arguments)
+                new_args.k = k
+                raise RuntimeError("Multi-k mode")
+                #_profile(new_args)
+                #_profile(arguments) # FIXME
+                pass
+    elif arguments.k is not None:
+        logger.log_it("Running in single-k mode", "INFO")
+        logger.log_it("DEBUG: Running in warning-only mode. [-v,-vv, --debug]", "INFO")
+        logger.log_it("DEBUG: Running in warning-only mode. [-v,-vv, --debug]", "DEBUG")
+        logger.log_it("Warning. Some features deprioritized, note: you are tracking master/main. Visit the README headr or usage for additl.", "WARNING")
+        new_args = clone.deepclone(arguments)
+
+        raise RuntimeError("single-k mode")
+        _profile(new_args)
+
+    
+    return
+
+
+
+
+def _profile(arguments):
     from multiprocessing import Pool
     import json
     import time
@@ -1803,22 +1854,6 @@ def profile(arguments):
     step = 0
     feature = 0
     
-    logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
-    logger.log_it(str(arguments), "DEBUG")
-
-    # The number of specified processors should be available
-    logger.log_it("Validating processor count for parallelization...", "DEBUG")
-    if arguments.parallel <= 0 or arguments.parallel > cpu_count()+1:
-        raise argparse.ArgumentError("-p, --parallel must be a valid processor count.")
-
-    # The extension should be .kdb because I said so.
-    logger.log_it("Checking extension of output file...", "INFO")
-    if os.path.splitext(arguments.kdb)[-1] != ".kdb":
-        raise IOError("Destination .kdb filepath does not end in '.kdb'")
-
-
-
-
     file_metadata = []
     total_kmers = 4**arguments.k # Dimensionality of k-mer profile
     N = total_kmers
