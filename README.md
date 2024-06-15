@@ -16,9 +16,23 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 
 [pip]: https://pypi.org/project/kmerdb/
 [Pythons]: https://pypi.org/project/kmerdb/
+[RTD]: https://kdb.readthedocs.io/en/skie/
 [RTD]: https://kdb.readthedocs.io/en/latest/
+[RTD]: https://kdb.readthedocs.io/en/latest/
+[/]: https://kdb.info
+[-]: ...
+
+
 
 ## Summary 
+
+- [ x ] Homepage: 
+- [ x ] Quixart
+- [ x ] Readme headr
+- [ x ] OR
+- [ x ] usage / off
+- [ 
+
 
 k-mer counts from .fa(.gz)/.fq(.gz) sequence data can be stored in `.kdb` file format, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided. This file is compatible with `zlib`.
 
