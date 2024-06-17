@@ -6,11 +6,17 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-* 6/11/24 - [Happy Anniv Al!] Index refactor, offset calculations, index table structure
+* 6/14/24 - Revise README.md from changes to profile subcommand for multi-K and generic 'prefix' outfile pattern.
+
+** Samplesheet 
+** '--prefix' Outfile pattern (kmerdb profile -k 8 --output-name example_output <samplesheet|input.fa> => example_output.8.kdb, example_output.9.kdb, etc.
+
+** 
+* 6/11/24 - Index refactor, offset calculations, index table structure
 
 ** D2*, D2S, and D2 statistics/distances
-** TODO Refactor fileutil/index modules to produce valid index data on file-read
-** TODO Refactor distance.pyx, ensure it compiles and computes successfully
+** IN PROGRESS Refactor fileutil/index modules to produce valid index data on file-read
+** IN PROGRESS Refactor distance.pyx, ensure it compiles and computes successfully
 ** TODO Refactor profile command to accept minK and maxK commands
 ** TODO Refactor profile command to have 'prefix' as requried --flag instead of trailing positional argument
 *** Default behavior, on single -k, is to create a file named $PREFIX.$K.kdb
