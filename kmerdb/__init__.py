@@ -1788,6 +1788,8 @@ def profile(arguments):
     :param arguments: argparse Namespace
     :type arguments:
     """
+
+    import copy
     
     logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
     logger.log_it(str(arguments), "DEBUG")
@@ -1802,34 +1804,58 @@ def profile(arguments):
     # logger.log_it("Checking extension of output file...", "INFO")
     # if os.path.splitext(arguments.kdb)[-1] != ".kdb":
     #     raise IOError("Destination .kdb filepath does not end in '.kdb'")
+    samples = []
+    if len(arguments.input) == 1:
+        if ".fasta" in arguments.input[0] or ".fa" in arguments.input[0] or ".fna" in arguments.input[0] or ".fasta.gz" in arguments.input[0] or ".fa.gz" in arguments.input[0]:
+            logger.log_it("Input suffix is .fasta", "DEBUG")
+        elif ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
+            logger.log_it("Input suffix is .fastq", "DEBUG")
+        elif ".txt" in arguments.input[0]:
+            logger.log_it("Input suffix is .txt, possibly samplesheet", "DEBUG")
+            
+            samplesheet = arguments.input[0]
+            with open(samplesheet, 'r') as ifile:
+                for line in ifile:
+                    sample = line.rstrip()
+                    if os.access(sample, os.R_OK):
+                        samples.append(sample)
+                    else:
+                        logger.log_it("Error while processing samplesheet '{0}'...".format(samplesheet), "ERROR")
+                        raise ValueError("Couldn't open sample file '{0}' for reading".format(sample))
+        else:
+
+            raise ValueError("Could not determine file type of input")        
+    elif all(type(s) is str for s in arguments.input):
+        for sample in arguments.input:
+            if os.access(sample, os.R_OK):
+                samples.append(sample)
+            else:
+                raise ValueError("Couldn't open sample file '{0}' for reading".format(sample))
+    else:
+        raise ValueError("Could not determine POSIX access mode for one or more input files.")
 
 
-
-
-
-    
-
+    arguments.input = samples
+    new_args = copy.deepcopy(arguments)
     
     if arguments.k is None:
         if arguments.minK is None or arguments.maxK is None:
             raise ValueError("In multi-k mode, arguments --minK and --maxK are required.")
+        elif arguments.minK < 4 or arguments.maxK < 5 or arguments.minK > 25 or arguments.maxK > 30:
+            raise ValueError("Valid k choices are between 3 and 30")
         else:
             logger.log_it("Running in multi-k mode", "INFO")
-            for k in range(minK, maxK+1):
-                new_args = clone.deepclone(arguments)
+            for k in range(arguments.minK, arguments.maxK+1):
+
                 new_args.k = k
-                raise RuntimeError("Multi-k mode")
-                #_profile(new_args)
+                #raise RuntimeError("Multi-k mode")
+                _profile(new_args)
                 #_profile(arguments) # FIXME
                 pass
     elif arguments.k is not None:
         logger.log_it("Running in single-k mode", "INFO")
-        logger.log_it("DEBUG: Running in warning-only mode. [-v,-vv, --debug]", "INFO")
-        logger.log_it("DEBUG: Running in warning-only mode. [-v,-vv, --debug]", "DEBUG")
-        logger.log_it("Warning. Some features deprioritized, note: you are tracking master/main. Visit the README headr or usage for additl.", "WARNING")
-        new_args = clone.deepclone(arguments)
 
-        raise RuntimeError("single-k mode")
+        #raise RuntimeError("single-k mode")
         _profile(new_args)
 
     
@@ -1859,7 +1885,7 @@ def _profile(arguments):
     N = total_kmers
     theoretical_kmers_number = N
 
-    logger.log_it("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.seqfile))), "INFO")
+    logger.log_it("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.input))), "INFO")
     nullomers = set()
     # Initialize arrays
     
@@ -1871,7 +1897,7 @@ def _profile(arguments):
     step += 1
 
     
-    logger.log_it("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel), "INFO")
+    logger.log_it("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.input)), arguments.parallel), "INFO")
     
     logger.log_it("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable", "DEBUG")
     
@@ -1888,9 +1914,9 @@ def _profile(arguments):
     
     if arguments.parallel > 1:
         with Pool(processes=arguments.parallel) as pool:
-            data = pool.map(infile.parsefile, arguments.seqfile)
+            data = pool.map(infile.parsefile, arguments.input)
     else:
-        data = list(map(infile.parsefile, arguments.seqfile))
+        data = list(map(infile.parsefile, arguments.input))
 
         
     # the actual 'data' is now a list of 4-tuples
@@ -1909,10 +1935,14 @@ def _profile(arguments):
     # Complete collating of counts across files
     # This technically uses 1 more arrray than necessary 'final_counts' but its okay
     logger.log_it("Summing counts from individual fasta/fastq files into a composite profile...", "INFO")
-    
+
+
+    print("Accumulating...")
     for d in data:
+
         counts = counts + d[0]
 
+        
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
     # unique_kmers = int(np.count_nonzero(counts))
     # #total_nullomers = total_kmers - unique_kmers
@@ -1934,27 +1964,33 @@ def _profile(arguments):
     step +=1
     feature += 1
     
-    nullomer_ids = []
-    counts = []
-    file_metadata = []
-    for d in data:
-        nullomer_ids.extend(d[2])
-        counts.extend(d[0])
-        file_metadata.append(d[1])
+    # nullomer_ids = []
+    # #counts = []
+    # file_metadata = []
+    # for d in data:
+    #     nullomer_ids.extend(d[2])
+    #     counts.extend(d[0])
+    #     file_metadata.append(d[1])
 
-        # Extract the *new* logs from parse.parsefile
-        newlogs = d[3]
-        for line in newlogs:
-            try:
-                logger.logs.index(line)
-            except ValueError as e:
-                logger.logs.append(line)
+    #     # Extract the *new* logs from parse.parsefile
+    #     newlogs = d[3]
+    #     for line in newlogs:
+    #         try:
+    #             logger.logs.index(line)
+    #         except ValueError as e:
+    #             logger.logs.append(line)
 
     
     all_observed_kmers = int(np.sum(counts))
-    unique_nullomers = len(set(nullomer_ids))
     unique_kmers = int(np.count_nonzero(counts))
+    
+    unique_nullomers = theoretical_kmers_number - unique_kmers
+    #unique_nullomers = len(set(nullomer_ids))
 
+    print("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number))
+    print("Length of count array: {0}".format(counts.size))
+    print("Number of non-zeroes: {0}".format(unique_kmers))
+    print("Number of nullomers: {0}".format(unique_nullomers))
     
     # Key assertion
     assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
@@ -2021,11 +2057,17 @@ def _profile(arguments):
     
     step += 1
 
-    logger.log_it("Collapsing the k-mer counts across the various input files into the final kdb file '{0}'".format(arguments.kdb), "INFO")
-    
-    kdb_out = fileutil.open(arguments.kdb, 'wb', metadata=metadata)
+
+
+
+
+    # Output takes the form --output-name + '.' + $k + '.kdb'
+    output_filepath = "{0}.{1}.kdb".format(arguments.output_name, arguments.k)
+
+    logger.log_it("Collapsing the k-mer counts across the various input files into the .kdb file '{0}'".format(output_filepath), "INFO")    
+    kdb_out = fileutil.open(output_filepath, 'wb', metadata=metadata)
     try:
-        sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(arguments.kdb))
+        sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(output_filepath))
 
 
         # Numpy indexing is trash
@@ -2167,16 +2209,18 @@ def cli():
     profile_parser = subparsers.add_parser("profile", help=appmap.command_1_description)
     profile_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
 
-    profile_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)")
+    profile_parser.add_argument("-k",  type=int, help="Choose k-mer size")
+    profile_parser.add_argument("--minK", type=int, help="Minimum k for output k-mer profiles")
+    profile_parser.add_argument("--maxK", type=int, help="Maximum k for output k-mer profiles")
+    profile_parser.add_argument("-o", "--output-name", type=str, required=True, help="File name pattern for outputs. e.g.: example with underscores and dashes input_samplename_1 => input_samplename_1.11.kdb, input_samplename_1.12.kdb")
 
-    profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")
-
+    profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")    
     # profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
     # profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
     #profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
     profile_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
     profile_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
-    profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
+    #profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
     #profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     
     #profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
@@ -2184,9 +2228,13 @@ def cli():
     profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     profile_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
+    # Seqfile todo
 
-    profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
-    profile_parser.add_argument("kdb", type=str, help="Kdb file")
+    
+    profile_parser.add_argument("input", nargs="+", type=str, metavar="<samplesheet.txt|.fa|.fq.gz>", help="A plain text samplesheet: one filepath per line. OR one or more input .fasta or .fastq (.gz supported) files.")
+    
+    # profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
+    # profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
     graph_parser = subparsers.add_parser("graph", help=appmap.command_2_description)
@@ -2456,13 +2504,13 @@ def cli():
 
     from kmerdb import appmap
     kmerdb_appmap = appmap.kmerdb_appmap( argv , logger )
-    kmerdb_appmap.print_program_header()
-
 
 
     
+    kmerdb_appmap.print_program_header()
     sys.stderr.write("Beginning program...\n")
-
+    kmerdb_appmap.print_verbosity_header()
+    
     if args.debug is True:
         args.func(args)
     else:

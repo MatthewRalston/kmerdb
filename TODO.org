@@ -6,6 +6,23 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 6/11/24 - [Happy Anniv Al!] Index refactor, offset calculations, index table structure
+
+** D2*, D2S, and D2 statistics/distances
+** TODO Refactor fileutil/index modules to produce valid index data on file-read
+** TODO Refactor distance.pyx, ensure it compiles and computes successfully
+** TODO Refactor profile command to accept minK and maxK commands
+** TODO Refactor profile command to have 'prefix' as requried --flag instead of trailing positional argument
+*** Default behavior, on single -k, is to create a file named $PREFIX.$K.kdb
+*** -k is now optional
+*** def profile in __init__.py must have logic to determine if single or multi-k mode enabled
+*** Alt behavior, on minK and maxK together, is to create files name $PREFIX.$K.kdb as required till minK/maxK is satisfied
+*** 
+* 6/8/24 - Index + D2
+** Fix index subcommand, ensure it stores offsets
+** D2 statistic in Cython, distances.pyx
+** Presence absence AND exact k-mer profile match
+** 
 * 4/25/24 - a small RNAidea (and other RNA families)
 ** k-mer compositions and mutational families in small-RNA rich species
 ** k-mer compositions of riboswitches
