@@ -208,7 +208,9 @@ items:
 # [ 3 main features: ]     k-mer counts (kmerdb profile -k 12 <input.fa|.fq> [<input.fa|.fq>])    'De Bruijn' graph (kmerdb graph)         [matrices, distances, and clustering!]
 
 # Create a [composite] profile of k-mer counts from sequence files. (.fasta|.fastq|.fa.gz|.fq.gz)
-kmerdb profile -k 8 example_1.fq.gz [example_2.fq.gz] profile_1.8.kdb
+kmerdb profile -k 8 --output-name sample_1 sample_1_rep1.fq.gz [sample_1_rep2.fq.gz]
+# Creates sample_1.8.kdb. --minK and --maxK options can be specified to create multiple k-mer profiles at once.
+# Alternatively, can also take a plain-text samplesheet.txt with one filepath on each line.
 
 # Build a weighted edge list (+ node ids/counts = De Bruijn graph)
 kmerdb graph -k 12 example_1.fq.gz example_2.fq.gz edges_1.kdbg
@@ -249,6 +251,8 @@ kmerdb hierarchical -i dist.tsv
 
 
 ```
+
+
 
 
 ## Usage example

@@ -1997,6 +1997,32 @@ class kmerdb_appmap:
 
         # ASCII + RICH.py checklist
         
+    def print_verbosity_header(self):
+        """
+        This prints the verbosity warnings and default logging behavior for the user.
+        """
+
+        sys.stderr.write("="*40 + "\n")
+        sys.stderr.write("[ DEBUG ] : Default is warning-only logging. [-v,-vv, --debug, --quiet]\n")
+        sys.stderr.write("[ INFO  ] : Default is warning-only logging. [-v,-vv, --debug, --quiet]\n")
+        sys.stderr.write("="*40 + "\n")
+        sys.stderr.write("WARNING. Some features are experimental. Note: you are tracking kmerdb/main. Visit the README.md header, usage section, or quickstart page for additl.\n")
+        sys.stderr.write("-"*40 + "\n")
+
+        #print("x..xx")
+        #print("xd up ya brakes")
+
+        #
+        #
+        #...
+
+
+        #' ...#x'"' ''"'?"    # ... #xdupyabrakexsz '#xdupyabreakesz' '"'"''"""""""...'"'. #XduPyabrakx. '"' ....
+
+        return
+
+
+
 
     def print_program_header(self):
         """
@@ -2518,18 +2544,7 @@ class kmerdb_appmap:
         return exit_summary
 
 
-# #
-# #          logger and selected log lines
-# #
-
-
-
-
-
-
-
-
-
+    
 
 
 
