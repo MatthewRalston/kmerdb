@@ -48,6 +48,7 @@ classifiers = [
 	    "Programming Language :: Python :: 3.8",
 	    "Programming Language :: Python :: 3.9",
 	    "Programming Language :: Python :: 3.10",
+	    "Programming Language :: Python :: 3.12",
 	    "Programming Language :: Python :: 3 :: Only",
 	    "Operating System :: PalmOS",
 	    "Topic :: Scientific/Engineering",
@@ -131,6 +132,8 @@ QuickStart = "https://matthewralston.github.io/kmerdb/quickstart.html"
 
 Github = "https://github.com/MatthewRalston/kmerdb"
 Issues = "https://github.com/MatthewRalston/kmerdb/issues"
+Projects = "https://github.com/MatthewRalston?tab=projects"
+
 
 [project.scripts]
 kmerdb = "kmerdb:cli"
