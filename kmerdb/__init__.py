@@ -1822,21 +1822,18 @@ def profile(arguments):
                     else:
                         logger.log_it("Error while processing samplesheet '{0}'...".format(samplesheet), "ERROR")
                         raise ValueError("Couldn't open sample file '{0}' for reading".format(sample))
+            arguments.input = samples
         else:
 
             raise ValueError("Could not determine file type of input")        
-    elif all(type(s) is str for s in arguments.input):
-        for sample in arguments.input:
-            if os.access(sample, os.R_OK):
-                samples.append(sample)
-            else:
-                raise ValueError("Couldn't open sample file '{0}' for reading".format(sample))
     else:
         raise ValueError("Could not determine POSIX access mode for one or more input files.")
 
 
-    arguments.input = samples
+
     new_args = copy.deepcopy(arguments)
+
+
     
     if arguments.k is None:
         if arguments.minK is None or arguments.maxK is None:
@@ -1909,7 +1906,6 @@ def _profile(arguments):
     'Parseable' such that the function may be used with 'multiprocessing.Pool'
     """
 
-
     
     
     if arguments.parallel > 1:
@@ -1918,10 +1914,13 @@ def _profile(arguments):
     else:
         data = list(map(infile.parsefile, arguments.input))
 
+
+
+                       
         
     # the actual 'data' is now a list of 4-tuples
     # Each 4-tuple represents a single file
-    # (edges, header_dictionary<dict>, nullomers<list>, all_kmer_metadata<list>)
+    # (counts, header_dictionary<dict>, nullomers<list>, list)
 
     # Construct a final_counts array for the composite profile across all inputs
 
@@ -1937,11 +1936,18 @@ def _profile(arguments):
     logger.log_it("Summing counts from individual fasta/fastq files into a composite profile...", "INFO")
 
 
-    print("Accumulating...")
     for d in data:
-
         counts = counts + d[0]
 
+
+    if np.sum(counts) == 0:
+        raise ValueError("Each element of the array of k-mer counts was 0. Sum of counts == 0. Likely an internal error. Exiting.")
+
+
+    
+    assert np.sum(counts) > 0, "cowardly refusing to print Array of all 0's. More likely an internal error."
+        
+        
         
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
     # unique_kmers = int(np.count_nonzero(counts))
@@ -1987,12 +1993,17 @@ def _profile(arguments):
     unique_nullomers = theoretical_kmers_number - unique_kmers
     #unique_nullomers = len(set(nullomer_ids))
 
-    print("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number))
-    print("Length of count array: {0}".format(counts.size))
-    print("Number of non-zeroes: {0}".format(unique_kmers))
-    print("Number of nullomers: {0}".format(unique_nullomers))
+    logger.log_it("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number), "DEBUG")
+    logger.log_it("Length of count array: {0}".format(counts.size), "DEBUG")
+    logger.log_it("Number of non-zeroes: {0}".format(unique_kmers), "DEBUG")
+    logger.log_it("Number of nullomers: {0}".format(unique_nullomers), "DEBUG")
     
     # Key assertion
+
+    """
+    7/15/24 Okay so the assertions are working fine, but something else is getting garbled and the counts are coming out all zero. 
+    """
+    
     assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
     #logger.info("created a k-mer composite in memory")
 
@@ -2048,6 +2059,8 @@ def _profile(arguments):
     profile = np.array(range(N), dtype=metadata["profile_dtype"])
     counts = np.array(counts, dtype=metadata["count_dtype"])
     frequencies = np.divide(counts, metadata["total_kmers"])
+
+
     
     logger.log_it("Initialization of profile completed, using approximately {0} bytes for profile".format(counts.nbytes), "INFO")
     
@@ -2077,7 +2090,7 @@ def _profile(arguments):
         #frequencies = np.zeros(total_kmers, dtype=metadata["frequencies_dtype"])
         if arguments.sorted:
 
-            kmer_ids_sorted_by_count = np.lexsort(duple_of_arrays)
+            kmer_ids_sorted_by_count = np.lexsort(kmer_ids)
             reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
             reverse_kmer_ids_sorted_by_count.reverse()
 
