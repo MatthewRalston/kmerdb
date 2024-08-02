@@ -6,6 +6,80 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 7/12/24 [Roadmap] - D2 
+
+* TODO 7/11/24 - [LIT REVIEW]
+** D2 metrics, markov sequence prob review
+*** D2 = \sum(I(A, B))
+**** 
+*** D2s = \sum{ \frac{ (X - Xbar)(Y - Ybar) }{ \sqrt{ (X - Xbar) + (Y - Ybar) } } (the squareroot of the sum of the standardized X's is the denominator, numerator is the product of the standardized X and Y counts, then the ratio is summed)
+**** 
+*** D2* = \sum{ \frac{ (X - Xbar)(Y - Ybar) }{ mhat*nhat*pwX*pwY } } (w=word, hat = "adjusted"/translated = m - k, X and Y are counts from )
+**** 
+*** D2z = ( D2(A,B) - E[D2] ) / \sqrt( var(D2) )
+**** 
+*** DELEGATED D2shepp = \sum{ \frac{ cwXi - (n-k+1)pwx * cwYi - (n-k+1)pwy }{ \sqrt{ (cwXi - (n-k+1)pwx)^{2} + (cwYi - (n-k+1)pwy)^{2}} }
+    CLOSED: [2024-07-12 Fri 21:49]
+**** Reinert G. et al. "Alignment-free sequence comparison (1): statistics and power" J. Comput. Biol. 2003 v16 (p1615-1634)
+**** Bibtex format below:
+@article{reinert2009alignment,
+  title={Alignment-free sequence comparison (I): statistics and power},
+  author={Reinert, Gesine and Chew, David and Sun, Fengzhu and Waterman, Michael S},
+  journal={Journal of Computational Biology},
+  volume={16},
+  number={12},
+  pages={1615--1634},
+  year={2009},
+  publisher={Mary Ann Liebert, Inc. 140 Huguenot Street, 3rd Floor New Rochelle, NY 10801 USA}
+}
+
+
+** TODO core species choices
+*** chicken farm estuary system changes (algination, asphyxia, microbiological changes
+*** anti-human leaky gut syndrome changes.
+**** TODO chemophore SMILES and gastrotoxic footprints
+*** pathology of lupus or auto-immune skin condition microbiome/metagenomic changes.
+*** vaginal microbiome changes
+*** 
+** Perspective 1 from reivew on distance metrics
+** 
+* 7/10/24 - okay so path 1 [ 2 reviews + cython D2 metrics ] path 2 [ 2 reviews + graph algorithm ]
+
+** cython d2 metrics including the delta distance : |pab(A)-pab(B)| (Karlin et al, tetra,tri,di- nucleotide frequencies)
+** (describe Karlin delta, algorithm to calculate)
+*** Karlin delta first requires the least ambiguous k-mer (4-mer) frequency, i.e. the frequency of self
+*** next required is the most ambiguous k-mer (4-mer) frequency, that with terminal residues identical, but internal residues as N, thus summing frequencies of recursively associated k-mers (4-mers)
+*** next, all k-1 (trinucleotide), and k-2 mer (dinucleotide) frequencies are required, proceeding from outside in, such that internal residues again tend towards N, such that all combinations of residues are visited by the faNc trinucleotide frequency, with a - adenine and c - cytosine fixed, and the internal position of the trinucleotide specified as N, thus summing so that [ f(atc), f(aac), f(acc), and f(agc) = f(aNc) ].
+*** this specifies the numerator for the tetranucleotide frequency (lowercause tau)
+*** the denominator is only the most specific tetra and 1-neighboring trinucleotide frequencies, and the mononucleotide frequencies. [ f(acc) f(accg) f(ccg) f(a) f(c) f(t) f(g) ]
+** 
+** new graph file format specification ( walk,path is a subclass of unlabeled graph, where node labels can be visited, path order, and progressive or retro in the walk.
+** contig generator method, and contig boundary definition specification
+** 
+** 
+** 
+** 
+* 6/28/24 - [ ...whoops, forgot the date by 3 x24hr blocxz. ] okay, so the 0.8.4 release should have the graph labeling done.
+
+** graph node labeling and classification, and walk strategy
+
+** walk strategy, backtrace, and expansion step node labeling patterns need structure
+
+** assembler requires color graph feature unimplemented
+
+** index features need expanding
+
+** index as a .kdb.gi file?
+
+** new datatypes
+*** new jsonschemas required:
+*** product_result
+**** the full product (nx3xm), the square product, the comprehension product
+**** walk product (a label and node order specification)
+**** node product (a node ordering and/or enumeration schema)
+*** permutation (range(n)) => n! (n0, n1, n2, n3) (n0, n2, n1, n3) (n0, n3, n2, n1) ... etc. for 24 total permutations of the 4 starting items.
+*** combination (abcd xyz ) => ax ay az bx by ... etc. (n!/(n-r)!)
+
 * 6/14/24 - Revise README.md from changes to profile subcommand for multi-K and generic 'prefix' outfile pattern.
 
 ** Samplesheet 

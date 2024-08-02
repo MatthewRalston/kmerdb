@@ -26,19 +26,31 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 
 ## Summary 
 
-- [ x ] Homepage: 
-- [ x ] Quixart
-- [ x ] Readme headr
-- [ x ] OR
-- [ x ] usage / off
-- [ 
+- [ x ] [Homepage:](https://matthewralston.github.io/kmerdb)
+- [ x ] [Quick Start guide](https://matthewralston.github.io/kmerdb/quickstart)
+- [ x ] `kmerdb usage subcommand_name`
+  - `profile` - Make k-mer count vectors/profiles, calculate unique k-mer counts, total k-mer counts, nullomer counts. Import to read/write NumPy arrays from profile object attributes.
+  - `graph` - Make a weighted edge list of kmer-to-kmer relationships, akin to a De Bruijn graph.
+  - `usage` - Display verbose input file/parameter and algorithm details of subcommands.
+  - `help` - Display verbose input file/parameter and algorithm details of subcommands.
+  - `view` - View .tsv count/frequency vectors with/without preamble.
+  - `header` - View YAML formatted header and aggregate counts
+  - `matrix` - Collate multiple profiles into a count matrix for dimensionality reduction, etc.
+  - `kmeans` - k-means clustering on a distance matrix via Scikit-learn or BioPython with kcluster distances
+  - `hierarchical` - hierarchical clustering on a distance matrix via BioPython with linkage choices
+  - `distance` - Distance matrices (from kmer count matrices) including SciPy distances, a Pearson correlation coefficient implemented in Cython, and Spearman rank correlation included as additional distances.
+  - `index` - Create an index file for the kmer profile (Delayed:)
+  - `shuf` - Shuffle a k-mer count vector/profile (Delayed:)
+  - `version` - Display kmerdb version number
+  - `citation` - Silence citation suggestion
+- [ x ] `kmerdb subcommand -h|--help`
 
 
-k-mer counts from .fa(.gz)/.fq(.gz) sequence data can be stored in `.kdb` file format, a bgzf file similar to `.bam`. For those familiar with `.bam`, a `view` and `header` functions are provided. This file is compatible with `zlib`.
+k-mer counts from .fa(.gz)/.fq(.gz) sequence data can be computed and stored for access to metadata and count aggregation faculties. For those familiar with `.bam`, a `view` and `header` functions are provided. This file is compatible with `zlib`.
 
 Install with `pip install kmerdb`
 
-`kmerdb` is a Python CLI designed for k-mer counting and k-mer graph edge-lists. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of a `bgzf` formatted file. 
+
 
 Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quickstart) for more information about the format, the library, and the project.
 
@@ -48,191 +60,40 @@ Please see the [Quickstart guide](https://matthewralston.github.io/kmerdb/quicks
 ```bash
 # Usage    --help option    --debug mode
 kmerdb --help # [+ --debug mode]
-kmerdb usage graph
-
-**** 
- o-O      |||
-o---O     |||             [|[          kmerdb           ]|]
-O---o     |||
- O-o      |||        version :     v0.8.2
-  O       |||
- o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
-o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
-O---o     |||      Website   : https://matthewralston.github.io/kmerdb
- O-o      |||
-                                                                       lang :         python
-                                                                          v :      >= v3.7.4
-
-                      package manger : pip
-                        version      : >= 24.0
-        package root : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb
-        exe file     : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb/__init__.py
-
-                      required packages : 9
-                   development packages : 9
-
-           ARGV : ['/home/user/.local/share/virtualenvs/kdb-venv/bin/kmerdb', 'usage', 'graph']
-        
-O---o
- O-o
-  O
- o-O
-o---O
-O---o
- O-o
-  O
- o-O
-o---O
-O---o
- O-o
-  O
- o-O
-o---O
-
-
-
-
-Beginning program...
-
-
-
-
-                          [ name ] :         graph
-
-                   description : create a edge list in (block) .gz format from .fasta|.fa or .fastq format.
-
-
-
-
-   :     4 column output : [ row idx | k-mer id node #1 | k-mer id node #2 | edge weight (adjacency count) ]
-
-   :  make a deBruijn graph, count the number of k-mer adjacencies,  printing the edge list to STDOUT
-
-
-
-
-                  +=============+====================+====================+=================================+
-                  <    row idx  |  k-mer id node #1  |  k-mer id node #2  |  edge weight (adjacency count)  >
-                  |             |                    |                    |                                 |
-                  |             +
-                  |
-                  |
-                  |
-                  |
-                  |
-
-
-
-
-
---------------------------
-
-
-                    kmerdb graph -k 12 input_1.fa [example_2.fastq] output.12.kdbg
-
-                    [-]    inputs : 
-
-                           Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)
-
-                    [-]    parameters : 
-
-                           uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging. --
-
-
-
-                    [-]    [ usage ]  :  kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-name: arguments
-type: array
-items:
-- name: k
-  type: int
-  value: choice of k-mer size
-- name: quiet
-  type: flag
-  value: Write additional debug level information to stderr?
-
-
-
-
-name: inputs
-type: array
-items:
-- name: <.fasta|.fastq>
-  type: array
-  value: gzipped or uncompressed input .fasta or .fastq file(s)
-- name: .kdbg
-  type: file
-  value: Output edge-list filepath.
-
-
-
-
-name: features
-type: array
-items:
-- name: k-mer count arrays, linear, produced as file is read through sliding window.
-    (Un)compressed support for .fa/.fq.
-  shortname: parallel faux-OP sliding window k-mer shredding
-  description: Sequential k-mers from the input .fq|.fa files are added to the De
-    Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS
-    (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics
-    for the entire file are given for each file read, + a transparent data structure.
-- name: k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights
-  shortname: weighted undirected graph
-  description: an edge list of a De Bruijn graph is generated from all k-mers in the
-    forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers
-    in the sequence data are added to the tally of the k-mer nodes of the de Bruijn
-    graph and the edges provided by the data.
-
-...
-
+kmerdb usage profile
 
 
 #   +
 
-# [ 3 main features: ]     k-mer counts (kmerdb profile -k 12 <input.fa|.fq> [<input.fa|.fq>])    'De Bruijn' graph (kmerdb graph)         [matrices, distances, and clustering!]
+# [ 3 main features: ]     [ 1.   -    k-mer counts  ]
 
 # Create a [composite] profile of k-mer counts from sequence files. (.fasta|.fastq|.fa.gz|.fq.gz)
-kmerdb profile -k 8 --output-name sample_1 sample_1_rep1.fq.gz [sample_1_rep2.fq.gz]
-# Creates sample_1.8.kdb. --minK and --maxK options can be specified to create multiple k-mer profiles at once.
-# Alternatively, can also take a plain-text samplesheet.txt with one filepath on each line.
+kmerdb profile -vv -k 8 --output-name sample_1 sample_1_rep1.fq.gz [sample_1_rep2.fq.gz]
+# Creates k-mer count vector/profile in sample_1.8.kdb. This is the input to other steps, including count matrix aggregation. --minK and --maxK options can be specified to create multiple k-mer profiles at once.
+<!-- # Alternatively, can also take a plain-text samplesheet.txt with one filepath on each line. -->
 
+#          De Bruijn graphs (not a main feature yet, delayed)
 # Build a weighted edge list (+ node ids/counts = De Bruijn graph)
-kmerdb graph -k 12 example_1.fq.gz example_2.fq.gz edges_1.kdbg
+kmerdb graph -vv -k 12 example_1.fq.gz example_2.fq.gz edges_1.kdbg
 
 # View k-mer count vector
-kmerdb view profile_1.8.kdb # -H for full header
+kmerdb view -vv profile_1.8.kdb # -H for full header
 
 # Note: zlib compatibility
 #zcat profile_1.8.kdb
 
 # View header (config.py[kdb_metadata_schema#L84])
-kmerdb header profile_1.8.kdb
+kmerdb header -vv profile_1.8.kdb
 
-## Optional normalization, dim reduction, and distance matrix features:
+## [ 3 main features: ]   [ 2. Optional normalization, PCA/tSNE, and distance metrics ]
 
 # K-mer count matrix - Cython Pearson coefficient of correlation [ ssxy/sqrt(ssxx*ssyy) ]
-kmerdb matrix pass *.8.kdb | kmerdb distance pearson STDIN
+kmerdb matrix -vv from *.8.kdb | kmerdb distance pearson STDIN
 # 
-# kmerdb matrix DESeq2 *.8.kdb
-# kmerdb matrix PCA *.8.kdb
-# kmerdb matrix tSNE *.8.kdb
-#   # <pass> just makes a k-mer count matrix from k-mer count vectors.
+# kmerdb matrix -vv DESeq2 *.8.kdb
+# kmerdb matrix -vv PCA *.8.kdb
+# kmerdb matrix -vv tSNE *.8.kdb
+#   # <from> just makes a k-mer count matrix from k-mer count vectors.
 # 
 
 # Distances on count matrices [ SciPy ]  pdists + [ Cython ] Pearson correlation, scipy Spearman and scipy correlation pdist calculations are available ]
@@ -242,18 +103,18 @@ kmerdb distance -h
 # usage: kmerdb distance [-h] [-v] [--debug] [-l LOG_FILE] [--output-delimiter OUTPUT_DELIMITER] [-p PARALLEL] [--column-names COLUMN_NAMES] [--delimiter DELIMITER] [-k K]
 #                       {braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule} [<kdbfile1 kdbfile2 ...|input.tsv|STDIN> ...]
 
-# +
+# [ 3 main features: ]      [ 3. Clustering: k-means and hierarchical with matplotlib ]
 
 #    Kmeans (sklearn, BioPython)
-kmerdb kmeans -k 4 -i dist.tsv
+kmerdb kmeans -vv -k 4 -i dist.tsv
 #    BioPython Phylip tree + upgma
-kmerdb hierarchical -i dist.tsv
+kmerdb hierarchical -vv -i dist.tsv
 
 
 ```
 
 
-
+`kmerdb` is a Python CLI designed for k-mer counting and k-mer graph edge-lists. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of a `bgzf` formatted file. 
 
 ## Usage example
 
@@ -370,7 +231,7 @@ Thanks to Rachel for the good memories and friendship. And Sophie too. veggies n
 Thanks to Yasmeen for the usual banter.
 Thanks to A for the newer banter.
 Thanks to Max, Robin, and Robert for the good memories in St. Louis. What's new?
-Thanks to Fred for the good memories.
+Thanks to Fred for the good memories. Hope you're on soon.
 Thanks to Nichole for the cookies and good memories. And your cute furballs too! Hope you're well
 Thanks to S for the lessons, convos, and even embarassing moments. You're kind of awesome to me.
 Thanks to a few friends I met in 2023 that reminded me I have a lot to learn about friendship, dating, and street smarts.

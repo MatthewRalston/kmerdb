@@ -30,10 +30,11 @@ from kmerdb import config, util
 yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
 
 default_logline_choices = (20, 50, 100, 200)
-PINNED_ISSUES = (132, 133, 137)
+PINNED_ISSUES = (140, 141, 143)
 
 PROGRAM_BANNER = """
-**** 
+
+
  o-O      |||
 o---O     |||             [|[          kmerdb           ]|]
 O---o     |||
@@ -43,9 +44,78 @@ O---o     |||
 o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
 O---o     |||      Website   : https://matthewralston.github.io/kmerdb
  O-o      |||
+
+
+
+
+
+
+
+
+
+# |||||||||||||||||||||||||||||||||||||||
+#      [ Usage ] :        |||||||||||||||
+# |||||||||||||||||||||||||||||||||||||||
+
+
+#  Check test/data for example fasta files.
+
+
+# -----------------------------
+# Generate k-mer count profiles
+# -----------------------------
+kmerdb profile -k 12 -o profile_1 input_1.fa.gz [input_2.fq] ...
+...
+
+
+# -----------------------------
+# Merge profiles
+# -----------------------------
+kmerdb matrix pass profile_1.12.kdb profile_2.12.kdb profile_3.12.kdb ... > count_matrix.tsv
+
+# -----------------------------
+# Generate inter-profile distances
+# -----------------------------
+kmerdb distance pearson count_matrix.tsv
+
+
+# -----------------------------
+# Pipeline form
+# -----------------------------
+
+kmerdb matrix pass ... | kmerdb distance pearson STDIN > pearson_correlation_matrix.tsv
+
+# -----------------------------
+# Okay, how about PCA, t-SNE?
+# -----------------------------
+kmerdb matrix PCA -n 25 ... > 25_pseudomer_count_profiles.tsv
+# kmerdb matrix tSNE -n 25
+
+
+# -----------------------------
+# k-means clustering?
+# -----------------------------
+kmerdb kmeans <Biopython|sklearn> -k 4 --distance e -i input_distance_matrix.tsv # Using 'e' for Euclidean distance with Biopython. Check the source, Biopython RTD, and sklearn RTD.
+# Produces
+
+# -----------------------------
+# okay, now straight-up hierarchical clustering:
+# -----------------------------
+kmerdb hierarchical -i input_distance_matrix.tsv --method complete # Uses complete linkage
+
+
+
 """.format(config.VERSION)
 INTERPRETER = "                                                                       lang :         python\n"
 # hardcoded
+
+# print_program_header
+#        sys.stderr.write(PROGRAM_BANNER)
+#        sys.stderr.write(INTERPRETER)
+#        sys.stderr.write(self.VERSION_HARDCODED)
+#        sys.stderr.write(self.PACKAGE_MANAGER)
+
+
 
 GITHUB_LOGO = """
  .--------------------------------------------------.
@@ -457,7 +527,7 @@ command_2_description_long = """
                   |
 """
         
-command_2_parameters = "uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging. --"
+command_2_parameters = "uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging."
 command_2_inputs = "Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)"
 command_2_usage = "kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>" 
 
@@ -1297,7 +1367,7 @@ COMMAND_6_STEPS = OrderedDict({
 
 
 command_7_description = "K-means clustering with biopython or scikit-learn"
-command_7_description_long = "Produces eblow graph if k is not determined a-priori. Uses matplotlib for graphics."
+command_7_description_long = "Produces eblow graph if k is not determined a-priori. Uses matplotlib for graphics. Prints {0} and {1} as primary outputs, in addition to the 'kmeans_elbow_graph.png' which is printed if no k is supplied.".format(config.pca_variance_fig_filepath, config.kmeans_clustering_fig_filepath)
 command_7_parameters = "Use -k to control clustering with k-means. Choice of 'sklearn' or 'biopython' k-means clustering. Choice of distance metrics offered by kcluster"
 command_7_inputs = "Input is a .tsv file. Use STDIN to read input from standard input".format(config.VERSION)
 command_7_usage = "kmerdb kmeans -k 5 -i <count_or_distance_matrix.tsv> sklearn"
@@ -1439,7 +1509,7 @@ COMMAND_7_STEPS = OrderedDict({
 
 
 command_8_description = "Hierarchical clustering with biopython"
-command_8_description_long = "Uses matplotlib for graphics."
+command_8_description_long = "Uses matplotlib for graphics. Creates {0} and {1} as primary outputs.".format(config.hierarchical_clustering_dendrogram_fig_filepath, config.upgma_tree_phylip)
 command_8_parameters = "-m|--method determines linkage fitting (see --help for details)"
 command_8_inputs = "Input is a .tsv file. Use STDIN to read input from standard input".format(config.VERSION)
 command_8_usage = "kmerdb hierarchical -m ward -i <count_or_distance_matrix.tsv>"
@@ -1866,6 +1936,178 @@ COMMAND_10_STEPS = OrderedDict({
     ]
 
 })
+
+
+
+
+
+
+
+
+command_11_description = "K-mer Markov sequence probability feature  (Deprecated)"
+command_11_description_long = """
+ Uses conditional probabilities and multiplication rule along with Markov model of sequence to use likelihood/odds ratios to test likelihood of the sequence(s) given the inputs. Unadjusted for multiple-hypothesis testing.
+
+Conditional probability :
+
+P(X|Y) = P(XY)/P(Y)
+
+
+Multiplication rule :
+
+P(X) = P(an|an-1,an-2,...a1)     a { N  , X = an-1,an-2,...,a1
+
+
+
+
+"""
+command_11_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
+command_11_inputs = "Input is a v{0} .kdb count vector file"
+command_11_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
+
+
+        
+COMMAND_11_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb prob <--db input.kdb> sequences.fasta[.gz]
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_11_name, command_11_description, command_11_description_long, command_11_inputs, command_11_parameters, command_11_usage)
+
+        
+
+COMMAND_11_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "K-mer database file.",
+            "type": "file",
+            "value": "[NOTE] : multiple may be specified. | The k-mer frequencies to use in the Markov model probability calculations, and likelihood/odds-ratio tests"
+        }
+    ]
+})
+
+        
+COMMAND_11_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "Input .fa|.fasta|.fa.gz files.",
+            "type": "array",
+            "value": "File(s) to query against the k-mer database."
+        }
+        
+    ]
+})
+
+COMMAND_11_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "[FIXME! 7/28/24 Hi fross, glhf!]",
+            "shortname": "",
+            "description" : ""
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(Deprecated)"
+        })
+    ]
+})
+    
+COMMAND_11_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(uhhhh...)",
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        })
+
+    ]
+
+})
+
+
+
+
+
+###################################################
+
+#            F i n a l     c o m m a n d    a g g r e g a t e
+
+###################################################
+
 
 ALL_PARAMS = {
     "profile": COMMAND_1_PARAMS["items"],
@@ -2354,7 +2596,7 @@ class kmerdb_appmap:
 
         sys.stderr.write(THREE_LINES)
         
-        sys.stderr.write(DNA_SPACER_1)
+        sys.stderr.write(DNA_SPACER_lol)
 
         sys.stderr.write(THREE_LINES)
 

@@ -726,7 +726,7 @@ def get_matrix(arguments):
         # logger.debug("final_df should be set as normalized")
         # sys.exit(1)
         final_df = normalized
-    elif arguments.method == "pass":
+    elif arguments.method == "from":
 
         feature = 2
         step = 4
@@ -1733,9 +1733,11 @@ def make_graph(arguments):
             tupley = (i, node1, node2, w)
             tupley_dl = np.array(tupley, dtype="uint64")
             if arguments.quiet is False:
-                print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
+                print("\t".join(list(tupley_dl)))
+                #print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
             # i, node1, node2, weight
-            kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+            kdbg_out.write("{0}\n".format("\t".join(list(tupley_dl))))
+            #kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
     finally:
         kdbg_out._write_block(kdbg_out._buffer)
         kdbg_out._handle.flush()
@@ -1759,6 +1761,7 @@ def make_graph(arguments):
         sys.stderr.write("-"*30 + "\n")
         sys.stderr.write("Edges in file:  {0}\n".format(N))
         sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
+        sys.stderr.write("Sum of node degrees in file: {0}".format(2*N))
         sys.stderr.write("\nDone\n")
 
     logger.log_it("Done printing weighted edge list to .kdbg", "INFO")
@@ -1810,7 +1813,7 @@ def profile(arguments):
             logger.log_it("Input suffix is .fasta", "DEBUG")
         elif ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
             logger.log_it("Input suffix is .fastq", "DEBUG")
-        elif ".txt" in arguments.input[0]:
+        elif ".txt" in arguments.input[0] or ".tsv" in arguments.input[0]:
             logger.log_it("Input suffix is .txt, possibly samplesheet", "DEBUG")
             
             samplesheet = arguments.input[0]
@@ -2337,7 +2340,7 @@ def cli():
     matrix_parser.add_argument("-n", default=None, type=int, help="The number of dimensions to reduce with PCA or t-SNE. DEFAULT: an elbow graph will be generated if -n is not provided to help the user choose -n")
 
     matrix_parser.add_argument("--perplexity", default=5, type=int, help="The choice of the perplexity for t-SNE based dimensionality reduction")
-    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "DESeq2", "pass", "Frequency"], default=None, help="Choice of dimensionality reduction, normalization method (DESeq2), or pass (no action)")
+    matrix_parser.add_argument("method", choices=["PCA", "tSNE", "DESeq2", "from"], default=None, help="Choice of dimensionality reduction, normalization method (DESeq2), or matrix-from (collate data only)")
     matrix_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     matrix_parser.set_defaults(func=get_matrix)
     
