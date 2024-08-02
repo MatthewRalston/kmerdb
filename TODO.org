@@ -6,20 +6,61 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-* 7/12/24 [Roadmap] - D2 
 
-* TODO 7/11/24 - [LIT REVIEW]
-** D2 metrics, markov sequence prob review
+* 8/1/24 Written Lit review, System Reconfigurations
+
+** Currently reconfiguring my system and redundancies
+
+** Making copies of my installation and configuration/install routines. Trying ubuntu 24.04 LTS version rather than Arch. Better build/configure/make predictability.
+
+** Current [TODO]
+
+*** NEXT Create kmerdb logo using GIMP
+:LOGBOOK:
+- State "IN-PROGRESS" from "NEXT"       [2024-08-01 Thu 19:04]
+:END:
+
+*** TODO Finish logo export
+
+*** Add logo to README
+
+*** Add logo to website
+
+*** 
+
+* 7/28/24 [multiplication rule for Markov probability]
+* needs to be written in documentation
+** currently writen into appmap as command 11, but not fleshed out.
+** 
+
+* [TRIAGE] : vsearch align with kmerdb
+** Use k-mer frequencies to rank similarity to sequences in db.
+** Proceed from seed match/mismatch to full dynamic programmin smith waterman w/ affine gap penalty
+** 
+
+
+* 7/16/24 NEW metadata feature for graph subcommand
+** graph subcommand needs node count explicitly, (k^n, where n is proportional to fastq size in number of reads)
+*** graph in m = 4^k symbols*
+** [new] metadata fields: unique_kmers, total_kmers, total_nodes, total_edges, possible_edges
+*** AND also printed in final stats
+
+* IN PROGRESS 7/11/24 - [LIT REVIEW]
+** IN PROGRESS D2 metrics, markov sequence prob review
 *** D2 = \sum(I(A, B))
 **** 
-*** D2s = \sum{ \frac{ (X - Xbar)(Y - Ybar) }{ \sqrt{ (X - Xbar) + (Y - Ybar) } } (the squareroot of the sum of the standardized X's is the denominator, numerator is the product of the standardized X and Y counts, then the ratio is summed)
+*** D2s = \sum{ \frac{ (X - \bar{X})(Y - Ybar) }{ \sqrt{ (X - Xbar) + (Y - Ybar) } } (the squareroot of the sum of the standardized X's is the denominator, numerator is the product of the standardized X and Y counts, then the ratio is summed)
 **** 
 *** D2* = \sum{ \frac{ (X - Xbar)(Y - Ybar) }{ mhat*nhat*pwX*pwY } } (w=word, hat = "adjusted"/translated = m - k, X and Y are counts from )
 **** 
 *** D2z = ( D2(A,B) - E[D2] ) / \sqrt( var(D2) )
 **** 
-*** DELEGATED D2shepp = \sum{ \frac{ cwXi - (n-k+1)pwx * cwYi - (n-k+1)pwy }{ \sqrt{ (cwXi - (n-k+1)pwx)^{2} + (cwYi - (n-k+1)pwy)^{2}} }
-    CLOSED: [2024-07-12 Fri 21:49]
+*** WAITING D2shepp = \sum{ \frac{ cwXi - (n-k+1)pwx * cwYi - (n-k+1)pwy }{ \sqrt{ (cwXi - (n-k+1)pwx)^{2} + (cwYi - (n-k+1)pwy)^{2}} }
+    :LOGBOOK:
+    - State "WAITING"    from "DONE"       [2024-08-01 Thu 18:49]
+    - State "DONE"       from "CANCELED"   [2024-08-01 Thu 18:49]
+    - State "CANCELED"   from "DELEGATED"  [2024-08-01 Thu 18:49]
+    :END:
 **** Reinert G. et al. "Alignment-free sequence comparison (1): statistics and power" J. Comput. Biol. 2003 v16 (p1615-1634)
 **** Bibtex format below:
 @article{reinert2009alignment,
@@ -37,13 +78,15 @@
 ** TODO core species choices
 *** chicken farm estuary system changes (algination, asphyxia, microbiological changes
 *** anti-human leaky gut syndrome changes.
+**** i.e. looking at the human leaky gut syndrome, but in reverse. What are bioprotective species and niches that provide resilience to leaky-gut syndrome
 **** TODO chemophore SMILES and gastrotoxic footprints
 *** pathology of lupus or auto-immune skin condition microbiome/metagenomic changes.
 *** vaginal microbiome changes
 *** 
 ** Perspective 1 from reivew on distance metrics
 ** 
-* 7/10/24 - okay so path 1 [ 2 reviews + cython D2 metrics ] path 2 [ 2 reviews + graph algorithm ]
+* IN PROGRESS 7/10/24 - [IMPORTANT] Needs a choice [cython d2 x graph algorithm features ]:
+** [Key choice needed]: 1 [ 2 reviews + cython D2 metrics ] path 2 [ 2 reviews + graph algorithm ]
 
 ** cython d2 metrics including the delta distance : |pab(A)-pab(B)| (Karlin et al, tetra,tri,di- nucleotide frequencies)
 ** (describe Karlin delta, algorithm to calculate)
