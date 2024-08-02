@@ -109,12 +109,12 @@ NAME = 'kmerdb'
 DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
 URL = 'https://github.com/MatthewRalston/kmerdb'
-CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.8.4.tar.gz"
+CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v0.8.6.tar.gz"
 EMAIL = 'mralston.development@gmail.com'
 AUTHOR = 'Matt Ralston'
 #REQUIRES_PYTHON = ">=3.7.4"
 REQUIRES_PYTHON = '>=3.12.2'
-VERSION = "0.8.5"
+VERSION = "0.8.6"
 KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer"]
 CLASSIFIERS = [
 	    "Development Status :: 1 - Planning",

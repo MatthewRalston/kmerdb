@@ -84,7 +84,7 @@ replace_char = lambda seq, x, y: seq.replace(x, y) # str
 #############################
 
 class Kmers:
-    """A wrapper class to pass variables through the multiprocessing pool
+    """A wrapper class to pass variables through the multiprocessing pool. Methods in this class are (c) Matthew Ralston as above/throughout. That said, the k-mer bit-shifting trick
     
     :ivar k: The choice of k to shred with
     :ivar strand_specific: Include k-mers from forward strand only (TO BE DEPRECATED)
@@ -343,6 +343,17 @@ def kmer_to_id(s):
 
     Therefore, this method does not need to be wrapped in the k-mer class
 
+    Acknowledgements for the 'idx = idx << 2' bit-shifting trick goes to the authors of kPAL.
+
+    @article{anvar2014determining,
+    title={Determining the quality and complexity of next-generation sequencing data without a reference genome},
+    author={Anvar, Seyed Yahya and Khachatryan, Lusine and Vermaat, Martijn and van Galen, Michiel and Pulyakhina, Irina and Ariyurek, Yavuz and Kraaijeveld, Ken and den Dunnen, Johan T and de Knijff, Peter and ’t Hoen, Peter AC and others},
+  journal={Genome biology},
+    volume={15},
+    pages={1--15},
+    year={2014},
+    publisher={Springer}
+    }
 
 
     :param s: The input k-mer as string
