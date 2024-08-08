@@ -69,9 +69,10 @@ IUPAC residues (ATCG+RYSWKM+BDHV) are kept throughout the k-mer counting. But no
 ## Development
 
 
-```bash
-python setup.py test
-```
+::
+
+  python setup.py test
+
 
 ## License
 
@@ -121,14 +122,116 @@ More on the flip-side. It's so complex with technology these days...
 kmerdb documentation
 ====================
 
-Add your content using ``reStructuredText`` syntax. See the
+Add your content using 'reStructuredText' syntax. See the
 `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
 documentation for details.
 
 
 .. toctree::
-   
-   api
    :maxdepth: 2
    :caption: Contents:
+
+.. automodule:: fileutil
+   :members:
+
+.. automodule:: graph
+   :members:
+      
+.. automodule:: parse
+   :members:
+
+.. automodule:: seqparser
+   :members:
+
+.. automodule:: kmer
+   :members:
+
+.. automodule:: util
+   :members:
+
+.. automodule:: index
+   :members:
+
+.. automodule:: logger
+   :members:
+  
+.. automodule:: distance
+   :members:
+
+.. automodule:: python_distances
+   :members:
+
+.. automodule:: probability
+   :members:
+
+.. autoclass:: fileutil
+   :members:
+
+.. autoclass:: graph
+   :members:
+      
+.. autoclass:: parse
+   :members:
+
+.. autoclass:: seqparser
+   :members:
+
+.. autoclass:: kmer
+   :members:
+
+.. autoclass:: util
+   :members:
+
+.. autoclass:: index
+   :members:
+
+.. autoclass:: logger
+   :members:
+  
+.. autoclass:: distance
+   :members:
+
+.. autoclass:: python_distances
+   :members:
+
+.. autoclass:: probability
+   :members:
+
+.. autoexception:: kmerdb
+   :members:
+   
+.. autoexception:: fileutil
+   :members:
+
+.. autoexception:: graph
+   :members:
+      
+.. autoexception:: parse
+   :members:
+
+.. autoexception:: seqparser
+   :members:
+
+.. autoexception:: kmer
+   :members:
+
+.. autoexception:: util
+   :members:
+
+.. autoexception:: index
+   :members:
+
+.. autoexception:: logger
+   :members:
+  
+.. autoexception:: distance
+   :members:
+
+.. autoexception:: python_distances
+   :members:
+
+.. autoexception:: probability
+   :members:
+
+
 
