@@ -21,11 +21,6 @@ language = 'en'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
-
-templates_path = ['_templates']
-exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -36,10 +31,6 @@ html_static_path = ['_static']
 
 
 #html_theme = 'sphinx_rtd_theme'
-html_theme_options = {
-    'logo_only': True,
-    'navigation_depth': 5,
-}
 #html_context = {}
 
 
@@ -47,6 +38,8 @@ html_theme_options = {
 
 
 extensions = [
+    #'sphinx.ext.duration',
+    #'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -71,10 +64,7 @@ else:
     tags.add("python3")
 
 intersphinx_mapping = {
-    'biopython': ('https://biopython.readthedocs.io/en/latest', None),
     'numpy': ('https://numpy.readthedocs.io/en/latest', None),
-    'scipy': ('https://scipy.readthedocs.io/en/latest', None),
-    'kmerdb': ('https://kmerdb.readthedocs.io/en/latest/', None),
     'rtd': ('https://docs.readthedocs.io/en/stable/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
 }
