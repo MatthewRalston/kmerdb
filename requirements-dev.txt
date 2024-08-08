@@ -13,7 +13,7 @@ setuptools>=61.3.1
 #########################################
 docutils>=0.17
 #grip>=4.6.2
-sphinx>=4.3.2
+sphinx>=8.0.2
 # sphinx-autodoc
 # These are kind of developmental things, there really cant be testing around a 5% tested codebase, this is open source at its worse,
 # and considering  otherwise is toxic.

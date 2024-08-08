@@ -1,56 +1,82 @@
+#!/bin/env python3
+
+import sys
+import os
+
 # Configuration file for the Sphinx documentation builder.
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
+# For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-import os
-import sys
-sys.path.insert(0, os.path.abspath('../../kmerdb'))
-
-print("Reading documentation from {0}".format(sys.path))
-
-
 # -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'kmerdb'
-copyright = '2022, Matt Ralston <mralston.development@gmail.com>'
-author = 'Matt Ralston <mralston.development@gmail.com>'
 
-# The full version, including alpha/beta/rc tags
 release = '0.8.6'
-
+author = 'Matt Ralston <mralston.development@gmail.com>, and the kmerdb project contributors'
+copyright = '2020, Matt Ralston <mralston.development@gmail.com>'
+language = 'en'
 
 # -- General configuration ---------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
-extensions = ['sphinx.ext.viewcode', 'sphinx.ext.autodoc']
+extensions = []
 
-# Add any paths that contain templates here, relative to this directory.
-#templates_path = ['_templates']
-
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
+templates_path = ['_templates']
 exclude_patterns = []
 
 
+
 # -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
 html_theme = 'alabaster'
+html_static_path = ['_static']
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+
+#html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    'logo_only': True,
+    'navigation_depth': 5,
+}
+#html_context = {}
+
+
+
+
+
+extensions = [
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+#    'sphinx_rtd_theme',
+]
+
+templates_path = ['_templates']
+source_suffix = '.rst'
+exclude_patterns = []
+locale_dirs = ['locale/']
+gettext_compact = False
+
+master_doc = 'index'
+suppress_warnings = ['image.nonlocal_uri']
+pygments_style = 'default'
+
+if sys.version_info < (3, 0):
+    tags.add("python2")
+else:
+    tags.add("python3")
+
+intersphinx_mapping = {
+    'biopython': ('https://biopython.readthedocs.io/en/latest', None),
+    'numpy': ('https://numpy.readthedocs.io/en/latest', None),
+    'scipy': ('https://scipy.readthedocs.io/en/latest', None),
+    'kmerdb': ('https://kmerdb.readthedocs.io/en/latest/', None),
+    'rtd': ('https://docs.readthedocs.io/en/stable/', None),
+    'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
+}
+
+
