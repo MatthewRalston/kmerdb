@@ -1,20 +1,39 @@
 When using programs that use kmerdb to generate k-mer profiles, please cite the following:
+@software{kmerdb,
+  author={Matt Ralston},
+  title={kmerdb},
+  url={https://github.com/MatthewRalston/kmerdb},
+  version={0.8.6},
+  date = {8/7/2024}
+}
 
 @article{Ralston2020kdb,
- title = {K-mer databases and k-mer profile matrices},
+ title = {K-mer counts and phylogeny with kmerdb},
  author = {Matthew Ralston},
  address = {Newark DE, USA},
  journal = {bioRxiv},
- month = {Feb},
+ month = {Aug},
  number = {1},
  volume = {},
  url = {},
- year = {2022},
+ year = {2024},
  pages = {}
 }
 
-(Feel free to use \nocite{Ralston2020kmerdb})
+
+[ T H A N K S   / | ]
 
 
-This helps funding further development.
+
+
+
+
+
+         kmer, counts :'-)
+
+
+
+{ seriously thanks }
+
+
 
