@@ -11,14 +11,12 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main)
 [![codecov](https://codecov.io/gh/MatthewRalston/kmerdb/graph/badge.svg?token=8VB0RVRTSV)](https://codecov.io/gh/MatthewRalston/kmerdb)
-[![ReadTheDocs status](https://readthedocs.org/projects/kdb/badge/?version=stable&style=flat)][RTD]
+[![ReadTheDocs status](https://readthedocs.org/projects/kmerdb/badge/?version=latest&style=flat)][RTD]
 
 
 [pip]: https://pypi.org/project/kmerdb/
 [Pythons]: https://pypi.org/project/kmerdb/
-[RTD]: https://kdb.readthedocs.io/en/skie/
-[RTD]: https://kdb.readthedocs.io/en/latest/
-[RTD]: https://kdb.readthedocs.io/en/latest/
+[RTD]: https://kmerdb.readthedocs.io/en/latest/
 [/]: https://kdb.info
 [-]: ...
 
@@ -151,7 +149,7 @@ BiocManager::install("DESeq2")
 ## IUPAC support:
 
 ```bash
-kmerdb profile -k $k input.fa output.kdb # This may discard non-IUPAC characters, this feature lacks documentation!
+kmerdb profile -k $k -o output input.fa # This simply discards non-IUPAC characters.
 ```
 IUPAC residues (ATCG+RYSWKM+BDHV) are kept throughout the k-mer counting. But non-IUPAC residues (N) and characters are trimmed from the sequences prior to k-mer counting. Non-standard IUPAC residues are counted as doublets or triplets.
 
