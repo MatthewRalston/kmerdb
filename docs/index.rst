@@ -1,5 +1,4 @@
 
-
 kmerdb
 ===================
 
@@ -113,3 +112,21 @@ Thank you to the authors of kPAL and Jellyfish for the inspiration and bit shift
 The intention is that more developers would want to add functionality to the codebase or even just utilize things downstream, but to build out directly with numpy and scipy/scikit as needed to suggest the basic infrastructure for the ML problems and modeling approaches that could be applied to such datasets. This project began under GPL v3.0 and was relicensed with Apache v2. Hopefully this project could gain some interest. I have so much fun working on this project. There's more to it than meets the eye. I'm working on a preprint, and the draft is included in some of the latest versions of the codebase, specifically .Rmd files.
 
 More on the flip-side. It's so complex with technology these days...
+
+.. kmerdb documentation master file, created by
+   sphinx-quickstart on Thu Aug  8 00:32:04 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+kmerdb documentation
+====================
+
+Add your content using ``reStructuredText`` syntax. See the
+`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
+documentation for details.
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
