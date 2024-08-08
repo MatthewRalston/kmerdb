@@ -79,8 +79,8 @@ suggests a way of citing, use that.
 
 If you feel the benefit from using kmerdb is too small to
 warrant a citation, then prove that by simply using another tool. If
-you replace your use of GNU Parallel with another tool, you obviously
-do not have to cite GNU Parallel. If it is too much work replacing the
+you replace your use of 'GNU Parallel' aka kmerdb with another tool, you obviously
+do not have to cite kmerdb. If it is too much work replacing the
 use of GNU Parallel, then it is a good indication that the benefit is
 big enough to warrant a citation.
 
@@ -118,7 +118,7 @@ and development is not going in that direction. At this time I am the only devel
 cannot be confused with the original, so for one thing you cannot call
 it anything similar to kmerdb as that would cause confusion
 between your forked version and the original. Also documentation
-cannot be confused with the documentation for kmerdb.  
+cannot be confused with the documentation for kmerdb.
 
 This principle has even been tested in court:
 http://www.inta.org/INTABulletin/Pages/GERMANYGeneralPublicLicenseDoesNotPermitUseofThird-PartyTrademarksforAdvertisingModifiedVersionsofOpen-SourceSoftware.aspx
@@ -133,13 +133,16 @@ then please, invest in kmerdb in an honest way and do not take this academic cit
 
 > How important is the notice for the survival of kmerdb
 
-My last $50 after making too many "good" friends in St. Louis was given to Spectrum,
-to pay for the internet that got me paid during the pandemic. I have invested my last savings into a
-Threadripper upgrade for my PC, and I might be going back to school. I have some real need.
+<!-- My last $50 after making too many "good" friends in St. Louis was given to Spectrum, -->
+<!-- to pay for the internet that got me paid during the pandemic. I have invested my last savings into a -->
+<!-- Threadripper upgrade for my PC, and I might be going back to school. I have some real need. -->
 
-Citations means respect, friendliness, and cheer in my life when others can look at me as capable in the academy.
+Citations mean the world to me and thanks to all my supporters. I hope anyone who read this far, knows that community resources means the world to me, and I really hope some day I'll have a few people who eagerly want more features and can facillitate discussion with other academics in the areas that I've highlighted as foci.
 
-Even outside the academy reputation is everything and an extra citation means the world. If publish or perish was a 'thing' even before the PhD glut, then it means it even more now, especially for researchers like myself who have not completed their doctorate.
+
+<!-- Citations means respect, friendliness, and cheer in my life when others can look at me as capable in the academy. -->
+
+<!-- Even outside the academy reputation is everything and an extra citation means the world. If publish or perish was a 'thing' even before the PhD glut, then it means it even more now, especially for researchers like myself who have not completed their doctorate. -->
 
 Before the citation notice was implemented hardly anyone cited kmerdb.
 And that's cause there was nothing to cite!
@@ -226,7 +229,8 @@ software?"**
 
 Thanks again for the citation notice faq GNU parallels.
 
-Any way, miss me with it.
 
-https://www.youtube.com/watch?v=883yQqdOaLg
+
+https://www.youtube.com/watch?v=9QRXtA4I8aQ&list=PLg9oy-P5Ts1_j15203blhIQ1twe7OCvOw
+
 
