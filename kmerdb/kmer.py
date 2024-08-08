@@ -322,6 +322,34 @@ class Kmers:
         if self.verbose:
             sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
             sys.stderr.write("a {0}bp long sequence was shredded into L-k+1 {1} total and {2} unique k-mers\n\n{3} were discarded due to sequence content\n\n".format(len(seqRecord.seq), len(str(seqRecord.seq))-self.k+1, len(list(set(kmers))), len([x for x in kmers if x is None])) + "\n")
+
+
+
+
+        def kolmogorov_complexity(self, kmers:list):
+            """
+
+            """
+
+            
+
+            
+            kmer_strings = list(map(lambda s: id_to_kmer(s), kmers))
+            for i, s in enumerate(kmer_strings):
+
+
+                letters = set(map(lambda c: s.count(c), standard_letters))
+
+                match len(letters):
+                    case 0:
+                        raise ValueError("Error during kmerdb.kmer.Kmer.shred.kolmogorov_complexity. Cannot calculate complexity of sequence with no letters")
+                    case 1:
+                        return 1
+                    case _:
+                        return _kolmogorov_complexity(s)
+                              
+
+            
         return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
 
 

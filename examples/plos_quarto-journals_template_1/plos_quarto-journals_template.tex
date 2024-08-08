@@ -1,0 +1,844 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+
+
+\PassOptionsToPackage{table}{xcolor}
+
+\documentclass[
+  10pt,
+  letterpaper,
+]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else  
+    % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[top=0.85in,left=2.75in,footskip=0.75in]{geometry}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{241,243,245}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.40,0.45,0.13}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.07,0.07,0.07}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+% Use adjustwidth environment to exceed column width (see example table in text)
+\usepackage{changepage}
+
+% marvosym package for additional characters
+\usepackage{marvosym}
+
+% cite package, to clean up citations in the main text. Do not remove.
+% Using natbib instead
+% \usepackage{cite}
+
+% Use nameref to cite supporting information files (see Supporting Information section for more info)
+\usepackage{nameref,hyperref}
+
+% line numbers
+\usepackage[right]{lineno}
+
+% ligatures disabled
+\usepackage{microtype}
+\DisableLigatures[f]{encoding = *, family = * }
+
+% create "+" rule type for thick vertical lines
+\newcolumntype{+}{!{\vrule width 2pt}}
+
+% create \thickcline for thick horizontal lines of variable length
+\newlength\savedwidth
+\newcommand\thickcline[1]{%
+  \noalign{\global\savedwidth\arrayrulewidth\global\arrayrulewidth 2pt}%
+  \cline{#1}%
+  \noalign{\vskip\arrayrulewidth}%
+  \noalign{\global\arrayrulewidth\savedwidth}%
+}
+
+% \thickhline command for thick horizontal lines that span the table
+\newcommand\thickhline{\noalign{\global\savedwidth\arrayrulewidth\global\arrayrulewidth 2pt}%
+\hline
+\noalign{\global\arrayrulewidth\savedwidth}}
+
+% Text layout
+\raggedright
+\setlength{\parindent}{0.5cm}
+\textwidth 5.25in 
+\textheight 8.75in
+
+% Bold the 'Figure #' in the caption and separate it from the title/caption with a period
+% Captions will be left justified
+\usepackage[aboveskip=1pt,labelfont=bf,labelsep=period,justification=raggedright,singlelinecheck=off]{caption}
+\renewcommand{\figurename}{Fig}
+
+% Remove brackets from numbering in List of References
+\makeatletter
+\renewcommand{\@biblabel}[1]{\quad#1.}
+\makeatother
+
+% Header and Footer with logo
+\usepackage{lastpage,fancyhdr}
+\usepackage{epstopdf}
+%\pagestyle{myheadings}
+\pagestyle{fancy}
+\fancyhf{}
+%\setlength{\headheight}{27.023pt}
+%\lhead{\includegraphics[width=2.0in]{PLOS-submission.eps}}
+\rfoot{\thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrule}{\hrule height 2pt \vspace{2mm}}
+\fancyheadoffset[L]{2.25in}
+\fancyfootoffset[L]{2.25in}
+\lfoot{\today}
+% Remove comment for double spacing
+% \usepackage{setspace}
+% \doublespacing
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage[numbers,square,comma]{natbib}
+\bibliographystyle{plos2015}
+\usepackage{bookmark}
+
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={K-mer counts and phylogeny with kmerdb},
+  pdfauthor={Matthew Ralston},
+  pdfkeywords={k-mer, seed region, sequence alignment, k-mer
+frequency, bioinformatics, genomics, alignment-free},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+
+
+
+\begin{document}
+\vspace*{0.2in}
+
+% Title must be 250 characters or less.
+\begin{flushleft}
+{\Large
+\textbf\newline{K-mer counts and phylogeny with
+kmerdb} % Please use "sentence case" for title and headings (capitalize only the first word in a title (or heading), the first word in a subtitle (or subheading), and any proper nouns).
+}
+\newline
+\\
+% Insert author names, affiliations and corresponding author email (do not include titles, positions, or degrees).
+Matthew Ralston\textsuperscript{1,2\Yinyang*}
+\\
+\bigskip
+\textbf{1} University of Delaware, Center for Bioinformatics and
+Computational Biology, Newark, Delaware, United States of
+America, \\ \textbf{2} Delaware Biotechnology
+Institute, Newark, Delaware, United States of America, 
+\bigskip
+
+% Insert additional author notes using the symbols described below. Insert symbol callouts after author names as necessary.
+% 
+% Remove or comment out the author notes below if they aren't used.
+%
+% Primary Equal Contribution Note
+\Yinyang These authors contributed equally to this work.
+
+% Additional Equal Contribution Note
+% Also use this double-dagger symbol for special authorship notes, such as senior authorship.
+%\ddag These authors also contributed equally to this work.
+
+% Current address notes
+\textcurrency Current Address: Dept/Program/Center, Institution Name, City, State, Country % change symbol to "\textcurrency a" if more than one current address note
+% \textcurrency b Insert second current address 
+% \textcurrency c Insert third current address
+
+% Deceased author note
+\dag Deceased
+
+% Group/Consortium Author Note
+\textpilcrow Membership list can be found in the Acknowledgments
+sections
+
+% Use the asterisk to denote corresponding authorship and provide email address in note below.
+* Correspondences to `mralston.development@gmail.com'
+
+\end{flushleft}
+
+\section*{Abstract}
+\textbf{Background:} With decades since Altschul's BLAST, it is still
+important to reflect on the seed region, its algorithmic purpose, and
+the role of the k-mer in biological sequence relationships and even
+alignment-free methods. Specifically, k-mers are used to generate
+alignments, assemblies, and alignment-free sequence inferences across
+massive amounts of sequencing data being produced at an increasing rate.
+k-mers are the backbone of sequence assembly by virtue of the De Bruijn
+graph and again crucial for performance in sequence alignment heuristics
+like the seed region of BLAST. \textbf{Methodology:} kmerdb is a toolkit
+in C-Python 3.12.4+ that compresses conceivably large k-mer count
+profiles using a block-access model and the bgzf compression standard
+distributed with BioPython\cite{cock2009biopython}. This program has
+additional characteristics such as an indexing functions, count
+normalization, PCA and t-Stochastic Neighbor Embedding (t-SNE)
+dimensionality reduction techniques, distance matrices, and k-means and
+hierarchical clustering features, and a log-odds ratio test for unknown
+sequences on the available k-mer frequencies. The variety of tools
+included in kmerdb facilitates any tetra-mer or arbitrary k-mer
+profile-based analysis, including word frequency analysis, custom seed
+regions, and assessment of k-mer uniqueness via NumPy compatibility.
+\textbf{Results::} kmerdb is a modern and ergonomic toolkit for k-mers
+and alignment-free sequence analysis pipelines, which rely on kmer
+indexing, counting nullomers, unique-kmers, and total-kmer counts on a
+per-input basis, and creating useful graphics and metrics on
+inter-species, inter-tissue, or locally disparate k-mer frequencies, and
+profile similarities/distances. Distributed on the Python Package Index
+and maintained on GitHub: https://github.com/MatthewRalston/kmerdb
+Features on the horizon include an aligner similar in strategy to
+vsearch, assembly and assembly diagnostic information, and a
+pseudoaligner. Ambitiously, kmerdb seeks to bridge the gap behind
+Jellyfish (C/C++, 2011 \cite{marcais2012jellyfish}) and kPAL (Python,
+2014 \cite{anvar2014determining}) for providing programmatic access to
+kmer count profiles, count matrices, matrix normalizations and
+transformations, clustering facilities, and Markov model utilities in
+the Python programming language.
+
+\section*{Author summary}
+K-mer counts, word-frequencies and alignment-free sequence analysis play
+crucial roles in modern Bioinformatics toolkits, pipelines, and
+algorithm design. Access to k-mer profiles and sequence compositional
+data in Python relies on intricate interfaces to C/C++ functions with
+Jellyfish \cite{marcais2012jellyfish}, or a collection of scripts with
+kPAL \cite{anvar2014determining}. Here I present a modern Python module
+and CLI suite for k-mer profiling, alignment-free similarities,
+clustering of datasets by k-mer frequencies, De Bruijn graphs, and more.
+
+\linenumbers
+
+\section{First time with Quarto.}\label{first-time-with-quarto.}
+
+Notes: I
+
+\section{NOTE: {[}Autogenerated{]} Q u a r t o t e m p l a t e for PLOS
+Comp
+Biol}\label{note-autogenerated-q-u-a-r-t-o-t-e-m-p-l-a-t-e-for-plos-comp-biol}
+
+This template shows how to use PLOS template from
+\url{https://plos.org/resources/writing-center/}. Each journal has a
+submission guideline page; please refer to it.
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://journals.plos.org/plosbiology/s/submission-guidelines}{PLOS
+  Biology}
+\item
+  \href{https://journals.plos.org/climate/s/submission-guidelines}{PLOS
+  Climate}
+\item
+  \href{https://journals.plos.org/digitalhealth/s/submission-guidelines}{PLOS
+  Digital Health}
+\item
+  \href{https://journals.plos.org/ploscompbiol/s/submission-guidelines}{PLOS
+  Computational Biology}
+\item
+  \href{https://journals.plos.org/plosgenetics/s/submission-guidelines}{PLOS
+  Genetics}
+\item
+  \href{https://journals.plos.org/globalpublichealth/s/submission-guidelines}{PLOS
+  Global Public Health}
+\item
+  \href{https://journals.plos.org/plosmedicine/s/submission-guidelines}{PLOS
+  Medicine}
+\item
+  \href{https://journals.plos.org/plosntds/s/submission-guidelines}{PLOS
+  Neglected Tropical Diseases}
+\item
+  \href{https://journals.plos.org/plosone/s/submission-guidelines}{PLOS
+  ONE}
+\item
+  \href{https://journals.plos.org/plospathogens/s/submission-guidelines}{PLOS
+  Pathogens}
+\item
+  \href{https://journals.plos.org/sustainabilitytransformation/s/submission-guidelines}{PLOS
+  Sustainability and Transformation}
+\item
+  \href{https://journals.plos.org/water/s/submission-guidelines}{PLOS
+  Water}
+\end{itemize}
+
+This template file contains some guidelines and recommandation initially
+given in \texttt{plos\_latex\_template.tex} that can be found in
+\url{https://github.com/quarto-journals/plos/blob/main/style-guide/plos_latex_template.tex}
+
+\subsection{Metadata}\label{metadata}
+
+\subsubsection{About journal id field}\label{about-journal-id-field}
+
+This is an identifier for the target journal. It can be derived from
+https://plos.org/resources/writing-center/ following submission
+guidelines link, the identifier is the part of the URL after
+\texttt{https://journals.plos.org/\textless{}id\textgreater{}/s/submission-guidelines}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Journal & id \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+PLOS Biology & plosbiology \\
+PLOS Climate & climate \\
+PLOS Digital Health & digitalhealth \\
+PLOS Computational Biology & ploscompbiol \\
+PLOS Genetics & plosgenetics \\
+PLOS Global Public Health & globalpublichealth \\
+PLOS Medicine & plosmedicine \\
+PLOS Neglected Tropical Diseases & plosntds \\
+PLOS ONE & plosone \\
+PLOS Pathogens & plospathogens \\
+PLOS Sustainability and Transformation & sustainabilitytransformation \\
+PLOS Water & water \\
+\end{longtable}
+
+Example :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{format}\KeywordTok{:}
+\AttributeTok{  }\FunctionTok{plos{-}pdf}\KeywordTok{:}
+\AttributeTok{    }\FunctionTok{journal}\KeywordTok{:}
+\AttributeTok{      }\FunctionTok{id}\KeywordTok{:}\AttributeTok{ water}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Once your paper is accepted for
+publication,}\label{once-your-paper-is-accepted-for-publication}
+
+Do not include track change in LaTeX file and leave only the final text
+of your manuscript. PLOS recommends the use of latexdiff to track
+changes during review, as this will help to maintain a clean tex file.
+Visit \url{https://www.ctan.org/pkg/latexdiff?lang=en} for info or
+contact us at \href{mailto:latex@plos.org}{\nolinkurl{latex@plos.org}}.
+
+\emph{This should not be a problem using Quarto but still a
+recommandation from the journal}
+
+There are no restrictions on package use within the LaTeX files except
+that no packages listed in the template may be deleted.
+
+Please do not include colors or graphics in the text. Color can be used
+to apply background shading to table cells only.
+
+The manuscript LaTeX source should be contained within a single file (do
+not use\texttt{\textbackslash{}input},
+\texttt{\textbackslash{}externaldocument}, or similar commands).
+
+Please contact \href{mailto:latex@plos.org}{\nolinkurl{latex@plos.org}}
+with any questions submission guidelines. For anything Quarto related,
+please open an issue in \url{https://github.com/quarto-journals/plos}.
+If this is related to the LaTeX template, this could also be a good idea
+to contact PLOS directly.
+
+\subsection{Figures and Tables}\label{figures-and-tables}
+
+Please include tables/figure captions directly after the paragraph where
+they are first cited in the text.
+
+\subsubsection{Figures}\label{figures}
+
+However, do not include graphics in your manuscript
+
+\begin{itemize}
+\tightlist
+\item
+  Figures should be uploaded separately from your manuscript file.
+\item
+  Figures generated using LaTeX should be extracted and removed from the
+  PDF before submission.
+\item
+  Figures containing multiple panels/subfigures must be combined into
+  one image file before submission.
+\end{itemize}
+
+\textbf{This means that, depending on how you create your figure, a
+manual post processing will be required.}
+
+For figure citations, please use ``Fig'' instead of ``Figure''. This has
+been made the default in this Quarto format:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{crossref}\KeywordTok{:}
+\AttributeTok{  }\FunctionTok{fig{-}title}\KeywordTok{:}\AttributeTok{ Fig }
+\end{Highlighting}
+\end{Shaded}
+
+Also, place figure captions after the first paragraph in which they are
+cited.
+
+See PLOS figure guidelines at
+\url{https://journals.plos.org/plosone/s/figures} and in your specific
+journal guideline.
+
+\subsubsection{Tables}\label{tables}
+
+Tables should be cell-based and may not contain:
+
+\begin{itemize}
+\tightlist
+\item
+  spacing/line breaks within cells to alter layout or alignment
+\item
+  do not nest tabular environments (no tabular environments within
+  tabular environments)
+\item
+  no graphics or colored text (cell background color/shading OK)
+\end{itemize}
+
+See PLOS table guidelines at
+\url{http://journals.plos.org/plosone/s/tables} and in your specific
+journal guideline.
+
+For tables that exceed the width of the text column, use the adjustwidth
+environment as illustrated in the example table in text below. If you
+are in this case, you'll either need to manually post process the
+\texttt{.tex} file and recreate the PDF, or you need to include LaTeX
+tables directly.
+
+Also, place tables after the first paragraph in which they are cited.
+
+\subsection{Equations, math symbols, subscripts, and
+superscripts}\label{equations-math-symbols-subscripts-and-superscripts}
+
+Below are a few tips to help format your equations and other special
+characters according to our specifications. For more tips to help reduce
+the possibility of formatting errors during conversion, please see our
+LaTeX guidelines at http://journals.plos.org/plosone/s/latex
+
+\begin{itemize}
+\item
+  For inline equations, please be sure to include all portions of an
+  equation in the math environment. For example, \texttt{x\$\^{}2\$} is
+  incorrect; this should be formatted as \(x^2\) (or \(\mathrm{x}^2\) if
+  the romanized font is desired).
+\item
+  Do not include text that is not math in the math environment. For
+  example, \texttt{CO2} should be written as
+  \texttt{CO\textbackslash{}textsubscript\{2\}} giving
+  CO\textsubscript{2} instead of \texttt{CO\$\_2\$}.
+\item
+  Please add line breaks to long display equations when possible in
+  order to fit size of the column.
+\item
+  For inline equations, please do not include punctuation (commas, etc)
+  within the math environment unless this is part of the equation.
+\item
+  When adding superscript or subscripts outside of brackets/braces,
+  please group using \texttt{\{\}}. For example, change
+  \texttt{"{[}U(D,E,\textbackslash{}gamma){]}\^{}2"} to
+  \texttt{"\{{[}U(D,E,\textbackslash{}gamma){]}\}\^{}2"}.\\
+\item
+  Do not use \texttt{\textbackslash{}cal} for caligraphic font. Instead,
+  use \texttt{\textbackslash{}mathcal\{\}}
+\end{itemize}
+
+\subsection{Title and headings}\label{title-and-headings}
+
+Please use ``sentence case'' for title and headings (capitalize only the
+first word in a title (or heading), the first word in a subtitle (or
+subheading), and any proper nouns).
+
+PLOS does not support heading levels beyond the 3rd, meaning no 4th
+level headings. Header 4 levels \texttt{\#\#\#\#} is used for the
+\emph{Supporting information} section
+
+\subsection{Abstract and author
+summary}\label{abstract-and-author-summary}
+
+Abstract must be kept below 300 words.
+
+Author Summary must be kept between 150 and 200 words and first person
+must be used.
+
+For PLOS ONE, author summary won't be included as it is not valid for
+submission.
+
+\subsection{Supplementary information
+syntax}\label{supplementary-information-syntax}
+
+Use this markdown syntax to create the supplementary information block
+with a custom block of class \texttt{.supp}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{::: \{.supp\}}
+\FunctionTok{\#\# SI TYPE \{\#id\}}
+
+\NormalTok{First paragraph is a title sentence that will be bold. (required)}
+
+\NormalTok{Optionnaly, add descriptive text after the title of the}
+\NormalTok{item. No third paragraph is allowed}
+\NormalTok{:::}
+\end{Highlighting}
+\end{Shaded}
+
+They need to be referenced in text using \texttt{nameref} by using this
+syntax \texttt{{[}id{]}(.nameref)} where \texttt{ìd} will be the id used
+on the header.
+
+\subsection{References}\label{references}
+
+Within Quarto, \texttt{natbib} will be used with \texttt{plos2015.bst},
+which expect numeric style citation. Use brackets for references, e.g
+\texttt{{[}@ref{]}}.
+
+\subsection{Quarto features
+limitation}\label{quarto-features-limitation}
+
+Some features are not working with this format in PDF:
+
+\begin{itemize}
+\tightlist
+\item
+  Callouts
+\item
+  Code highlighting customization (border left, background color)
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{quote}
+\textbf{Following content of this document is from the LaTeX template
+content to demo journal style.}
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Introduction}\label{introduction}
+
+Lorem ipsum dolor sit~\citep{bib1} amet, consectetur adipiscing elit.
+Curabitur eget porta erat. Morbi consectetur est vel gravida pretium.
+Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam
+Eq~\ref{eq-schemeP} sapien tellus, commodo id velit id, eleifend
+volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel,
+pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor
+faucibus id.~\citep{bib2} Nunc convallis sodales ante, ut ullamcorper
+est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar,
+volutpat risus.
+
+\begin{equation}\phantomsection\label{eq-schemeP}{
+\begin{aligned}
+\mathrm{P_Y} = \underbrace{H(Y_n) - H(Y_n|\mathbf{V}^{Y}_{n})}_{S_Y} + \underbrace{H(Y_n|\mathbf{V}^{Y}_{n})- H(Y_n|\mathbf{V}^{X,Y}_{n})}_{T_{X\rightarrow Y}}
+\end{aligned}
+}\end{equation}
+
+\section{Materials and methods}\label{materials-and-methods}
+
+\subsection{Etiam eget sapien nibh}\label{etiam-eget-sapien-nibh}
+
+Nulla mi mi, Fig~\ref{fig1} venenatis sed ipsum varius, volutpat euismod
+diam. Proin rutrum vel massa non gravida. Quisque tempor sem et
+dignissim rutrum. Lorem ipsum dolor sit amet, consectetur adipiscing
+elit. Morbi at justo vitae nulla elementum commodo eu id massa. In vitae
+diam ac augue semper tincidunt eu ut eros. Fusce fringilla erat
+porttitor lectus cursus, vel sagittis arcu lobortis. Aliquam in enim
+semper, aliquam massa id, cursus neque. Praesent faucibus semper libero.
+
+% Place figure captions after the first paragraph in which they are cited.
+\begin{figure}[!h]
+\caption{{\bf Bold the figure title.}
+Figure caption text here, please use this space for the figure panel descriptions instead of using subfigure commands. A: Lorem ipsum dolor sit amet. B: Consectetur adipiscing elit.}
+\label{fig1}
+\end{figure}
+
+\section{Results}\label{results}
+
+Results and Discussion can be combined.
+
+Nulla mi mi, venenatis sed ipsum varius, Table~\ref{table1} volutpat
+euismod diam. Proin rutrum vel massa non gravida. Quisque tempor sem et
+dignissim rutrum. Lorem ipsum dolor sit amet, consectetur adipiscing
+elit. Morbi at justo vitae nulla elementum commodo eu id massa. In vitae
+diam ac augue semper tincidunt eu ut eros. Fusce fringilla erat
+porttitor lectus cursus, \nameref{s1-video} vel sagittis arcu lobortis.
+Aliquam in enim semper, aliquam massa id, cursus neque. Praesent
+faucibus semper libero.
+
+\% Place tables after the first paragraph in which they are cited.
+
+\begin{table}[!ht]
+\begin{adjustwidth}{-2.25in}{0in} % Comment out/remove adjustwidth environment if table fits in text column.
+\centering
+\caption{
+{\bf Table caption Nulla mi mi, venenatis sed ipsum varius, volutpat euismod diam.}}
+\begin{tabular}{|l+l|l|l|l|l|l|l|}
+\hline
+\multicolumn{4}{|l|}{\bf Heading1} & \multicolumn{4}{|l|}{\bf Heading2}\\ \thickhline
+$cell1 row1$ & cell2 row 1 & cell3 row 1 & cell4 row 1 & cell5 row 1 & cell6 row 1 & cell7 row 1 & cell8 row 1\\ \hline
+$cell1 row2$ & cell2 row 2 & cell3 row 2 & cell4 row 2 & cell5 row 2 & cell6 row 2 & cell7 row 2 & cell8 row 2\\ \hline
+$cell1 row3$ & cell2 row 3 & cell3 row 3 & cell4 row 3 & cell5 row 3 & cell6 row 3 & cell7 row 3 & cell8 row 3\\ \hline
+\end{tabular}
+\begin{flushleft} Table notes Phasellus venenatis, tortor nec vestibulum mattis, massa tortor interdum felis, nec pellentesque metus tortor nec nisl. Ut ornare mauris tellus, vel dapibus arcu suscipit sed.
+\end{flushleft}
+
+\end{adjustwidth}
+\end{table}
+
+````
+
+\subsection{\texorpdfstring{\textbf{LOREM}~and \textbf{IPSUM}~nunc
+blandit a
+tortor}{LOREM~and IPSUM~nunc blandit a tortor}}\label{lorem-and-ipsum-nunc-blandit-a-tortor}
+
+\subsubsection{3rd level heading}\label{rd-level-heading}
+
+Maecenas convallis mauris sit amet sem ultrices gravida. Etiam eget
+sapien nibh. Sed ac ipsum eget enim egestas ullamcorper nec euismod
+ligula. Curabitur fringilla pulvinar lectus consectetur pellentesque.
+Quisque augue sem, tincidunt sit amet feugiat eget, ullamcorper sed
+velit. Sed non aliquet felis. Lorem ipsum dolor sit amet, consectetur
+adipiscing elit. Mauris commodo justo ac dui pretium imperdiet. Sed
+suscipit iaculis mi at feugiat.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  react
+\item
+  diffuse free particles
+\item
+  increment time by dt and go to 1
+\end{enumerate}
+
+\subsection{Sed ac quam id nisi malesuada
+congue}\label{sed-ac-quam-id-nisi-malesuada-congue}
+
+Nulla mi mi, venenatis sed ipsum varius, volutpat euismod diam. Proin
+rutrum vel massa non gravida. Quisque tempor sem et dignissim rutrum.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi at justo
+vitae nulla elementum commodo eu id massa. In vitae diam ac augue semper
+tincidunt eu ut eros. Fusce fringilla erat porttitor lectus cursus, vel
+sagittis arcu lobortis. Aliquam in enim semper, aliquam massa id, cursus
+neque. Praesent faucibus semper libero.
+
+\begin{itemize}
+\item
+  First bulleted item.
+\item
+  Second bulleted item.
+\item
+  Third bulleted item.
+\end{itemize}
+
+\section{Discussion}\label{discussion}
+
+Nulla mi mi, venenatis sed ipsum varius,see Table~\ref{table1} volutpat
+euismod diam. Proin rutrum vel massa non gravida. Quisque tempor sem et
+dignissim rutrum. Lorem ipsum dolor sit amet, consectetur adipiscing
+elit. Morbi at justo vitae nulla elementum commodo eu id massa. In vitae
+diam ac augue semper tincidunt eu ut eros. Fusce fringilla erat
+porttitor lectus cursus, vel sagittis arcu lobortis. Aliquam in enim
+semper, aliquam massa id, cursus neque. Praesent faucibus semper
+libero~\citep{bib3}.
+
+\section{Conclusion}\label{conclusion}
+
+CO\textsubscript{2} Maecenas convallis mauris sit amet sem ultrices
+gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas
+ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus
+consectetur pellentesque. Quisque augue sem, tincidunt sit amet feugiat
+eget, ullamcorper sed velit.
+
+Sed non aliquet felis. Lorem ipsum dolor sit amet, consectetur
+adipiscing elit. Mauris commodo justo ac dui pretium imperdiet. Sed
+suscipit iaculis mi at feugiat. Ut neque ipsum, luctus id lacus ut,
+laoreet scelerisque urna. Phasellus venenatis, tortor nec vestibulum
+mattis, massa tortor interdum felis, nec pellentesque metus tortor nec
+nisl. Ut ornare mauris tellus, vel dapibus arcu suscipit sed. Nam
+condimentum sem eget mollis euismod. Nullam dui urna, gravida venenatis
+dui et, tincidunt sodales ex. Nunc est dui, sodales sed mauris nec,
+auctor sagittis leo. Aliquam tincidunt, ex in facilisis elementum,
+libero lectus luctus est, non vulputate nisl augue at dolor. For more
+information, see \nameref{s1-appendix}.
+
+\section{Supporting information}\label{supporting-information}
+
+\paragraph*{S1 Fig.}
+\label{s1-fig}
+{\textbf{Bold the title sentence.}} Add descriptive text after the title
+of the item (optional).
+
+\paragraph*{S2 Fig.}
+\label{s2-fig}
+{\textbf{Lorem ipsum.}} Maecenas convallis mauris sit amet sem ultrices
+gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas
+ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus
+consectetur pellentesque.
+
+\paragraph*{S1 File.}
+\label{s1-file}
+{\textbf{Lorem ipsum.}}
+
+\paragraph*{S1 Video.}
+\label{s1-video}
+{\textbf{Lorem ipsum.}} Maecenas convallis mauris sit amet sem ultrices
+gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas
+ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus
+consectetur pellentesque.
+
+\paragraph*{S1 Appendix.}
+\label{s1-appendix}
+{\textbf{Lorem ipsum.}} Maecenas convallis mauris sit amet sem ultrices
+gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas
+ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus
+consectetur pellentesque.
+
+\paragraph*{S1 Table.}
+\label{s1-table}
+{\textbf{Lorem ipsum.}} Maecenas convallis mauris sit amet sem ultrices
+gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas
+ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus
+consectetur pellentesque.
+
+\section{Acknowledgments}\label{acknowledgments}
+
+Cras egestas velit mauris, eu mollis turpis pellentesque sit amet.
+Interdum et malesuada fames ac ante ipsum primis in faucibus. Nam id
+pretium nisi. Sed ac quam id nisi malesuada congue. Sed interdum aliquet
+augue, at pellentesque quam rhoncus vitae.
+
+
+\nolinenumbers
+  \bibliography{bibliography.bib}
+
+
+\end{document}
