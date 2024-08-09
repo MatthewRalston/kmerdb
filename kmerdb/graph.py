@@ -250,7 +250,7 @@ def parsefile(filepath:str, k:int, quiet:bool=True, b:int=50000, both_strands:bo
     :raise TypeError: quiet keyword arg should be a bool
     :raise TypeError: *unimplemented* - both_strands should be a bool
     :raise ValueError: Invalid length-of-0 kmer_id array produced during k-mer shredding
-    :raise AssertionError: relationship 4^k = unique_kmers + (unique_)nullomers found invalid
+    :raise AssertionError: relationship 4^k = unique_kmers + (unique)nullomers found invalid
     :returns: (edge_list, header, counts, nullomer_array) header_dictionary is the file's metadata for the header block
     :rtype: (numpy.ndarray, dict, list, list)
 

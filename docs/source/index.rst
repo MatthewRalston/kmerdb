@@ -131,107 +131,96 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: fileutil
+.. automodule:: kmerdb.fileutil
    :members:
 
-.. automodule:: graph
+.. automodule:: kmerdb.graph
    :members:
       
-.. automodule:: parse
+.. automodule:: kmerdb.parse
    :members:
 
-.. automodule:: seqparser
+.. automodule:: kmerdb.kmer
    :members:
 
-.. automodule:: kmer
+.. automodule:: kmerdb.util
    :members:
 
-.. automodule:: util
+.. automodule:: kmerdb.index
    :members:
 
-.. automodule:: index
-   :members:
-
-.. automodule:: logger
+.. automodule:: kmerdb.logger
    :members:
   
-.. automodule:: distance
+.. automodule:: kmerdb.distance
    :members:
 
-.. automodule:: python_distances
+.. automodule:: kmerdb.python_distances
    :members:
 
-.. automodule:: probability
+.. automodule:: kmerdb.probability
    :members:
 
-.. autoclass:: fileutil
+.. autoclass:: kmerdb.fileutil
    :members:
 
-.. autoclass:: graph
+.. autoclass:: kmerdb.graph
    :members:
       
-.. autoclass:: parse
+.. autoclass:: kmerdb.parse
    :members:
 
-.. autoclass:: seqparser
+.. autoclass:: kmerdb.kmer
    :members:
 
-.. autoclass:: kmer
+.. autoclass:: kmerdb.util
    :members:
 
-.. autoclass:: util
+.. autoclass:: kmerdb.index
    :members:
 
-.. autoclass:: index
-   :members:
-
-.. autoclass:: logger
+.. autoclass:: kmerdb.logger
    :members:
   
-.. autoclass:: distance
+.. autoclass:: kmerdb.distance
    :members:
 
-.. autoclass:: python_distances
+.. autoclass:: kmerdb.python_distances
    :members:
 
-.. autoclass:: probability
+.. autoclass:: kmerdb.probability
    :members:
 
-.. autoexception:: kmerdb
-   :members:
-   
-.. autoexception:: fileutil
+.. autoexception:: kmerdb.fileutil
    :members:
 
-.. autoexception:: graph
+.. autoexception:: kmerdb.graph
    :members:
       
-.. autoexception:: parse
+.. autoexception:: kmerdb.parse
    :members:
 
-.. autoexception:: seqparser
+.. autoexception:: kmerdb.kmer
    :members:
 
-.. autoexception:: kmer
+.. autoexception:: kmerdb.util
    :members:
 
-.. autoexception:: util
+.. autoexception:: kmerdb.index
    :members:
 
-.. autoexception:: index
-   :members:
-
-.. autoexception:: logger
+.. autoexception:: kmerdb.logger
    :members:
   
-.. autoexception:: distance
+.. autoexception:: kmerdb.distance
    :members:
 
-.. autoexception:: python_distances
+.. autoexception:: kmerdb.python_distances
    :members:
 
-.. autoexception:: probability
+.. autoexception:: kmerdb.probability
    :members:
+
 
 
 
