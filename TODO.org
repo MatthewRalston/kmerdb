@@ -6,6 +6,55 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 8/3/24 Kolmogorov complexity and Generalized Suffix Arrays
+
+** Suffix array
+
+*** 
+
+*** kmerdb should have a suffix array structure, and its own metadata structure, and the columnar info should have references to original data from the k-mer or suffix on k-mer structure.
+
+*** 
+
+** 
+
+** kolmogorov and Lemplel Ziv complexity definition:
+
+@article{zielezinski2017alignment,
+  title={Alignment-free sequence comparison: benefits, applications, and tools},
+  author={Zielezinski, Andrzej and Vinga, Susana and Almeida, Jonas and Karlowski, Wojciech M},
+  journal={Genome biology},
+  volume={18},
+  number={1},
+  pages={186},
+  year={2017},
+  publisher={Springer}
+}
+
+For example, the Kolmogorov complexity of a sequence can be measured by the length of its shortest description.
+Accordingly, the sequence AAAAAAAAAA can be described in a few words (10 repetitions of A), whereas CGTGATGT presumably
+has no simpler description than specification nucleotide by nucleotide (1 C, then 1 G and so on). Intuitively, longer
+sequence descriptions indicate more complexity. However, Kolmogorov did not address the method to find the shortest
+description of a given string of characters. Therefore, the complexity is most commonly approximated by general compression
+algorithms (e.g., as implemented in zip or gzip programs) where the length of a compressed sequence gives an estimate of its
+complexity (i.e., a more complex string will be less compressible) [60]. The calculation of a distance between sequences using
+complexity (compression) is relatively straightforward (Fig. 2). This procedure takes the sequences being compared
+(x = ATGTGTG and y = CATGTG) and concatenates them to create one longer sequence (xy = ATGTGTGCATGTG). If x and y are
+exactly the same, then the complexity (compressed length) of xy will be very close to the complexity of the individual x or y.
+However, if x and y are dissimilar, then the complexity of xy (length of compressed xy) will tend to the cumulative complexities
+of x and y. Of course, there are as many different information-based distances as there are methods to calculate complexity.
+For example, Lempel–Ziv complexity [61] is a popular measure that calculates the number of different subsequences encountered
+when viewing the sequence from beginning to end (Fig. 2). Once the complexities of the sequences are calculated, a measure of
+their differences (e.g., the normalized compression distance [62]) can be easily computed. Many DNA-specific compression
+algorithms are currently being applied to new types of problems [63].
+
+
+From https://wikipedia.org/wiki/Kolmogorov_complexity:
+
+Kolmogorov complexity comes in two flavors: prefix-free (K(x)) and simple complexity (C(x)) measures. The formal treatment of these metrics and their formulae or estimation techniques will be provided shortly.
+
+
+
 
 * 8/1/24 Written Lit review, System Reconfigurations
 
