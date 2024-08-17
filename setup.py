@@ -114,7 +114,7 @@ EMAIL = 'mralston.development@gmail.com'
 AUTHOR = 'Matt Ralston'
 #REQUIRES_PYTHON = ">=3.7.4"
 REQUIRES_PYTHON = '>=3.12.2'
-VERSION = "0.8.6"
+VERSION = "0.8.7"
 KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer"]
 CLASSIFIERS = [
 	    "Development Status :: 1 - Planning",

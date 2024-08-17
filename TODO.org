@@ -6,6 +6,53 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 8/14/24 compositional ideas
+
+** its a regression problem. the coefficients should sum to unity, and the vectors times coeff1 * coeff2? should sum to the composite vector, and unity.
+
+** 
+
+** 
+
+
+
+* TODO 8/13/24 priority: compositional analysis
+
+** Lots of priorities, currently. Comp. analysis, custom SVD implementation? A = UsigmaVt  
+
+** Markov chain submodules? Log-likelihood ratio
+
+** TODO T O D O  list
+
+*** Quarto journals elsevier preprint for biorxiv
+
+*** compositional analysis (p0)
+
+*** WAITING Are all species downloaded
+:LOGBOOK:
+- State "WAITING"    from "DONE"       [2024-08-14 Wed 16:36]
+- State "DONE"       from "WAITING"    [2024-08-14 Wed 16:36]
+- State "WAITING"    from "IN-PROGRESS" [2024-08-14 Wed 16:36]
+- State "IN-PROGRESS" from "NEXT"       [2024-08-14 Wed 16:36]
+:END:
+
+Once GF status was confirmed as described, GF NOD mice were colonized by co-housing with gnotobiotic mice
+colonized with defined cultured bacterial species (Altered Schaedler's flora; ASF - [35]) which were prepared
+in the laboratory from cloned bacteria using sterile technique. The ASF consists of Lactobacillus acidophilus
+(ASF 360), Lactobacillus murinus (ASF 361), Bacteroides distasonis, (ASF 519), Mucispirillum schaedleri (ASF 457),
+Eubacterium plexicaudatum (ASF 492), a Fusiform-shaped bacterium (ASF 356) and two Clostridium species (ASF 500, ASF 502).
+These ASF-colonized gnotobiotic mice were then bred in isolators to ensure no additional species were introduced.
+The presence of the ASF species was confirmed by species-specific bacterial qPCR [58].
+
+** 
+
+** 
+
+* 8/9/24 profile decomposition/recomposition(simulation) problem
+** Merge profiles with ratios (0.25% B. bifidum)
+
+** 
+
 * 8/8/24 Taking Notes on Xuejiang Xiong Mouse model IBD study
 
 ** SRA Accession id
@@ -145,10 +192,16 @@ Kolmogorov complexity comes in two flavors: prefix-free (K(x)) and simple comple
 
 
 ** TODO core species choices
-*** chicken farm estuary system changes (algination, asphyxia, microbiological changes
+*** chicken farm runoff - estuary system changes (algination, asphyxia, microbiological changes)
 *** anti-human leaky gut syndrome changes.
 **** i.e. looking at the human leaky gut syndrome, but in reverse. What are bioprotective species and niches that provide resilience to leaky-gut syndrome
 **** TODO chemophore SMILES and gastrotoxic footprints
+**** mouse model (SRA051354) currently being studied from Xuejiang Xiong
+**** looking to assess the Altered Shaedler flora/formula changes in irritable bowel syndrome.
+**** Currently, only have the accession and brief notes, still reading as of 8/12/24
+**** 
+
+
 *** pathology of lupus or auto-immune skin condition microbiome/metagenomic changes.
 *** vaginal microbiome changes
 *** 
@@ -156,7 +209,6 @@ Kolmogorov complexity comes in two flavors: prefix-free (K(x)) and simple comple
 ** 
 * IN PROGRESS 7/10/24 - [IMPORTANT] Needs a choice [cython d2 x graph algorithm features ]:
 ** [Key choice needed]: 1 [ 2 reviews + cython D2 metrics ] path 2 [ 2 reviews + graph algorithm ]
-
 ** cython d2 metrics including the delta distance : |pab(A)-pab(B)| (Karlin et al, tetra,tri,di- nucleotide frequencies)
 ** (describe Karlin delta, algorithm to calculate)
 *** Karlin delta first requires the least ambiguous k-mer (4-mer) frequency, i.e. the frequency of self
@@ -165,13 +217,18 @@ Kolmogorov complexity comes in two flavors: prefix-free (K(x)) and simple comple
 *** this specifies the numerator for the tetranucleotide frequency (lowercause tau)
 *** the denominator is only the most specific tetra and 1-neighboring trinucleotide frequencies, and the mononucleotide frequencies. [ f(acc) f(accg) f(ccg) f(a) f(c) f(t) f(g) ]
 ** 
-** new graph file format specification ( walk,path is a subclass of unlabeled graph, where node labels can be visited, path order, and progressive or retro in the walk.
+** new graph file format specification (walk, path is a subclass of unlabeled graph, where node labels can be visited, path order, and progressive or retro in the walk.
 ** contig generator method, and contig boundary definition specification
 ** 
 ** 
 ** 
 ** 
-* 6/28/24 - [ ...whoops, forgot the date by 3 x24hr blocxz. ] okay, so the 0.8.4 release should have the graph labeling done.
+* TODO 6/28/24 - [ ...whoops, forgot the date by 3 x24hr blocxz. ] okay, so the 0.8.4 release should have the graph labeling done.
+:LOGBOOK:
+- State "DELEGATED"  from "CANCELED"   [2024-08-12 Mon 17:02]
+- State "CANCELED"   from "DELEGATED"  [2024-08-12 Mon 17:02]
+- State "DELEGATED"  from              [2024-08-12 Mon 17:02]
+:END:
 
 ** graph node labeling and classification, and walk strategy
 

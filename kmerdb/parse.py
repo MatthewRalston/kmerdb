@@ -123,12 +123,6 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
     Kmer = kmer.Kmers(k, verbose=fasta) # A wrapper class to shred k-mers with
 
     recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
-    if not fasta:
-        if _loggable:
-            logger.log_it("Read exactly {0} records from the seqparser object".format(len(recs)), "DEBUG")
-        assert len(recs) <= b, "The seqparser should return exactly {0} records at a time".format(b)
-    elif _loggable:
-        logger.log_it("Skipping the block size assertion for fasta files", "DEBUG")
 
     if _loggable:
         logger.log_it("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "INFO")
