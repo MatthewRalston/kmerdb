@@ -165,6 +165,8 @@ if can_import('numpy') is not None:
     import numpy as np
     extensions = [
         Extension("kmerdb.distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
+        Extension("kmerdb.regression", ["kmerdb/regression.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
+        Extension("kmerdb.cublas_gemm", ["kmerdb/cublas_gemm.pyx"], include_dirs=[np.get_include()]),
     ]
     # Where the magic happens:
     setup(
@@ -183,6 +185,7 @@ if can_import('numpy') is not None:
         packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
         package_dir={'kmerdb': 'kmerdb'},
         package_data={'kmerdb': ['CITATION.txt']},
+        library_dirs=[".", "/usr/local/cuda/lib64", "/usr/lib/x86_64-linux-gnu", "/usr/include/linux"],
         # If your package is a single module, use this instead of 'packages':
         #py_modules=['kmerdb'],
         #scripts=['bin/kmerdb', 'bin/kmerdb_report.R'],
@@ -197,7 +200,6 @@ if can_import('numpy') is not None:
         #    tests_require=['mamba', 'expect'],
         #cmdclass={'build_ext': build_ext},
         ext_modules=cythonize(extensions),
-        library_dirs=["."],
         zip_safe=False,
     )
 else:

@@ -8,8 +8,23 @@
 
 * 8/14/24 compositional ideas
 
-** its a regression problem. the coefficients should sum to unity, and the vectors times coeff1 * coeff2? should sum to the composite vector, and unity.
+** Notes:
+ its a regression problem. the coefficients should sum to unity, and the sum of the k-mer count vectors is the the total k-mer count
 
+ 
+ the count vector is the 'coefficient' times the aggregate vector (.kdb file)
+
+ therefore, the 'coefficients' or proportions contributable, along with regression statistics,
+
+ can be made be performing least-squares on a count-matrix Ax = b, where b is the aggregate/collated/composite count-vector profile of multiple species, from which the decomposition progresses.
+
+ A is the count matrix obtained by collating suspected species of the 'metagenome' into one k-mer profile.
+
+ b is the 'observed' or artificially generated metagenome k-mer profile.
+
+ I want to do this in either Cython, Numba, and/or CUDA.
+
+ Then do the D2 statistics.
 ** 
 
 ** 
@@ -18,23 +33,33 @@
 
 * TODO 8/13/24 priority: compositional analysis
 
-** Lots of priorities, currently. Comp. analysis, custom SVD implementation? A = UsigmaVt  
+** Lots of priorities, currently. Comp. analysis, custom SVD implementation for the matrix command? A = UsigmaVt  
 
 ** Markov chain submodules? Log-likelihood ratio
 
-** TODO T O D O  list
+** TODO [/] T O D O  list
 
-*** Quarto journals elsevier preprint for biorxiv
-
-*** compositional analysis (p0)
-
-*** WAITING Are all species downloaded
+*** IN-PROGRESS [ x ] Quarto journals elsevier preprint for biorxiv
 :LOGBOOK:
+- State "IN-PROGRESS" from "NEXT"       [2024-08-16 Fri 20:33]
+:END:
+
+*** IN-PROGRESS [ x ] compositional analysis (p0)
+:LOGBOOK:
+- State "IN-PROGRESS" from "NEXT"       [2024-08-16 Fri 20:33]
+:END:
+
+*** DONE [ x ]Are all species downloaded
+CLOSED: [2024-08-16 Fri 20:33]
+:LOGBOOK:
+- State "DONE"       from "WAITING"    [2024-08-16 Fri 20:33]
 - State "WAITING"    from "DONE"       [2024-08-14 Wed 16:36]
 - State "DONE"       from "WAITING"    [2024-08-14 Wed 16:36]
 - State "WAITING"    from "IN-PROGRESS" [2024-08-14 Wed 16:36]
 - State "IN-PROGRESS" from "NEXT"       [2024-08-14 Wed 16:36]
 :END:
+
+** Description from Xiong et al Mouse IBD.
 
 Once GF status was confirmed as described, GF NOD mice were colonized by co-housing with gnotobiotic mice
 colonized with defined cultured bacterial species (Altered Schaedler's flora; ASF - [35]) which were prepared

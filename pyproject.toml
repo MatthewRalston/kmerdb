@@ -81,6 +81,8 @@ dependencies = [
              "matplotlib>=3.5.3",
 	     "pandas>=2.2.2",
              "setuptools>=69.2.0",
+	     "nvidia-pyindex>=1.0.9",
+	     "nvidia-cublas>=11.5.1.101",
 	     ]
 
 #requires-python = ">=3.7.4"
