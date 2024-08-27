@@ -249,7 +249,8 @@ COMMANDS = [
     command_10_name, #"shuf",
     command_11_name, #"usage",
     command_12_name, #"help"
-    command_13_name #"version"
+    command_13_name, #"version"
+    command_14_name  #"composition"
 ]
 
 
@@ -1962,7 +1963,7 @@ P(X) = P(an|an-1,an-2,...a1)     a { N  , X = an-1,an-2,...,a1
 
 """
 command_11_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
-command_11_inputs = "Input is a v{0} .kdb count vector file"
+command_11_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
 command_11_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
 
 
@@ -2102,6 +2103,176 @@ COMMAND_11_STEPS = OrderedDict({
 
 
 
+command_14_description = "Compositional analysis"
+command_14_description_long = """
+    Linear regression wth two inputs.
+    A 2D array 'A' with two dimensions, and non-necessarily square.
+
+    and a vector of data determining the linear constants in the regression.
+    
+
+    least squares problems occur when b is not in the column space of A.
+    
+    They are solvable if and only if the matrix A:
+      * is non-singular
+      * has independent rows/columns
+      * a non-zero determinant (i.e. it is *not* row identical to the identity matrix)
+      * and is full-rank. 
+
+    
+    ############
+    # definition
+    ############
+    At(b-Ax) = 0 OR
+    AtAx = Atb
+
+    but, less developed...
+    Ax = b
+
+    These are the normal equations.
+
+
+"""
+command_14_parameters = "inputs are the table of counts to use in the decomposition, and the composite/collated metagenomic k-mer profile (as .kdb) to decompose."
+command_14_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_14_usage = "kmerdb composition -vv --debug input1.12.kdb 12_mer_profiles.tsv"
+
+
+        
+COMMAND_14_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb composition composite1.12.kdb kmer_counts.12.tsv
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_14_name, command_14_description, command_14_description_long, command_14_inputs, command_14_parameters, command_14_usage)
+
+        
+
+COMMAND_14_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "K-mer database file.",
+            "type": "file",
+            "value": "The k-mer count proifle of a composite/metagenomic population to decompose into percentages"
+        }
+    ]
+})
+
+        
+COMMAND_14_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "Input count matrix (.tsv)",
+            "type": "file",
+            "value": "File to decompose the k-mer profile into its parts."
+        }
+        
+    ]
+})
+
+COMMAND_14_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "[FIXME! 7/28/24 Hi fross, glhf!]",
+            "shortname": "",
+            "description" : ""
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(Deprecated)"
+        })
+    ]
+})
+    
+COMMAND_14_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(uhhhh...)",
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        })
+
+    ]
+
+})
+
+
+
+
 ###################################################
 
 #            F i n a l     c o m m a n d    a g g r e g a t e
@@ -2119,7 +2290,8 @@ ALL_PARAMS = {
     "view": COMMAND_5_PARAMS["items"],
     "header": COMMAND_6_PARAMS["items"],
     "index": COMMAND_9_PARAMS["items"],
-    "shuf": COMMAND_10_PARAMS["items"]
+    "shuf": COMMAND_10_PARAMS["items"],
+    "composition": COMMAND_14_PARAMS["items"],
 }
 
 ALL_INPUTS = {
@@ -2132,7 +2304,8 @@ ALL_INPUTS = {
     "view": COMMAND_5_INPUTS["items"],
     "header": COMMAND_6_INPUTS["items"],
     "index": COMMAND_9_INPUTS["items"],
-    "shuf": COMMAND_10_INPUTS["items"]
+    "shuf": COMMAND_10_INPUTS["items"],
+    "composition": COMMAND_14_INPUTS["items"],
 }
 
 ALL_FEATURES = {
@@ -2145,8 +2318,8 @@ ALL_FEATURES = {
     "view": COMMAND_5_FEATURES["items"],
     "header": COMMAND_6_FEATURES["items"],
     "index": COMMAND_9_FEATURES["items"],
-    "shuf": COMMAND_10_FEATURES["items"]
-
+    "shuf": COMMAND_10_FEATURES["items"],
+    "composition": COMMAND_14_FEATURES["items"],
 
 }
 
@@ -2162,7 +2335,8 @@ ALL_STEPS = {
     "view": COMMAND_5_STEPS["items"],
     "header": COMMAND_6_STEPS["items"],
     "index": COMMAND_9_STEPS["items"],
-    "shuf": COMMAND_10_STEPS["items"]
+    "shuf": COMMAND_10_STEPS["items"],
+    "composition": COMMAND_14_STEPS["items"],
 }
 
 

@@ -84,8 +84,8 @@ def matrix_mult_cuda_int64(cnp.ndarray[cnp.int64_t, ndim=2] A,
         h_B[i] = <double> B[i // B.shape[1], i % B.shape[1]]  # Convert to double
 
     # Copy from host arrays to device
-    cudaMemcpy(d_A, int(h_A), m * k * sizeof(double), cudaMemcpyHostToDevice)
-    cudaMemcpy(d_B, int(h_B), k * n * sizeof(double), cudaMemcpyHostToDevice)
+    cudaMemcpy(d_A, h_A, m * k * sizeof(double), cudaMemcpyHostToDevice)
+    cudaMemcpy(d_B, h_B, k * n * sizeof(double), cudaMemcpyHostToDevice)
 
     # Perform the matrix multiplication using cuBLAS
     cublasDgemm(handle, 'N', 'N', m, n, k, alpha, d_A, lda, 

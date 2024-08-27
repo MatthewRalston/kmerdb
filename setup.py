@@ -166,7 +166,8 @@ if can_import('numpy') is not None:
     extensions = [
         Extension("kmerdb.distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
         Extension("kmerdb.regression", ["kmerdb/regression.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
-        Extension("kmerdb.cublas_gemm", ["kmerdb/cublas_gemm.pyx"], include_dirs=[np.get_include()]),
+        Extension("kmerdb.strassen_cython", ["kmerdb/strassen_cython.pyx"], include_dirs=[np.get_include()]),
+        #Extension("kmerdb.cublas_gemm", ["kmerdb/cublas_gemm.pyx"], include_dirs=[np.get_include()]),
     ]
     # Where the magic happens:
     setup(

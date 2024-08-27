@@ -29,13 +29,17 @@ cimport numpy as cnp
 cimport cython
 
 
-
+#from kmerdb cimport cublass_gemm
 
 from cpython.ref cimport PyObject
 
+
+def linear_regression(a, b):
+    x = regression(a, b, method="numpy")
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def linear_regression(double[:, :] A, double[:] b, char[:] method):
+def regression(double[:, :] A, double[:] b, char[:] method):
     """
     Linear regression wth two inputs.
     A 2D array 'A' with two dimensions, and non-necessarily square.
@@ -101,16 +105,22 @@ def linear_regression(double[:, :] A, double[:] b, char[:] method):
 
         #AtA = strassen_multiplication(At, A)
     elif method == "gemm":
+
+        #cdef cnp.ndarray[int64_t, ndim=2] a = A
+        #cdef cnp.ndarray[int64_t, ndim=2] b = B
+        #cdef cnp.ndarray[int64_t, ndim=2] c = C
+
+
+
         raise ValueError("NOTE: not implemented. issues during Cythonize. ")
-        a = cnp.ndarray[int64_t, ndim=2] A
-        b = cnp.ndarray[int64_t, ndim=2] B
-        c = cnp.ndarray[int64_t, ndim=2] C
+
+    
         
-        matrix_mult_cuda_int64(a, b, c) # Uses cublas_gemm, specifically Dgemm
+        #cublas_gemm.matrix_mult_cuda_int64(a, b, c) # Uses cublas_gemm, specifically Dgemm
 
         
         #AtA = c
-        AtA = np.ndarray(c, dtype="uint64")
+        #AtA = np.ndarray(c, dtype="uint64")
 
         raise ValueError("NOTE: not yet implemented. testing a cublas delegated matrix multiply.")
         

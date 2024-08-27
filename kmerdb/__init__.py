@@ -207,6 +207,13 @@ def expanded_help(arguments):
 
     sys.stderr.write("\n\nUse --help for expanded usage\n")
 
+
+def composition(arguments):
+
+    
+    from kmerdb.regression import linear_regression
+
+    
 def distances(arguments):
     """
     An end-user function to provide CLI access to certain distances
@@ -2418,6 +2425,17 @@ def cli():
     dist_parser.add_argument("input", nargs="*", default=[], metavar="<kdbfile1 kdbfile2 ...|input.tsv|STDIN>", help="Two or more .kdb files, or another count matrix in tsv/csv")
     dist_parser.set_defaults(func=distances)
 
+
+    comp_parser = subparsers.add_parser("composition", help=appmap.command_14_description)
+
+    comp_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    comp_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    comp_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
+    comp_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    comp_parser.add_argument("kdb", metavar="composite.$K.kdb", type=str, help="Composite/collated metagenomic k-mer profile (as .kdb) to decompose into constituents")
+    comp_parser.add_argument("table", metavar="input.tsv", default=sys.STDIN, type=str, help="Input count matrix to use for compositional analysis")
+
+    
 
     index_parser = subparsers.add_parser("index", help=appmap.command_9_description)
 
