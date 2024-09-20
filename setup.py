@@ -164,7 +164,9 @@ CLASSIFIERS = [
 if can_import('numpy') is not None:
     import numpy as np
     extensions = [
-        Extension("kmerdb.distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],),
+        Extension("kmerdb.distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()], define_macros=[("NPY_NO_DEPRECATED_API")]),
+        Extension("kmerdb.regression", ["kmerdb/regression.pyx"], include_dirs=[np.get_include()]),
+        Extension("kmerdb.strassen_cython", ["kmerdb/strassen_cython.pyx"], include_dirs=[np.get_include()]),
     ]
     # Where the magic happens:
     setup(

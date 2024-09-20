@@ -24,6 +24,8 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 
 ## Summary 
 
+It's essentially a Python wrapper around a Jellyfish .histo file. And then python does things.
+
 - [ x ] [Homepage:](https://matthewralston.github.io/kmerdb)
 - [ x ] [Quick Start guide](https://matthewralston.github.io/kmerdb/quickstart)
 - [ x ] `kmerdb usage subcommand_name`
