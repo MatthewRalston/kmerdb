@@ -1270,12 +1270,23 @@ def view(arguments):
                         #raise e
                         logger.log_it("{0} line:".format(i), "DEBUG")
                         
-                        logger.log_it("=== = = = ======= =  =  =  =  =  = |", "DEBUG")
+                        logger.log_it("=== = = = ======= =  =  =  =  =  = |", "INFO")
 
                         if arguments.un_sort is True:
-                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                            if arguments.no_singletons is True:
+                                if kdb_in.counts[idx] > 2:
+                                    
+                                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                            else:
+                                print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))                                
                         else:
-                            print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                            if arguments.no_singletons is True:
+                                if kdb_in.counts[idx] > 2:
+                                    
+                                    print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                            else:
+                                print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
+                        #print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
@@ -2307,6 +2318,10 @@ def cli():
     view_parser.add_argument("--dtype", type=str, default="uint64", help="Read in the profiles as unsigned integer 64bit NumPy arrays")
     view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
     view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
+    view_parser.add_argument("--no-singletons", action="store_true", help="Do not print nullomers or singletons")
+    
+    #view_parser.add_argument("-d", "--decompress", action="store_true", help="Decompress input? DEFAULT: ")
+    #view_parser.add_argument("-c", "--compress", action="store_true", help="Print compressed output")
     view_parser.add_argument("kdb_in", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be read (Optional)")
     view_parser.add_argument("kdb_out", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be written to (Optional)")
     view_parser.set_defaults(func=view)

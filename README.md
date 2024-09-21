@@ -243,6 +243,8 @@ Thanks to the people of NCC for the Doordash money. It might not be much but I d
 
 Thanks to D from BCCS.
 Thanks to C4H&H. I'm 'healthier' now, but I really still think I need more support than just BCCS. it's urgent.
+Thanks to CT and family. Your love and support means the world to me.
+Thanks to AS and family. Your support made a difference. Praying for better employment and opportunities.
 
 And thanks to my family and friends.
 Go Blue Hens

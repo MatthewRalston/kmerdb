@@ -21,11 +21,8 @@
 
 import numpy as np
 cimport numpy as cnp
-from libc.stdlib cimport malloc, free
-from libc.string cimport memcpy
-
-# Ensure appropriate imports for types
-from libc.stdint cimport int64_t
+#from libc.stdlib cimport malloc, free
+#from libc.string cimport memcpy
 
 # A simple utility function to add two matrices
 cdef cnp.ndarray[double, ndim=2] add(cnp.ndarray[double, ndim=2] A, 
@@ -57,10 +54,15 @@ cdef cnp.ndarray[double, ndim=2] subtract(cnp.ndarray[double, ndim=2] A,
 
 # Strassen's algorithm for matrix multiplication
 cdef cnp.ndarray[double, ndim=2] strassen(cnp.ndarray[double, ndim=2] A,
-                                          cnp.ndarray[double, ndim=2] B, char[:] method="numpy"):
+                                          cnp.ndarray[double, ndim=2] B, str method):
+    
+    
     cdef int n
     n = A.shape[0]
-
+    if method is None:
+        method = "numpy"
+    
+    
     if method == "numpy":
         return np.dot(A, B)
     if n <= 4:#: and base == "numpy"  # Base case
@@ -171,21 +173,6 @@ cdef cnp.ndarray[double, ndim=2] strassen(cnp.ndarray[double, ndim=2] A,
     return C
 
     # End Strassen
-
-# # Batch processing function for Strassen's algorithm
-# cpdef batch_strassen(cnp.ndarray[double, ndim=2] A_batch,
-#                      cnp.ndarray[double, ndim=2] B_batch):
-#     cdef int batch_size, i
-#     batch_size = A_batch.shape[0]
-
-#     # Result batch initialization
-#     result_shape = (batch_size, A_batch.shape[1], A_batch.shape[2])
-#     cdef cnp.ndarray[double, ndim=3] C_batch = cnp.ndarray[double, ndim=3] A
-
-    # for i in range(batch_size):
-    #     C_batch[i] = strassen(A_batch[i], B_batch[i])
-
-    # return C_batch
 
 
 

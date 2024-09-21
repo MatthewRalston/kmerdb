@@ -6,6 +6,26 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 8/8/24 Taking Notes on Xuejiang Xiong Mouse model IBD study
+
+** SRA Accession id
+
+*** SRA051354
+SRA051354
+*** 
+** What is the purpose of this study?
+
+The goal of this study is to recreate a mouse model of the disease called "Irritable Bowel Disease", using agents that induce responses and irritation to the point where the induced condition and the condition known as "irritable bowel disorder" are functionally similar.
+
+The mice are NOD (non-obese diabetic) and suceptible to germs. They are colonized with 8 symbiotic bowel microbes, known as Altered Schaedler flora (ASF).
+
+Samples taken from the bowels of these mice reveal the effect of the irritant/inducer agent on the gut microflora as measurable by Illumina High-throughput sequencing (HTS). Specifically, transcriptional libraries are prepared following RiboMinus treatment, to enrich for mRNAs and other non-rRNAs.
+
+The mRNA libraries were processed on a Genome Analyzer IIx in this study. The SRA accession id for the single-end fastq datasets, bulk RNA for metatranscriptomics and assembly, is SRA051354.
+
+The study used 
+
+
 * 8/3/24 Kolmogorov complexity and Generalized Suffix Arrays
 
 ** Suffix array
