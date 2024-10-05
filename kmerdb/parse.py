@@ -47,7 +47,7 @@ from kmerdb import kmer
 
 
 
-def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
+def parsefile(filepath:str, k:int, logger=None, quiet=True): #rows_per_batch:int=100000, b:int=50000, n:int=1000, both_strands:bool=False, all_metadata:bool=False):
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -108,31 +108,26 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
     seqprsr = SeqParser(filepath, k, logger)
     fasta = not seqprsr.fastq # Look inside the seqprsr object for the type of file
 
+
+    
     # Initialize the kmer array
     try:
+        kmer_ids = []
         counts = np.zeros(N, dtype="uint64")
+        read_lengths = []        
     except TypeError as e:
         if _loggable:
             logger.log_it("Invalid dtype for numpy array instantiation", "ERROR")
             logger.log_it(e.__str__(), "ERROR")
         raise e
 
-    if _loggable:
-        logger.log_it("Successfully allocated space for {0} unsigned integers: {1} bytes".format(N, counts.nbytes), "INFO")
-        # Instantiate the kmer class
-    Kmer = kmer.Kmers(k, verbose=fasta) # A wrapper class to shred k-mers with
+    Kmer = kmer.Kmers(k, verbose=not quiet) # A wrapper class to shred k-mers with
 
     recs = [r for r in seqprsr] # A block of exactly 'b' reads-per-block to process in parallel
-    if not fasta:
-        if _loggable:
-            logger.log_it("Read exactly {0} records from the seqparser object".format(len(recs)), "DEBUG")
-        assert len(recs) <= b, "The seqparser should return exactly {0} records at a time".format(b)
-    elif _loggable:
-        logger.log_it("Skipping the block size assertion for fasta files", "DEBUG")
 
     if _loggable:
         logger.log_it("Read {0} sequences from the {1} seqparser object".format(len(recs), "fasta" if fasta else "fastq"), "INFO")
-    all_kmer_metadata = list([] for x in range(N))
+
     while len(recs): # While the seqprsr continues to produce blocks of reads
 
         num_recs = len(recs)
@@ -141,14 +136,40 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
             logger.log_it("Processing a block of {0} reads/sequences".format(num_recs), "INFO")
 
         # Initialize an all_kmer_metadata list
-        kmer_metadata = []
+
+
+        
         list_of_dicts = list(map(Kmer.shred, recs))
 
-        # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
-        if _loggable:
-            logger.log_it("\n\nAcquiring linked-list of all k-mer ids from {0} sequence records...\n\n".format(num_recs), "INFO")
-        kmer_ids = list(chain.from_iterable(map(lambda x: x['kmers'], list_of_dicts)))
+        
+        min_read_length = 50
+        max_read_length = 0
 
+        if quiet is False:
+            print("Generating k-mer id array")
+        # Flatmap to 'kmers', the dictionary of {'id': read_id, 'kmers': [ ... ]}
+            logger.log_it("Aggregating k-mers, counts, read_lengths across reads from a fastq file, or sequences in a fasta from file '{0}'... (NOTE: this may be done several times..)".format(filepath), "INFO")
+        
+        _kmer_ids = []
+        for d in list_of_dicts:
+
+            if d["kmers"] is not None:
+                
+                _kmer_ids += list(map(kmer.kmer_to_id, d["kmers"]))
+                read_lengths.append(d["read_length"])
+            if _kmer_ids is None:
+                raise RuntimeError("placeholder cannot be none")
+
+            
+        if _kmer_ids is not None:
+            logger.log_it("The _kmer_ids placeholder has {0} elements.".format(len(_kmer_ids)), "INFO")
+            kmer_ids = kmer_ids + _kmer_ids
+
+                    
+        seqprsr.max_read_length = max(read_lengths)
+        seqprsr.min_read_length = min(read_lengths)
+        seqprsr.avg_read_length = np.mean(np.array(read_lengths, dtype="uint32"))
+    
         sus = set()
 
         
@@ -165,7 +186,7 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
         if num_sus > 0 and _loggable:
             logger.log_it("{0} uncountable k-mer identified".format(num_sus), "WARNING")
             logger.log_it("Likely caused by the presence of the unspecified nucleotide 'N' in a .fasta file", "WARNING")
-            logger.log_t("Will remove from the final committed profile", "WARNING")
+            logger.log_it("Will remove from the final committed profile", "WARNING")
 
         ########################
         # K-mer cleaning
@@ -181,54 +202,13 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
         #
 
         if _loggable:
-            logger.log_it("Found {0} invalid or enumerable k-mers, sequences which have no defined index, i".format(num_sus), "INFO")
-            logger.log_it("In other words, one or more characters in your .fasta or .fastq file were 'N' or otherwise contained IUPAC characters that need to be substituted.", "DEBUG")
+            logger.log_it("Found {0} invalid or un-enumerable k-mers, sequences which have no defined index due to N-conent, i".format(num_sus), "INFO")
+            logger.log_it("In other words, one or more characters in your .fasta or .fastq file were 'N' or otherwise contained IUPAC characters that need to be substituted, which would have been given independent k-mer ids.", "DEBUG")
             logger.log_it("We have chosen to omit k-mer with unspecified nucleotides 'N', and these make gaps in our database explicitly.", "DEBUG")
-            logger.log_it("These can be recovered from the reads if they are needed, and the read ids may be found with the experimental --all-metadata flag", "INFO")
-        # if all_metadata:
-
-        #     logger.warning("\n\n\nGENERATING ALL METADATA\n\n\nThis is extremely expensive and experimental. You have been warned.\n\n\n")
-        #     reads = list(chain.from_iterable(map(lambda x: x['seqids'], list_of_dicts)))
-        #     starts = list(chain.from_iterable(map(lambda x: x['starts'], list_of_dicts)))
-        #     reverses = list(chain.from_iterable(map(lambda x: x['reverses'], list_of_dicts)))
-        #     logger.debug("Checking each k-mer for N-content and IUPAC substitution")
-        #     for i, x in enumerate(kmer_ids): # This removes N content
-        #         if i in sus: # This is where we actually delete the N content, in case that is eventually supported.
-        #             kmer_ids[i] = None
-        #             reads[i] = None
-        #             starts[i] = None
-        #             reverses[i] = None
-        #     kmer_ids = list(filter(lambda k: k is not None, kmer_ids)) 
-        #     reads = list(filter(lambda r: r is not None, reads))
-        #     starts = list(filter(lambda s: s is not None, starts))
-        #     reverses = list(filter(lambda r: r is not None, reverses))
-        # else:
-        if _loggable:
             logger.log_it("Checking each k-mer for IUPAC substitution or N content.", "DEBUG")
-        for i, x in enumerate(kmer_ids): # Here we remove the k-mer ids where N-content is detected, in case they are needed, you can use kmer_ids prior to this point to build functionality.
-            if i in sus:
-                kmer_ids[i] = None
 
-        if _loggable:
-            logger.log_it("Eliminating suspicious 'sus' k-mers, i.e. those with N-content or IUPAC substitutions", "INFO")
-
-
-            
-        kmer_ids = list(filter(lambda k: k is not None, kmer_ids))
-        reads = [] # I'm keeping this in, just in case for some reason the variable names are needed in the 
-        starts = []
-        reverses = []
-        if None in kmer_ids:
-            # Actually they were just introduced to be filtered out, instead of deleted
-            # Because each deletion whould cange the array index
-            # So instead we set ghtme to None, and filter out
-            raise ValueError("kmerdb.parse.parsefile encountered an invalid kmer_id. Internal error.")
-
-
-
-        if _loggable:
-            logger.log_it("{0} 'clean' kmers were identified successfully from {1} input sequences".format(len(kmer_ids), num_recs), "DEBUG")
-            logger.log_it("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids), len(starts)), "DEBUG")
+            logger.log_it("{0} 'clean' kmers were identified successfully after adding valid k-mer ids from {1} input sequences".format(len(kmer_ids), num_recs), "DEBUG")
+            logger.log_it("Flatmapped {0} kmers for their metadata aggregation".format(len(kmer_ids)), "DEBUG")
         # Assert that all list lengths are equal before adding metadata to k-mers
         # else:
         #     raise RuntimeError("Still have no clue what's going on...")
@@ -242,12 +222,8 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
             raise ValueError("No k-mers available to add. Please report to the issue tracker")
         else:
             sys.stderr.write("\nAccumulating all k-mers from this set of records...")
-            for kmer in kmer_ids:
-                counts[kmer] += 1
-        # all_kmer_metadata
-        # if all_metadata:
-        #     for single_kmer_id, read, start, reverse in kmer_metadata:
-        #         all_kmer_metadata[single_kmer_id].append((read, start, reverse))
+            for _ in kmer_ids:
+                counts[_] += 1
 
         recs = [r for r in seqprsr] # The next block of exactly 'b' reads
 
@@ -273,7 +249,10 @@ def parsefile(filepath:str, k:int, logger=None): #rows_per_batch:int=100000, b:i
     seqprsr.total_kmers = int(np.sum(counts))
     seqprsr.unique_kmers = unique_kmers
     seqprsr.nullomers = num_nullomers
-
+    seqprsr.min_read_length = min_read_length
+    seqprsr.max_read_length = max_read_length
+    seqprsr.read_lengths = np.array(read_lengths, dtype="uint64")
+    seqprsr.avg_read_length = np.mean(read_lengths)
     
     seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
 
@@ -298,7 +277,7 @@ class SeqParser:
     :ivar num: The number of records to read in from a .fastq
     :ivar k: The choice of k to initialize the calculation of kmer/nullomer counts.
     """
-    def __init__(self, filepath:str, k:int, logger, num:int=100000):
+    def __init__(self, filepath:str, k:int, logger=None, num:int=5000000):
         """
         The SeqParser class wraps up some functionality  
         """
@@ -458,7 +437,9 @@ class Parseable:
     def __init__(self, arguments, logger=None):
         self.arguments = arguments
         self.logger = logger
-            
+        self.avg_read_length = None
+        self.max_read_length = None
+        self.min_read_length = None
 
         
     def parsefile(self, filename):
@@ -468,6 +449,15 @@ class Parseable:
         :type filename: str
         :returns: (db, m, n)
         """
-        return parsefile(filename, self.arguments.k, logger=self.logger)
+
+        parsed_file = parsefile(filename, self.arguments.k, logger=self.logger)
+
+
+        self.max_read_length = parsed_file.max_read_length
+        self.min_read_length = parsed_file.min_read_length
+        self.avg_read_length = parsed_file.avg_read_length
+        
+        
+        return parsed_file
 
 

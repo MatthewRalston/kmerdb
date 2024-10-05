@@ -1821,12 +1821,13 @@ def profile(arguments):
     samples = []
     if len(arguments.input) == 1:
         if ".fasta" in arguments.input[0] or ".fa" in arguments.input[0] or ".fna" in arguments.input[0] or ".fasta.gz" in arguments.input[0] or ".fa.gz" in arguments.input[0]:
+            logger.log_it("Input filename is '{0}'".format(arguments.input[0]), "DEBUG")
             logger.log_it("Input suffix is .fasta", "DEBUG")
         elif ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
             logger.log_it("Input suffix is .fastq", "DEBUG")
         elif ".txt" in arguments.input[0] or ".tsv" in arguments.input[0]:
-            logger.log_it("Input suffix is .txt, possibly samplesheet", "DEBUG")
-            
+            logger.log_it("Input suffix is .txt, possibly samplesheet. will open as tsv", "DEBUG")
+            # One sample per line
             samplesheet = arguments.input[0]
             with open(samplesheet, 'r') as ifile:
                 for line in ifile:
@@ -1853,9 +1854,9 @@ def profile(arguments):
         if arguments.minK is None or arguments.maxK is None:
             raise ValueError("In multi-k mode, arguments --minK and --maxK are required.")
         elif arguments.minK < 4 or arguments.maxK < 5 or arguments.minK > 25 or arguments.maxK > 30:
-            raise ValueError("Valid k choices are between 3 and 30")
+            raise ValueError("Valid --min|max between 3 and 30")
         else:
-            logger.log_it("Running in multi-k mode", "INFO")
+            logger.log_it("Doing things...", "INFO")
             for k in range(arguments.minK, arguments.maxK+1):
 
                 new_args.k = k
@@ -1870,7 +1871,7 @@ def profile(arguments):
         _profile(new_args)
 
     
-    return
+    return 
 
 
 
@@ -2007,6 +2008,24 @@ def _profile(arguments):
     unique_nullomers = theoretical_kmers_number - unique_kmers
     #unique_nullomers = len(set(nullomer_ids))
 
+    from kmerdb import lexer
+
+
+    
+    no_singletons = []
+    hist = util.get_histo(counts)
+
+    #print(hist)
+
+    
+    if arguments.show_hist is True:
+        sys.stderr.write("Full histogram:\n")
+        sys.stderr.write("[{0}]".format(", ".join(list(map(lambda x: str(x), hist)))))
+
+
+    i, cov = lexer.max(hist)
+    kmer_coverage = cov
+    
     logger.log_it("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number), "DEBUG")
     logger.log_it("Length of count array: {0}".format(counts.size), "DEBUG")
     logger.log_it("Number of non-zeroes: {0}".format(unique_kmers), "DEBUG")
@@ -2020,7 +2039,7 @@ def _profile(arguments):
     
     assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
     #logger.info("created a k-mer composite in memory")
-
+    
 
     # nullomer_ids = []
 
@@ -2039,7 +2058,7 @@ def _profile(arguments):
     
     logger.log_it("Formatting master metadata dictionary...", "INFO")
     
-
+    
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
@@ -2049,14 +2068,19 @@ def _profile(arguments):
         "unique_nullomers": unique_nullomers,
         "metadata": False,
         "sorted": arguments.sorted,
+        "kmer_coverage": kmer_coverage,
         "kmer_ids_dtype": "uint64",
         "profile_dtype": "uint64",
+        "kmer_coverage_histogram_dtype": "uint64",
         "count_dtype": "uint64",
         "frequencies_dtype": "float64",
         "tags": [],
         "files": file_metadata
     })
-        
+
+    """
+    Validate Python datatypes listed in metadata header by calling the dtype function of the module of the NumPy 1.21.2
+    """
     try:
         np.dtype(metadata["kmer_ids_dtype"])
         np.dtype(metadata["profile_dtype"])
@@ -2072,10 +2096,15 @@ def _profile(arguments):
     kmer_ids = np.array(range(N), dtype=metadata["kmer_ids_dtype"])
     profile = np.array(range(N), dtype=metadata["profile_dtype"])
     counts = np.array(counts, dtype=metadata["count_dtype"])
+    hist_ = list(hist)
+    hist = np.array(hist, dtype=metadata["kmer_coverage_histogram_dtype"])
+
     frequencies = np.divide(counts, metadata["total_kmers"])
 
 
     
+
+
     logger.log_it("Initialization of profile completed, using approximately {0} bytes for profile".format(counts.nbytes), "INFO")
     
     yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
@@ -2084,7 +2113,9 @@ def _profile(arguments):
     
     step += 1
 
-
+    """
+    Print histogram as 0-100, with the 0's and 1's reinserted to specification of histogram
+    """
 
 
 
@@ -2093,6 +2124,7 @@ def _profile(arguments):
 
     logger.log_it("Collapsing the k-mer counts across the various input files into the .kdb file '{0}'".format(output_filepath), "INFO")    
     kdb_out = fileutil.open(output_filepath, 'wb', metadata=metadata)
+    
     try:
         sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(output_filepath))
 
@@ -2102,6 +2134,30 @@ def _profile(arguments):
         #profile = np.zeros(total_kmers, dtype=metadata["profile_dtype"])
         #counts = np.zeros(total_kmers, dtype=metadata["count_dtype"])
         #frequencies = np.zeros(total_kmers, dtype=metadata["frequencies_dtype"])
+
+
+
+        sys.stderr.write("Full histogram :\n{0}\n".format(list(map(lambda x: int(x), hist))))
+
+        if arguments.quiet is not True and arguments.show_hist is True:
+            print(hist_[0:100])
+            print("Here's the (mini-) histogram you asked for!")
+
+
+
+        
+        i, m = lexer.max(hist)
+
+        if arguments.quiet is not True:
+            print("idx i: {0}, current maximum: {1}".format(i, m))
+        sys.stderr.write("idx i: {0}, current maximum: {1}".format(i, m))
+
+
+        #print(hist_)
+        #sys.stderr.write("mini_hist: {0}".format(hist_))
+        #kdb_out.write(list(hist)[0:100])
+        #time.sleep(240)
+
         if arguments.sorted:
 
             kmer_ids_sorted_by_count = np.lexsort(kmer_ids)
@@ -2158,6 +2214,8 @@ def _profile(arguments):
         sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
         sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
         sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
+        sys.stderr.write("Estimated genome size: N/A\n".format(all_observed_kmers/kmer_coverage))
+        sys.stderr.write("K-mer coverage:  {0}\n".format(kmer_coverage))
         sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
         sys.stderr.write("="*30 + "\n")
         sys.stderr.write("\nDone\n")
@@ -2241,6 +2299,7 @@ def cli():
     profile_parser.add_argument("--maxK", type=int, help="Maximum k for output k-mer profiles")
     profile_parser.add_argument("-o", "--output-name", type=str, required=True, help="File name pattern for outputs. e.g.: example with underscores and dashes input_samplename_1 => input_samplename_1.11.kdb, input_samplename_1.12.kdb")
 
+
     profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")    
     # profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
     # profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
@@ -2251,14 +2310,16 @@ def cli():
     #profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
     
     #profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
+    profile_parser.add_argument("--show-hist", action="store_true", default=False, help="Print the histogram of counts to stderr.")
     profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
     profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     profile_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     # Seqfile todo
 
+                          
     
-    profile_parser.add_argument("input", nargs="+", type=str, metavar="<samplesheet.txt|.fa|.fq.gz>", help="A plain text samplesheet: one filepath per line. OR one or more input .fasta or .fastq (.gz supported) files.")
+    profile_parser.add_argument("input", nargs="+", type=str, help="A plain text samplesheet: <samplesheet.txt|.fa|.fq.gz> - one filepath per line. OR one or more input .fasta or .fastq (.gz supported) files.")
     
     # profile_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     # profile_parser.add_argument("kdb", type=str, help="Kdb file")

@@ -6,6 +6,18 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+
+* 9/21/24 | somewhat changing from gpt4o-mini to claude sonnet
+* 9/20/24 | strassen
+** 
+** 
+* 9/5/24 | genome-size estimation
+** G = T/C_k
+** T = total kmer count
+** G = estimated genome size
+** C_k = C*(read_length-k+1)/read_length (OR the second-peak/best peak's x-value is the k-mer coverage in the count histogram)
+** 
+* 
 * 8/8/24 Taking Notes on Xuejiang Xiong Mouse model IBD study
 
 ** SRA Accession id
@@ -37,7 +49,6 @@ The study used
 *** 
 
 ** 
-
 ** kolmogorov and Lemplel Ziv complexity definition:
 
 @article{zielezinski2017alignment,
