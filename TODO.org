@@ -5,9 +5,9 @@
 
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
-
-
+* 10/5/24 | released from hospital (2 days) and working on refactoring kmer module
 * 9/21/24 | somewhat changing from gpt4o-mini to claude sonnet
+** using sonnet to create llc documents
 * 9/20/24 | strassen
 ** 
 ** 
@@ -49,6 +49,7 @@ The study used
 *** 
 
 ** 
+
 ** kolmogorov and Lemplel Ziv complexity definition:
 
 @article{zielezinski2017alignment,

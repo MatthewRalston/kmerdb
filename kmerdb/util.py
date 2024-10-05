@@ -71,6 +71,25 @@ def is_gz_file(filepath):
         return False
 
 
+
+def get_histo(counts):
+    """
+    Get a histogram from an array.
+    """
+    hist = []
+    for i in range(len(counts)):
+        hist.append(0)
+    #hist = np.zeros(len(counts))
+
+        
+    for i in range(len(counts)):
+        if counts[i] > 2:
+            hist[counts[i]] += 1
+    return hist
+
+
+
+    
 def is_all_fasta(filenames):
     """Tests if all the strings in a list are fasta format.
     
