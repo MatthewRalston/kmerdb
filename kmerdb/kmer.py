@@ -146,7 +146,7 @@ class Kmers:
         if seqlen < self.k:
             logger.error("Offending sequence ID: {0}".format(seqRecord.id))
             raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects that each input sequence is longer than k.")
-
+        
         all_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
         all_non_iupac_symbols = list(letters - self.__permitted_chars)
         
@@ -219,105 +219,123 @@ class Kmers:
 
             
         kmers = []
-        starts = []
-        reverses = []
-        # Each of the n-k+1 string slices become the k-mers
-        for i in range(seqlen - self.k + 1):
-            s = seqRecord.seq[i:(i+self.k)]
-            #logger.debug(letters - self.__permitted_chars)
-            iupac_symbols = list(set(s).intersection(self.__permitted_chars) - standard_letters)
-            non_iupac_symbols = list(set(s) - self.__permitted_chars)
+
+        kmers = [seqRecord.seq[i:(i+self.k)] for i in range(seqlen - self.k + 1)]
+
+        for s in kmers:
+            iupac_symbols = list(set(list(s)).intersection(self.__permitted_chars))
+            non_iupac_symbols = list(set(list(s)) - self.__permitted_chars)
 
             ######################################################################33
             #       I U P A C        m o d u l e
             ######################################################################33
 
-            if len(set(str(s)) - self.__permitted_chars) == 0 and len(iupac_symbols) > 0 and len(non_iupac_symbols) == 0:
-                seqs = None
-                for c in list(set(s) - standard_letters):
-                    # logger.debug("character: {0}".format(c))
-                    # logger.debug("K-mer: {0}".format(s))
-                    # logger.debug("IUPAC symbols in the whole sequence: {0}".format(iupac_symbols))
-                    # logger.debug("Non-IUPAC symbols in the whole sequence: {0}".format(non_iupac_symbols))
-                    if c in IUPAC_DOUBLET_CHARS:
-                        #logger.info("Doublets being replaced")
-                        if seqs is None:
-                            seqs = list(map(lambda x: replace_char(str(s), c, x), get_doublet_chars(c)))
-                        else:
-                            seqs = list(chain.from_iterable(map(lambda s: list(map(lambda x: replace_char(s, c, x), get_doublet_chars(c))), seqs)))
-                    elif c in IUPAC_TRIPLET_CHARS:
-                        #logger.info("Triplets being replaced")
-                        if seqs is None:
-                            seqs = list(map(lambda x: replace_char(str(s), c, x), get_triplet_chars(c)))
-                        else:
-                            seqs = list(chain.from_iterable(map(lambda s: list(map(lambda x: replace_char(s, c, x), get_triplet_chars(c))), seqs)))
-                    elif c in standard_letters:
-                        raise RuntimeError("Standard DNA residue detected in IUPAC module")
-                    elif c == n:
-                        logger.warning("N content detected")
-                        continue
-                    else:
-                        sys.stderr.write(str(seqRecord) + "\n")
-                        sys.stderr.write("Full sequence above" + "\n")
-                        sys.stderr.write("K-mer: {0}".format(s) + "\n")
-                        sys.stderr.write(s + "\n")
-                        raise RuntimeError("kmerdb.kmer.shred: Non-IUPAC character '{0}' made it into sequences generated from IUPAC doublet/triplet counting of the k-mer '{1}'".format(c, s))
-                if seqs is None and "N" not in s:
-                    sys.stderr.write("Permitted IUPAC symbols: {0}".format(iupac_symbols))
-                    sys.stderr.write("Non-IUPAC symbols detected in sequence '{0}': {1}".format(s, non_iupac_symbols))
-                    sys.stderr.write("The following k-mer did not have any IUPAC letters: {0}".format(s))
-                    raise RuntimeError("kmerdb.kmer.shred: A sequence was rejected from non-IUPAC symbols")
-                elif seqs is None and "N" in s:
-                    continue
-                one_word = "".join(seqs)
-                if len(set(one_word) - self.__permitted_chars) > 0:
-                    sys.stderr.write(one_word + "\n")
-                    sys.stderr.write("Doublets/triplets produced from k-mer '{0}': \n{1}".format(s, seqs) + "\n")
-                    raise ValueError("kmerdb.kmer.shred: at least one non-IUPAC symbol was found during doublets/triplet expansion of the k-mer '{0}'".format(s))
-                else:
-                    for x in seqs:
-                        logger.debug(x)
-                        kmers.append(kmer_to_id(x))
-                        if self.all_metadata:
-                            reverses.append(False)
-                            starts.append(i)
-                        if not self.strand_specific: # Reverse complement by default
-                            kmers.append(kmer_to_id(Seq.Seq(x).reverse_complement()))
-                            if self.all_metadata:
-                                reverses.append(True)
-                                starts.append(i)
+            
+            seqs = []
+
+            if self.verbose is not False:
+                sys.stderr.write("running IUPAC module. generating sequences. L252\n") # 10/1/24
+                sys.stderr.write("system message: k-mer sequence -        [| {0} |]\n".format(s))
+                sys.stderr.write("Iterating over k-mer for doublet/triplet iupac expansion\n")
+            nonstandard_chars = (set(list(s)) - set(n)) - standard_letters
+            for c in list(nonstandard_chars):
+
+                print("Non-permitted character found: {0}".format(c))
+                raise RuntimeError("can we get in here actually?")
+                sys.stderr.write("character: {0}\n".format(c))
+                sys.stderr.write("K-mer: {0}\n".format(s))
+                sys.stderr.write("IUPAC symbols in the whole sequence: {0}\n".format(iupac_symbols))
+                sys.stderr.write("Non-IUPAC symbols in the whole sequence: {0}\n".format(non_iupac_symbols))
+                if len(iupac_symbols) > 0:
+                    sys.stderr.write("expanding iupac doublets/triplets...\n")
+                print("seq0: {0}".format(seqs))
+                if c in standard_letters:
+                    raise ValueError("Cannot have standard letters to this point")
+
+
+                
+                # print(c)
+                # print("doublet expansions:")
+                if c in IUPAC_TO_DOUBLET.keys():
+                    for x in get_doublet_chars(c):
+                        doublet1, doublet2 = replace_char(s, c, x)
+                        seqs.append(doublet1)
+                        seqs.append(doublet2)
+
+                if c in IUPAC_TO_TRIPLET.keys():
+                    for x in get_triplet_chars(c):
+                        trip1, trip2, trip3 = replace_chars(s, c, x)
+                        seqs.append(trip1)
+                        seqs.append(trip2)
+                        seqs.append(trip3)
+                print("seq2: {0}".format(seqs))
+            
+            if seqs is None and len(non_iupac_symbols) > 0:
+                raise ValueError("Non-IUPAC symbols detected in {0}".format(s))
+            elif seqs is None and len(iupac_symbols) == 4 and len(set(iupac_symbols) - standard_letters) == 0:
+                e = ValueError("standard iupac symbols likely. ATCG or a subset for this k-mer. Likely not generated from sequencing data")
+                #raise e
+                continue # 9/30/24 whooopsshuaazzzaaah
+
+            elif seqs is None and len(iupac_symbols) > 0 and len(iupac_symbols) < 4:
+                e = ValueError("just... stnadard iupac symbols likely. ATCG or a subset for this k-mer. Likely not generated from sequencing data") # 10/3/24
+                #raise e
+                continue
+            # elif seqs is None and len(iupac_symbols) >0 and len(iupac_symbols) > 4:
+            #     e = ValueError("extra IUPAC characters detected in {0}".format(s))
+            #     #raise e
+
+            #raise RuntimeError("Still debug. bona suarte")
+            """
+            You shall not pass! ... gas!
+            Gandalyf the greatest
+            """
+            # if seqs is None:
+            #     sys.stderr.write("K-mer Sequence: {0}\n".format(s))
+            #     sys.stderr.write("IUPAC symbols found in sequence: {0}\n".format(iupac_symbols))
+            #     sys.stderr.write("Non-IUPAC symbols found in sequence: {0}\n".format(non_iupac_symbols))
+            #     raise RuntimeError("seqs array was not populated. Needs debugging...")
+
+            # if seqs is None:
+            #     raise RuntimeError("Cannot pass here without have seqs generated from shredding process")
+            # else:
+            #     print("Squeakuences")
+            #     print("Seeeeqquueeencees:")
+            #     print(seqs)
+
+
+                
+            for x in seqs:
+                logger.debug(x)
+                kmers.append(kmer_to_id(x))
+                if not self.strand_specific: # Reverse complement by default
+                    kmers.append(kmer_to_id(Seq.Seq(x).reverse_complement()))
 
                     # OKAY you are supposed to remember that
                     # the number of k-mer ids will no-longer match the appended metadata,
                     # So even though the lambda is correct, you have to do separate metadata for each id
-            elif len(non_iupac_symbols) > 0:
-                sys.stderr.write("TEST CONDITIONS:\n")
-                sys.stderr.write("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self.__permitted_chars)) + "\n")
-                sys.stderr.write("IUPAC symbols should be > 0: {0}".format(len(iupac_symbols)) + "\n")
-                sys.stderr.write("Non-IUPAC characters should be 0: {0}".format(len(non_iupac_symbols)) + "\n")
-                sys.stderr.write("Non-IUPAC symbols: {0}".format(non_iupac_symbols) + "\n")
-                sys.stderr.write("IUPAC symbols: {0}".format(iupac_symbols) + "\n")
-                sys.stderr.write("K-mer: '{0}'".format(str(s)) + "\n")
-                raise ValueError("kmerdb.kmer.shred: Non-IUPAC symbol(s) detected")
-            else:
-                try:
-                    kmers.append(kmer_to_id(s))
-                    if self.all_metadata:
-                        reverses.append(False)
-                        starts.append(i)
-                    if not self.strand_specific: # Reverse complement by default
-                        kmers.append(kmer_to_id(s.reverse_complement()))
-                        if self.all_metadata:
-                            reverses.append(True)
-                            starts.append(i)
-                except KeyError as e:
-                    sys.stderr.write("One or more non-IUPAC letters found their way into a part of the code they're not supposed to go\n")
-                    sys.stderr.write("We officially support IUPAC but the statement challenging the sequence content failed, causing a genuine runtime error\n")
-                    sys.stderr.write("This caused the following KeyError\n")
-                    sys.stderr.write(e.__str__() + "\n")
-                    sys.stderr.write("Letters in the sequence: {0}".format(letters) + "\n")
-                    sys.stderr.write("Permitted letters: {0}".format(self.__permitted_chars) + "\n")
-                    raise RuntimeError("IUPAC standard extra base pairs (R, B, etc.) or non-IUPAC characters detected in the sequence")
+            # elif len(non_iupac_symbols) > 0:
+            #     sys.stderr.write("TEST CONDITIONS:\n")
+            #     sys.stderr.write("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self.__permitted_chars)) + "\n")
+            #     sys.stderr.write("IUPAC symbols should be > 0: {0}".format(len(iupac_symbols)) + "\n")
+            #     sys.stderr.write("Non-IUPAC characters should be 0: {0}".format(len(non_iupac_symbols)) + "\n")
+            #     sys.stderr.write("Non-IUPAC symbols: {0}".format(non_iupac_symbols) + "\n")
+            #     sys.stderr.write("IUPAC symbols: {0}".format(iupac_symbols) + "\n")
+            #     sys.stderr.write("K-mer: '{0}'".format(str(s)) + "\n")
+            #     raise ValueError("uuuuuuuuuupppppppsssssssss")
+            # else:
+            #     try:
+            #         kmers.append(kmer_to_id(s))
+            #         if not self.strand_specific: # Reverse complement by default
+            #             kmers.append(kmer_to_id(s.reverse_complement()))
+            #     except KeyError as e:
+            #         sys.stderr.write("One or more non-IUPAC letters found their way into a part of the code they're not supposed to go\n")
+            #         sys.stderr.write("We officially support IUPAC but the statement challenging the sequence content failed, causing a genuine runtime error\n")
+            #         sys.stderr.write("This caused the following KeyError\n")
+            #         sys.stderr.write(e.__str__() + "\n")
+            #         sys.stderr.write("Letters in the sequence: {0}".format(letters) + "\n")
+            #         sys.stderr.write("Permitted letters: {0}".format(self.__permitted_chars) + "\n")
+            #         raise RuntimeError("IUPAC standard extra base pairs (R, B, etc.) or non-IUPAC characters detected in the sequence")
             del s
         if self.verbose:
             sys.stderr.write("            --- ~~~ --- ~~~  shredded ~~~ --- ~~~ ---\n")
@@ -326,31 +344,27 @@ class Kmers:
 
 
 
-        def kolmogorov_complexity(self, kmers:list):
-            """
+        # def kolmogorov_complexity(self, kmers:list):
+        #     """
 
-            """
-
-            
-
-            
-            kmer_strings = list(map(lambda s: id_to_kmer(s), kmers))
-            for i, s in enumerate(kmer_strings):
+        #     """
+        #     kmer_strings = list(map(lambda s: id_to_kmer(s), kmers))
+        #     for i, s in enumerate(kmer_strings):
 
 
-                letters = set(map(lambda c: s.count(c), standard_letters))
+        #         letters = set(map(lambda c: s.count(c), standard_letters))
 
-                match len(letters):
-                    case 0:
-                        raise ValueError("Error during kmerdb.kmer.Kmer.shred.kolmogorov_complexity. Cannot calculate complexity of sequence with no letters")
-                    case 1:
-                        return 1
-                    case _:
-                        return _kolmogorov_complexity(s)
+        #         match len(letters):
+        #             case 0:
+        #                 raise ValueError("Error during kmerdb.kmer.Kmer.shred.kolmogorov_complexity. Cannot calculate complexity of sequence with no letters")
+        #             case 1:
+        #                 return 1
+        #             case _:
+        #                 return _kolmogorov_complexity(s)
                               
-
+        return {'id': seqRecord.id, 'kmers': kmers, 'read_length': seqlen}
             
-        return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
+        #return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
 
 
 
@@ -439,7 +453,18 @@ def id_to_kmer(id, k):
             kmer += binaryToLetter[id & 0x03]
             id = id >> 2
         kmer = list(kmer)
-        kmer.reverse()
+
+        assert len(kmer) == k, "kmer.id_to_kmer encountered an inconsistency error"
+        
+        just_reversed = kmer.reverse()
+
+        
+        new_kmer = ""
+        for i in range(k):
+            j = k - 1
+            new_kmer += kmer[j]
+
+        assert "".join(just_reversed) == new_kmer, "kmer.id_to_kmer encountered the other inconsistency error"
         return ''.join(kmer)
 
 
@@ -491,7 +516,7 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
         new_type1_ids = list(map(kmer_to_id, new_type1))
         new_type2_ids = list(map(kmer_to_id, new_type2))
 
-#         logger.debug(""" flower garden - joan G. Stark
+#         logger.debug(""" flower garden - joan G. Stark fir sur. fleicitaciones
 
 #                                     wWWWw
 #    vVVVv (___) wWWWw  wWWWw  (___)  vVVVv

@@ -114,7 +114,7 @@ EMAIL = 'mralston.development@gmail.com'
 AUTHOR = 'Matt Ralston'
 #REQUIRES_PYTHON = ">=3.7.4"
 REQUIRES_PYTHON = '>=3.12.2'
-VERSION = "0.8.7"
+VERSION = "0.8.8"
 KEYWORDS = ["bioinformatics", "fastq", "fasta", "k-mer", "kmer"]
 CLASSIFIERS = [
 	    "Development Status :: 1 - Planning",
@@ -165,8 +165,9 @@ if can_import('numpy') is not None:
     import numpy as np
     extensions = [
         Extension("kmerdb.distance", ["kmerdb/distance.pyx"], include_dirs=[np.get_include()]),
-        Extension("kmerdb.regression", ["kmerdb/regression.pyx"], include_dirs=[np.get_include()]),
-        Extension("kmerdb.strassen_cython", ["kmerdb/strassen_cython.pyx"], include_dirs=[np.get_include()]),
+        Extension("kmerdb.lexer", ["kmerdb/lexer.py"], include_dirs=[np.get_include()]),
+        Extension("kmerdb.regression", ["kmerdb/regression.py"], include_dirs=[np.get_include()]),
+        Extension("kmerdb.strassen_cython", ["kmerdb/strassen_cython.py"], include_dirs=[np.get_include()]),
     ]
     # Where the magic happens:
     setup(

@@ -1,10 +1,6 @@
 
 numpy>=1.21.2 # was still seeing people and hiding a lot. early pandemic
-
-# PyYAML>=5.3 # was before the influence...
 PyYAML>=6.0.1 
-# jsonschema>=4.18.0a4 # what was going on here? inflection poinsts, ms tori
-#jsonschema>=4.20.0a4
 jsonschema>=4.17.3
 psutil>=4.2.0 # not important, just as far back as i was willing to go.
 setuptools>=69.2.0
