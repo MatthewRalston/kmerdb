@@ -24,7 +24,7 @@ import tempfile
 import yaml, json
 import re
 from collections import deque, OrderedDict
-
+import numpy as np
 
 from kmerdb import config
 
@@ -76,13 +76,24 @@ def get_histo(counts):
     """
     Get a histogram from an array.
     """
-    hist = []
-    for i in range(len(counts)):
-        hist.append(0)
-    #hist = np.zeros(len(counts))
 
-        
+    if type(counts) is not list: # 10/6/24
+        raise TypeError("kmerdb.util.get_histo takes a list as its positional argument")
+    
+    hist = []
+    count_max = int(np.max(np.array(counts, dtype="uint64")))
+
+    for i in range(count_max + 1):
+        hist.append(0)
+
+    #print("Count max was : {0} from {1} histogram items".format(count_max, len(hist)))    
+    #sys.stderr.write("{0} histogram items\n".format(len(hist)))
     for i in range(len(counts)):
+        # 10/7/24
+        # print("i: {0}".format(i))
+        # print("count array length: {0}".format(len(counts)))
+        # print("hist array length: {0}".format(len(hist)))
+        # print("histogram item: {0}, {1} in {2} histogram items".format(i, counts[i], len(hist)))
         if counts[i] > 2:
             hist[counts[i]] += 1
     return hist

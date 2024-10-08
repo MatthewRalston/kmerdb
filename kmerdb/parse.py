@@ -249,18 +249,18 @@ def parsefile(filepath:str, k:int, logger=None, quiet=True): #rows_per_batch:int
     seqprsr.total_kmers = int(np.sum(counts))
     seqprsr.unique_kmers = unique_kmers
     seqprsr.nullomers = num_nullomers
-    seqprsr.min_read_length = min_read_length
-    seqprsr.max_read_length = max_read_length
-    seqprsr.read_lengths = np.array(read_lengths, dtype="uint64")
-    seqprsr.avg_read_length = np.mean(read_lengths)
-    
+    header = seqprsr.header_dict()
+    header["min_read_length"] = min_read_length
+    header["max_read_length"] = max_read_length
+    header["avg_read_length"] = np.mean(read_lengths)
+
     seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
 
 
     if _loggable:
         logger.log_it("\n\n\nFinished counting k-mers from '{0}'...\n\n\n".format(filepath), "INFO")
 
-    return counts, seqprsr.header_dict(), seqprsr.nullomer_array, logger.logs
+    return counts, header, seqprsr.nullomer_array, logger.logs
 
 
 
@@ -383,6 +383,9 @@ class SeqParser:
             "total_kmers": self.total_kmers,
             "unique_kmers": self.unique_kmers or 4**self.k - self.nullomers,
             "nullomers": self.nullomers,
+            "min_read_length": 30,
+            "max_read_length": 500,
+            "avg_read_length": 0
         }
             
     def __exit__(self, exc_type, exc_value, traceback):
@@ -450,14 +453,14 @@ class Parseable:
         :returns: (db, m, n)
         """
 
-        parsed_file = parsefile(filename, self.arguments.k, logger=self.logger)
+        counts, header, nullomer_array, logs = parsefile(filename, self.arguments.k, logger=self.logger)
 
 
-        self.max_read_length = parsed_file.max_read_length
-        self.min_read_length = parsed_file.min_read_length
-        self.avg_read_length = parsed_file.avg_read_length
+        self.max_read_length = header["max_read_length"]
+        self.min_read_length = header["min_read_length"]
+        self.avg_read_length = header["avg_read_length"]
         
         
-        return parsed_file
+        return counts, header, nullomer_array, logs
 
 

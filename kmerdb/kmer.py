@@ -268,7 +268,6 @@ class Kmers:
                         seqs.append(trip1)
                         seqs.append(trip2)
                         seqs.append(trip3)
-                print("seq2: {0}".format(seqs))
             
             if seqs is None and len(non_iupac_symbols) > 0:
                 raise ValueError("Non-IUPAC symbols detected in {0}".format(s))
@@ -456,15 +455,7 @@ def id_to_kmer(id, k):
 
         assert len(kmer) == k, "kmer.id_to_kmer encountered an inconsistency error"
         
-        just_reversed = kmer.reverse()
-
-        
-        new_kmer = ""
-        for i in range(k):
-            j = k - 1
-            new_kmer += kmer[j]
-
-        assert "".join(just_reversed) == new_kmer, "kmer.id_to_kmer encountered the other inconsistency error"
+        #just_reversed = kmer.reverse()
         return ''.join(kmer)
 
 
