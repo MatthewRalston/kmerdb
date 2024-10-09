@@ -94,6 +94,9 @@ kdb_metadata_schema = {
         "k": {"type": "number"},
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
+        "unique_nullomers": {"type": "number"},
+        "kmer_coverage": {"type": "number"},
+        "kmer_coverage_histogram_dtype": {"type": "number"},
         "total_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
@@ -135,7 +138,7 @@ kdb_metadata_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype"]
+    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype", "unique_nullomers", "kmer_coverage", "kmer_coverage_histogram_dtype"]]
 }
 
 
