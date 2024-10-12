@@ -2016,7 +2016,7 @@ def _profile(arguments):
 
     
     no_singletons = []
-    hist = util.get_histo(counts)
+    hist = util.get_histo(list(counts))
 
     #print(hist)
 
