@@ -85,7 +85,7 @@ replace_char = lambda seq, x, y: seq.replace(x, y) # str
 
 class Kmers:
     """A wrapper class to pass variables through the multiprocessing pool. Methods in this class are (c) Matthew Ralston as above/throughout. That said, the k-mer bit-shifting trick
-    
+
     :ivar k: The choice of k to shred with
     :ivar strand_specific: Include k-mers from forward strand only (TO BE DEPRECATED)
     :ivar verbose: print extra logging in the case of fasta files
@@ -113,7 +113,7 @@ class Kmers:
             raise TypeError("kmerdb.kmer.Kmers expects a bool as its third positional argument")
         elif type(all_metadata) is not bool:
             raise TypeError("kmerdb.kmer.Kmers expects a bool as its fourth positional argument")
-        self.k = k 
+        self.k = k
         self.strand_specific = strand_specific
         self.verbose = verbose
         self.all_metadata = all_metadata
@@ -123,8 +123,8 @@ class Kmers:
         """
         Helper method for validating seqRecord and warnings for non-standard IUPAC residues.
 
-        :param seqRecord: a BioPython SeqRecord object 
-        :type seqRecord: Bio.SeqRecord.SeqRecord 
+        :param seqRecord: a BioPython SeqRecord object
+        :type seqRecord: Bio.SeqRecord.SeqRecord
         :param is_fasta: are the inputs ALL .fasta?
         :type is_fasta: bool
         :param quiet_iupac_warning: verbosity parameter
@@ -142,16 +142,16 @@ class Kmers:
         letters = set(seqRecord.seq) # This is ugly. Should really be explicitly cast to str
         seqlen = len(seqRecord.seq)  # `` Ditto. Should be explicitly cast to str
 
-        
+
         if seqlen < self.k:
             logger.error("Offending sequence ID: {0}".format(seqRecord.id))
             raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects that each input sequence is longer than k.")
-        
+
         all_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
         all_non_iupac_symbols = list(letters - self.__permitted_chars)
-        
+
         if len(all_non_iupac_symbols) > 0:
-            logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.is_fasta else "fastq"))
+            logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if is_fasta else "fastq"))
             logger.warning(list(letters - self.__permitted_chars))
             raise ValueError("Non-IUPAC symbols detected in the fasta file")
         elif len(all_iupac_symbols) > 0:
@@ -176,7 +176,7 @@ class Kmers:
         :rtype: list
         """
         kmers = []
-        
+
         letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, quiet_iupac_warning=True)
 
 
@@ -194,20 +194,20 @@ class Kmers:
             elif len(nonstandard_iupac_symbols) == 0:
                 #logger.debug("Perfect sequence content (ATCG) detected...")
                 kmers.append(kmer_to_id(s))
-            elif len(nonstandard_iupac_symbols) == 1 and iupac_symbols[0] == n:
+            elif len(nonstandard_iupac_symbols) == 1 and nonstandard_iupac_symbols[0] == n:
                 #logger.debug("Only N-abnormal sequence content detected (aside from ATCG)...")
                 kmers.append(kmer_to_id(s))
             elif len(nonstandard_iupac_symbols) > 1:
                 logger.error("Assembly cannot continue with this k-mer, and it will be discarded, possibly affecting assembly process")
                 raise RuntimeError("Non-standard IUPAC symbols detected in .fa/.fq file...")
         return kmers
-            
+
     def shred(self, seqRecord):
         """
         Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
         Doublets become replace with two counts, etc.
 
-        :param seqRecord: 
+        :param seqRecord:
         :type seqRecord: Bio.SeqRecord.SeqRecord
         :raise RuntimeError: No IUPAC characters detected or Non-IUPAC characters detected
         :raise ValueError: Non-IUPAC characters detected
@@ -217,7 +217,7 @@ class Kmers:
         """
         letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, quiet_iupac_warning=True)
 
-            
+
         kmers = []
 
         kmers = [seqRecord.seq[i:(i+self.k)] for i in range(seqlen - self.k + 1)]
@@ -230,7 +230,7 @@ class Kmers:
             #       I U P A C        m o d u l e
             ######################################################################33
 
-            
+
             seqs = []
 
             if self.verbose is not False:
@@ -253,7 +253,7 @@ class Kmers:
                     raise ValueError("Cannot have standard letters to this point")
 
 
-                
+
                 # print(c)
                 # print("doublet expansions:")
                 if c in IUPAC_TO_DOUBLET.keys():
@@ -269,7 +269,7 @@ class Kmers:
                         seqs.append(trip2)
                         seqs.append(trip3)
                 print("seq2: {0}".format(seqs))
-            
+
             if seqs is None and len(non_iupac_symbols) > 0:
                 raise ValueError("Non-IUPAC symbols detected in {0}".format(s))
             elif seqs is None and len(iupac_symbols) == 4 and len(set(iupac_symbols) - standard_letters) == 0:
@@ -304,7 +304,7 @@ class Kmers:
             #     print(seqs)
 
 
-                
+
             for x in seqs:
                 logger.debug(x)
                 kmers.append(kmer_to_id(x))
@@ -361,9 +361,9 @@ class Kmers:
         #                 return 1
         #             case _:
         #                 return _kolmogorov_complexity(s)
-                              
+
         return {'id': seqRecord.id, 'kmers': kmers, 'read_length': seqlen}
-            
+
         #return {'id': seqRecord.id, 'kmers': kmers, "seqids": repeat(seqRecord.id, len(starts)), "starts": starts, 'reverses': reverses}
 
 
@@ -374,13 +374,13 @@ class Kmers:
 #
 #############################
 
-    
+
 
 def kmer_to_id(s):
     """Convert a fixed length k-mer string to the binary encoding parameterized upon that same k
 
     Note that the conversion of a k-mer string to an id integer
-    is consistent regardless of k, 
+    is consistent regardless of k,
     because the k is implicit in the k-mer string's size.
 
     Therefore, this method does not need to be wrapped in the k-mer class
@@ -413,7 +413,7 @@ def kmer_to_id(s):
     elif s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None
-    else: 
+    else:
         idx = 0
         if isinstance(s, Bio.Seq.Seq) or isinstance(s, Bio.SeqRecord.SeqRecord):
             s = str(s)
@@ -455,10 +455,10 @@ def id_to_kmer(id, k):
         kmer = list(kmer)
 
         assert len(kmer) == k, "kmer.id_to_kmer encountered an inconsistency error"
-        
-        just_reversed = kmer.reverse()
 
-        
+        just_reversed = kmer.reverse()
+        sys.stderr.write("kmer is {0}".format(type(kmer)))
+
         new_kmer = ""
         for i in range(k):
             j = k - 1
@@ -476,13 +476,13 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
     This is so ugly.
 
     But rock on :
-    
+
 
     :param kmer: The sequence as a string that will be sliced for k-mers
     :type kmer: str
     :param kmer_id: The k-mer id for neighbor generation
     :type kmer_id: int
-    :param k: The int k 
+    :param k: The int k
     :type k: int
     :raise TypeError: Requires either a Bio.SeqRecord or str
     :raise TypeError: Requires k to be an int
@@ -500,14 +500,14 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
         import copy
         letters1 = copy.deepcopy(binaryToLetter)
         letters2 = copy.deepcopy(letters1)
-    
+
         firstCharRemoved = kmer[1:]
         lastCharRemoved  = kmer[:-1]
 
         new_type1 = list(map(lambda c: firstCharRemoved + c, letters1)) # Form the up neighbors
 
         new_type2 = list(map(lambda c: c + lastCharRemoved, letters2))  # Form the down neighbors
-        
+
         """
         # TYPE 1: [first char removed ... + ... c  : ['A', "c", "g", "T"]]
 
@@ -536,14 +536,14 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
 #       @@@@  (___)     `|/    Y    (_)@(_)  @@@@   \|/   (_)\
 #        /      Y       \|    \|/    /(_)    \|      |/      |
 #     \ |     \ |/       | / \ | /  \|/       |/    \|      \|/
-# jgs \\|//   \\|///  \\\|//\\\|/// \|///  \\\|//  \\|//  \\\|// 
+# jgs \\|//   \\|///  \\\|//\\\|/// \|///  \\\|//  \\|//  \\\|//
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # """,
 #               "",
 
 #         )
 
-        
+
         if quiet is not True:
             sys.stderr.write("kmerdb.kmer.neighbors creating neighbors for k-mer {0} : '{1}'...".format(kmer_id, kmer) + "\n")
             sys.stderr.write(" ========================\n\n")
@@ -568,5 +568,5 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
         #return {"appended_first_char_all_ommitted": new_type1_ids, "prepended_last_char_all_omitted": new_type2_ids}
 
 
-        
+
         return new_type1_ids + new_type2_ids
