@@ -24,7 +24,7 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 
 ## Summary 
 
-It's essentially a Python wrapper around a Jellyfish .histo file. And then python does things.
+`kmerdb` is a Python CLI designed for k-mer counting and k-mer graph edge-lists. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of a `bgzf` formatted file. 
 
 - [ x ] [Homepage:](https://matthewralston.github.io/kmerdb)
 - [ x ] [Quick Start guide](https://matthewralston.github.io/kmerdb/quickstart)
@@ -114,7 +114,7 @@ kmerdb hierarchical -vv -i dist.tsv
 ```
 
 
-`kmerdb` is a Python CLI designed for k-mer counting and k-mer graph edge-lists. It addresses the ['k-mer' problem](https://en.wikipedia.org/wiki/K-mer) (substrings of length k) in a simple and performant manner. It stores the k-mer counts in a columnar format (input checksums, total and unique k-mer counts, nullomers, mononucleotide counts) with a YAML formatted metadata header in the first block of a `bgzf` formatted file. 
+
 
 ## Usage example
 
@@ -168,6 +168,65 @@ This is one method for counting k-mers and handling ambiguity. Fork it and play 
 Also, the parallel handling may not always be smooth, if you're trying to load dozens of 12+ mer profiles into memory. This would especially matter in the matrix command, before the matrix is generated. You can use single-core if your machine can't collate that much into main memory at once, depending on how deep the fastq dataset is. Even when handling small-ish k-mer profiles, you may bump into memory overheads rather quickly. 
 
 Besides that, I'd suggest reading the source, the differente elements of the [main page](https://matthewralston.github.io/kmerdb) or the [RTD documentation](https://kdb.readthedocs.io/en/stable/).
+
+
+
+## Minimum-viable product Documentation
+
+### Problem statement: 
+
+Calculate relevant metadata from k-mer profiles, manipulate count matrices and distance matrices on inter-species inter-profile distances, perform exploartory analysis using tools such as UPGMA hierarchical clustering, k-means clustering, PCA, and others.
+
+Currently unsupported but targeted features include regression modeling, strassen multiplication, NumPy CPU multipication option, least squares and associated regression code.
+
+Currently in-progress is the application note. I wouldn't mind ironing out a few more components of the program for the application note.
+
+### Target audience:
+
+Biologists and researchers using metagenomics and genomics tools for the assessment of inter-genomic distances, k-mer counts, nullomer counts, unique counts, and other metadata.
+
+### Feature prioritization:
+
+Features currently implemented in `kmerdb` include:
+
+
+- [x] k-mer counting and profile generation
+- [x] multiplexed profiles
+- [x] De Bruijn graph structures
+- [x] Count aggergation and normalization (DESeq2)
+- [x] PCA
+- [x] t-Stochastic Neighbor Embedding
+- [x] Cython Pearson correlation coefficient
+- [x] Other correlation coefficients (Spearman, Pearson via scipy)
+- [x] hierarchical clustering
+- [x] k-means clustering
+- [x] data pipelining (Unix pipelines)
+
+Features currently under consideration include: 
+
+- [ ] regression modeling for metagenomnic populations
+- [ ] alternative k-mer count vector distances
+- [ ] alignment using k-mers as seed regions
+- [ ] De Bruijn graph traversals and contig generation using DBA (De Bruijn graph) assembly
+
+### Success Criteria:
+
+
+
+
+### Technical specifications:
+
+### User stories:
+
+### Development timeline:
+
+- 2/24 - 6/24 v0.7.7+ - appmap, De Bruijn parser, other updates
+
+- 10/23 - 
+
+### Testing and quality assurance plan:
+
+### Feedback collection strategy:
 
 
 
