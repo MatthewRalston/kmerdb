@@ -80,11 +80,13 @@ def get_histo(counts):
     for i in range(len(counts)):
         hist.append(0)
     #hist = np.zeros(len(counts))
-
-        
+    
+    sys.stderr.write("{0} historam items\n".format(len(hist)))
     for i in range(len(counts)):
+        sys.stderr.write("histogram item: {0} | {1}".format(counts[i], hist[counts[i]]))
         if counts[i] > 2:
             hist[counts[i]] += 1
+        sys.stderr.write("\r")
     return hist
 
 
