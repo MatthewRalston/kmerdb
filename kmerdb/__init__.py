@@ -1819,14 +1819,17 @@ def profile(arguments):
     # if os.path.splitext(arguments.kdb)[-1] != ".kdb":
     #     raise IOError("Destination .kdb filepath does not end in '.kdb'")
     samples = []
+
+
+    
     if len(arguments.input) == 1:
-        if ".fasta" in arguments.input[0] or ".fa" in arguments.input[0] or ".fna" in arguments.input[0] or ".fasta.gz" in arguments.input[0] or ".fa.gz" in arguments.input[0]:
-            logger.log_it("Input filename is '{0}'".format(arguments.input[0]), "DEBUG")
-            logger.log_it("Input suffix is .fasta", "DEBUG")
-        elif ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
-            logger.log_it("Input suffix is .fastq", "DEBUG")
+        logger.log_it("Input filename is '{0}'".format(arguments.input[0]), "INFO")
+        if ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
+            logger.log_it("Input suffix is .fastq", "INFO")
+        elif ".fasta" in arguments.input[0] or ".fa" in arguments.input[0] or ".fna" in arguments.input[0] or ".fasta.gz" in arguments.input[0] or ".fa.gz" in arguments.input[0]:
+            logger.log_it("Input suffix is .fasta", "INFO")
         elif ".txt" in arguments.input[0] or ".tsv" in arguments.input[0]:
-            logger.log_it("Input suffix is .txt, possibly samplesheet. will open as tsv", "DEBUG")
+            logger.log_it("Input suffix is .txt, possibly samplesheet. will open as tsv", "INFO")
             # One sample per line
             samplesheet = arguments.input[0]
             with open(samplesheet, 'r') as ifile:

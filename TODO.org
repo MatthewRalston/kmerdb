@@ -1,5 +1,5 @@
 
-#+TITLE: KmerDB (.kdb)
+#+TITLE: KmerDB (.kdb)  [TURN THAT TSHI UP]
 #+SUBTITLE: A simple bgzf-based k-mer database format
 #+AUTHOR: Matthew Ralston <mralston.development@gmail.com>
 
