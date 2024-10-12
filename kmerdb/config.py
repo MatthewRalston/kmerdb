@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.9"
+VERSION="0.8.10"
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -96,7 +96,7 @@ kdb_metadata_schema = {
         "unique_kmers": {"type": "number"},
         "unique_nullomers": {"type": "number"},
         "kmer_coverage": {"type": "number"},
-        "kmer_coverage_histogram_dtype": {"type": "number"},
+        "kmer_coverage_histogram_dtype": {"type": "string"},
         "total_nullomers": {"type": "number"},
         "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
@@ -138,7 +138,7 @@ kdb_metadata_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype", "unique_nullomers", "kmer_coverage", "kmer_coverage_histogram_dtype"]
+    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype", "kmer_coverage", "kmer_coverage_histogram_dtype"]
 }
 
 
