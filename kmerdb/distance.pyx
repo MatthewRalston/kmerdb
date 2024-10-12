@@ -36,23 +36,44 @@ logger = logging.getLogger(__file__)
 
 
 
-def d2_distance(a, b, sharedval, presence_only:bool=False):
-    val = d2(a, b, presence_only=presence_only)
+def d2_distance(a, b, sharedval):
+    val = d2(a, b)
     sharedval.value = val
 
+def d2(a: list, b: list):
+    """
+    simple D2 implementation
+    """
+    if type(a) is not list:
+        raise ValueError("kmerdb.distance.d2 expects a list as its first positional argument")
+    elif type(b) is not list:
+        raise ValueError("kmerdb.distance.d2 expects a list as its second positional argument")
+    l = len(a)
 
-cpdef long d2(int[:] a, int[:] b, bint presence_only):
-    cdef int d = 0
+    if l != len(b):
+        raise ValueError("kmerdb.distance.d2 vectors must be equal length")
 
-    if len(a) != len(b):
-        raise ValueError("arrays must have equal size")
-    else:
-        for i in range(len(a)):
-            if a[i] == b[i]:
-                d += 1
-            elif presence_only is True and a[i] > 0 and b[i] > 0:
-                d += 1
-        return d
+
+    prod = 0
+    for i in range(l):
+        prod += a[i] * b[i]
+
+    return prod
+
+
+
+# cpdef long d2(int[:] a, int[:] b, bint presence_only):
+#     cdef int d = 0
+
+#     if len(a) != len(b):
+#         raise ValueError("arrays must have equal size")
+#     else:
+#         for i in range(len(a)):
+#             if a[i] == b[i]:
+#                 d += 1
+#             elif presence_only is True and a[i] > 0 and b[i] > 0:
+#                 d += 1
+#         return d
 
 
 cpdef long lr(int[:] a,  int[:] ea):
