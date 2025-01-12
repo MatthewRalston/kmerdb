@@ -234,23 +234,23 @@ COMMAND INFO
 
 
 
-command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name, command_13_name, command_14_name = config.subcommands
+command_1_name, command_2_name, command_11_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_12_name, command_13_name, command_14_name = config.subcommands
 
 COMMANDS = [
     command_1_name, #"profile",
-    command_2_name, #"make_graph",
-    command_3_name, #"get_matrix",
+    command_2_name, #"graph",
+    command_11_name, #"get_minimizers",
+    command_3_name, #"matrix",
     command_4_name, #"distance",
-    command_5_name, #"view",
-    command_6_name, #"header",
-    command_7_name, #"kmeans",
-    command_8_name, #"hierarchical",
-    command_9_name, #"index",
+    command_5_name, #"kmeans",
+    command_6_name, #"hierarchical",
+    command_7_name, #"view",
+    command_8_name, #"header",
+    command_9_name, #"index", #
     command_10_name, #"shuf",
-    command_11_name, #"usage",
-    command_12_name, #"help"
-    command_13_name, #"version"
-    command_14_name  #"composition"
+    command_12_name, #"usage",
+    command_13_name, #"help",
+    command_14_name, #"version"]
 ]
 
 
@@ -1942,11 +1942,154 @@ COMMAND_10_STEPS = OrderedDict({
 
 
 
-
-
-
-command_11_description = "K-mer Markov sequence probability feature  (Deprecated)"
+command_11_description = "Calculate minimizers"
 command_11_description_long = """
+    Calculate minimizers, outputs a binary array to associate with a index array.
+    
+
+
+"""
+command_11_parameters = "Parameter of interest is window size"
+command_11_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_11_usage = "kmerdb minimizers -vv --debug input1.12.kdb > input1.12.minimizers.kdbi"
+
+
+        
+COMMAND_11_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb minimizers input1.12.kdb input1.12.minimizers.kdbi
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_11_name, command_11_description, command_11_description_long, command_11_inputs, command_11_parameters, command_11_usage)
+
+        
+
+COMMAND_11_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "K-mer database file.",
+            "type": "file",
+            "value": "The k-mer count proifle to calculate minimizers."
+        }
+    ]
+})
+
+        
+COMMAND_11_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "Input count matrix (.tsv)",
+            "type": "file",
+            "value": "File to decompose the k-mer profile into its parts."
+        }
+        
+    ]
+})
+
+COMMAND_11_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "linear regression for ",
+            "shortname": "",
+            "description" : ""
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(Deprecated)"
+        })
+    ]
+})
+    
+COMMAND_11_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(uhhhh...)",
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        })
+
+    ]
+
+})
+
+
+
+command_12_description = "K-mer Markov sequence probability feature  (Deprecated)"
+command_12_description_long = """
  Uses conditional probabilities and multiplication rule along with Markov model of sequence to use likelihood/odds ratios to test likelihood of the sequence(s) given the inputs. Unadjusted for multiple-hypothesis testing.
 
 Conditional probability :
@@ -1962,13 +2105,13 @@ P(X) = P(an|an-1,an-2,...a1)     a { N  , X = an-1,an-2,...,a1
 
 
 """
-command_11_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
-command_11_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_11_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
+command_12_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
+command_12_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_12_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
 
 
         
-COMMAND_11_BANNER = """
+COMMAND_12_BANNER = """
 
 
 
@@ -2033,11 +2176,11 @@ COMMAND_11_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_11_name, command_11_description, command_11_description_long, command_11_inputs, command_11_parameters, command_11_usage)
+""".format(command_12_name, command_12_description, command_12_description_long, command_12_inputs, command_12_parameters, command_12_usage)
 
         
 
-COMMAND_11_PARAMS = OrderedDict({
+COMMAND_12_PARAMS = OrderedDict({
     "name": "arguments",
     "type": "array",
     "items": [
@@ -2050,7 +2193,7 @@ COMMAND_11_PARAMS = OrderedDict({
 })
 
         
-COMMAND_11_INPUTS = OrderedDict({
+COMMAND_12_INPUTS = OrderedDict({
     "name": "inputs",
     "type": "array",
     "items": [
@@ -2063,7 +2206,7 @@ COMMAND_11_INPUTS = OrderedDict({
     ]
 })
 
-COMMAND_11_FEATURES = OrderedDict({
+COMMAND_12_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
@@ -2080,7 +2223,7 @@ COMMAND_11_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_11_STEPS = OrderedDict({
+COMMAND_12_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
@@ -2290,6 +2433,7 @@ ALL_PARAMS = {
     "header": COMMAND_6_PARAMS["items"],
     "index": COMMAND_9_PARAMS["items"],
     "shuf": COMMAND_10_PARAMS["items"],
+    "minimizers": COMMAND_11_PARAMS["items"],
     "composition": COMMAND_14_PARAMS["items"],
 }
 
@@ -2304,6 +2448,8 @@ ALL_INPUTS = {
     "header": COMMAND_6_INPUTS["items"],
     "index": COMMAND_9_INPUTS["items"],
     "shuf": COMMAND_10_INPUTS["items"],
+    
+    "minimizers": COMMAND_11_INPUTS["items"],
     "composition": COMMAND_14_INPUTS["items"],
 }
 
@@ -2318,6 +2464,7 @@ ALL_FEATURES = {
     "header": COMMAND_6_FEATURES["items"],
     "index": COMMAND_9_FEATURES["items"],
     "shuf": COMMAND_10_FEATURES["items"],
+    "minimizers": COMMAND_11_FEATURES["items"],
     "composition": COMMAND_14_FEATURES["items"],
 
 }
@@ -2335,6 +2482,7 @@ ALL_STEPS = {
     "header": COMMAND_6_STEPS["items"],
     "index": COMMAND_9_STEPS["items"],
     "shuf": COMMAND_10_STEPS["items"],
+    "minimizers": COMMAND_11_FEATURES["items"],
     "composition": COMMAND_14_STEPS["items"],
 }
 

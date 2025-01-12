@@ -168,8 +168,15 @@ def parsefile(filepath:str, k:int, logger=None, quiet=True): #rows_per_batch:int
                     
         seqprsr.max_read_length = max(read_lengths)
         seqprsr.min_read_length = min(read_lengths)
-        seqprsr.avg_read_length = np.mean(np.array(read_lengths, dtype="uint32"))
-    
+
+        
+        seqprsr.avg_read_length = int(np.mean(np.array(read_lengths, dtype="uint32")))
+
+
+
+
+
+        
         sus = set()
 
         
@@ -252,7 +259,7 @@ def parsefile(filepath:str, k:int, logger=None, quiet=True): #rows_per_batch:int
     header = seqprsr.header_dict()
     header["min_read_length"] = min_read_length
     header["max_read_length"] = max_read_length
-    header["avg_read_length"] = np.mean(read_lengths)
+    header["avg_read_length"] = int(np.mean(read_lengths))
 
     seqprsr.nullomer_array = np.array(all_theoretical_kmer_ids, dtype="uint64")[is_nullomer]
 
