@@ -204,9 +204,71 @@ def expanded_help(arguments):
         kmerdb_appmap.print_matrix_header()
     elif arguments.method == "distance":
         kmerdb_appmap.print_distance_header()
+    elif arguments.method == "minimizers":
+        kmerdb_appmap.print_minimizers_header()
 
+        
     sys.stderr.write("\n\nUse --help for expanded usage\n")
 
+def get_minimizers(arguments):
+
+    from Bio import SeqIO
+    import numpy as np
+    from kmerdb import fileutil, config, util, minimizer
+    import json
+    metadata = None
+    N = None
+    kmer_ids = None
+    fasta_seqs = []
+    mins = None
+    
+    assert type(arguments.kdb) is str, "kdb_in must be a str"
+    kdb_sfx = os.path.splitext(arguments.kdb)[-1]
+    fa_sfx = os.path.splitext(arguments.fasta)[-1]
+    
+    if kdb_sfx != ".kdb" and kdb_sfx != ".kdbg": # A filepath with invalid suffix
+        raise IOError("Input .kdb filepath '{0}' does not end in '.kdb'".format(arguments.kdb))
+    elif not os.path.exists(arguments.kdb):
+        raise IOError("Input .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb))
+    elif fa_sfx != ".fa" and fa_sfx != ".fna" and fa_sfx != ".fasta":
+        raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
+    
+    
+    if kdb_sfx == ".kdb":
+
+        with open(arguments.fasta, mode="r") as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                fasta_seqs.append(str(record.seq))
+
+                      
+        with fileutil.open(arguments.kdb, mode='r', slurp=True) as kdb_in:
+            metadata = kdb_in.metadata
+
+            
+            kmer_ids_dtype = metadata["kmer_ids_dtype"]
+            N = 4**metadata["k"]
+            if metadata["version"] != config.VERSION:
+                logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
+            kmer_ids = kdb_in.kmer_ids
+
+            for seq in fasta_seqs:
+
+                minimizers = minimizer.select_lexicographical_minimizers(seq, metadata['k'], arguments.window_size, kmer_ids)
+
+                mins_as_list = list(map(lambda s: int(s), minimizers))
+                if mins is None:
+                    mins=mins_as_list
+                else:
+                    for kmer_is_selected, i in enumerate(mins_as_list):
+                        if mins_as_list[i] == 1:
+                            pass
+                        elif kmer_is_selected == 1:
+                            mins_as_list[i] = 1
+                # print minimizers in columnar format in new index file format (example.8.kdbi.1)
+                print(mins)
+                sys.exit(1)
+
+    
 def distances(arguments):
     """
     An end-user function to provide CLI access to certain distances
@@ -1084,7 +1146,7 @@ def hierarchical(arguments):
     
 #     from ecopy.diversity import rarefy
 #     import ecopy as ep
-#     from kdb import config
+#     from kmerdb import config
 
 
 #     if isinstance(arguments.input, argparse.FileType) or isinstance(arguments.input, TextIOWrapper):
@@ -1952,12 +2014,13 @@ def _profile(arguments):
     # Complete collating of counts across files
     # This technically uses 1 more arrray than necessary 'final_counts' but its okay
     logger.log_it("Summing counts from individual fasta/fastq files into a composite profile...", "INFO")
-
+    
 
     for d in data:
         counts = counts + d[0]
+        file_metadata.append(d[1])
 
-
+        
     if np.sum(counts) == 0:
         raise ValueError("Each element of the array of k-mer counts was 0. Sum of counts == 0. Likely an internal error. Exiting.")
 
@@ -2061,6 +2124,8 @@ def _profile(arguments):
     
     logger.log_it("Formatting master metadata dictionary...", "INFO")
     
+
+
     
     metadata=OrderedDict({
         "version": VERSION,
@@ -2353,7 +2418,20 @@ def cli():
     # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
     # assembly_parser.set_defaults(func=assembly)
 
+    minimizer_parser = subparsers.add_parser("minimizers", help="Calculate an binary array of minimizers to associate with a .kdb count vector")
+    minimizer_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
+    minimizer_parser.add_argument("fasta", type=str, help="A fasta file (.fa)")
 
+    minimizer_parser.add_argument("-w", "--window-size",  type=int, help="Choice of window size (in base-pairs) to select minimizers with", required=True)
+
+    minimizer_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    minimizer_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    minimizer_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    minimizer_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
+    minimizer_parser.set_defaults(func=get_minimizers)
+
+
+    
     usage_parser = subparsers.add_parser("usage", help="provide expanded usage information on parameters and functions provided")
     usage_parser.add_argument("method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), help="Print expanded usage statement")
     usage_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
@@ -2526,6 +2604,8 @@ def cli():
     version_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     version_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
     version_parser.set_defaults(func=version)
+
+
 
     
     # markov_probability_parser = subparsers.add_parser("probability", help=u"""
