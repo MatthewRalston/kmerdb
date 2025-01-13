@@ -255,7 +255,7 @@ def get_minimizers(arguments):
 
                 minimizers = minimizer.select_lexicographical_minimizers(seq, metadata['k'], arguments.window_size, kmer_ids)
 
-                mins_as_list = list(map(lambda s: int(s), minimizers))
+                mins_as_list = list(map(int, minimizers))
                 if mins is None:
                     mins=mins_as_list
                 else:
@@ -265,9 +265,74 @@ def get_minimizers(arguments):
                         elif kmer_is_selected == 1:
                             mins_as_list[i] = 1
                 # print minimizers in columnar format in new index file format (example.8.kdbi.1)
-                print(mins)
-                sys.exit(1)
 
+        output_index_file = "{0}.kdbi.1".format(str(arguments.kdb).strip(".kdb"))
+        logger.log_it("\n\nPrinting results of minimizers to '{0}'".format(output_index_file), "INFO")
+        with open(output_index_file, "w") as ofile:
+                for kmer, i in enumerate(kmer_ids):
+                    ofile.write("{0}\t{1}\n".format(kmer, mins[i]))
+
+
+def get_alignments(arguments):
+    """
+    Produces Smith-Waterman alignment by loading minimizers
+
+    """
+
+    from Bio import SeqIO
+    
+    minimizers = []
+    reference_fasta_seqs = []
+    query_fasta_seqs = []
+
+    kdbi_sfx = ".".join(os.path.splitext(arguments.kdbi)[-2:])
+
+    print(kdbi_sfx)
+    sys.exit(1)
+    
+    if kdbi_sfx != ".kdbi.1": # A filepath with invalid suffix
+        raise IOError("Input .kdb index filepath '{0}' does not end in '.kdb'".format(arguments.kdbi1))
+
+
+
+    # Create as temporary file, hold minimizer array in memory
+    
+    with open(arguments.reference, mode="r") as ifile:
+        for record in SeqIO.parse(ifile, "fasta"):
+            reference_fasta_seqs.append(str(record.seq))
+
+    kdb_sfx = os.path.splitext(arguments.kdb)[-1]
+
+            
+    if kdb_sfx != ".kdb": # A filepath with invalid suffix
+        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
+    elif not os.path.exists(arguments.kdb):
+        raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb)
+
+                      )
+    if kdb_sfx == ".kdb":
+        with fileutil.open(arguments.kdb, mode='r', slurp=True) as kdb_in:
+            metadata = kdb_in.metadata
+
+            
+            kmer_ids_dtype = metadata["kmer_ids_dtype"]
+            N = 4**metadata["k"]
+            if metadata["version"] != config.VERSION:
+                logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
+            if arguments.header:
+                yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
+                print(yaml.dump(metadata, sort_keys=False))
+                print(config.header_delimiter)
+            logger.log_it("Reading from file...", "INFO")
+            
+            for i, idx in enumerate(kmer_ids_sorted_by_count):
+                kmer_id = kdb_in.kmer_ids[i]
+
+
+                print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+
+
+            
     
 def distances(arguments):
     """
@@ -2430,7 +2495,15 @@ def cli():
     minimizer_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     minimizer_parser.set_defaults(func=get_minimizers)
 
-
+    alignment_parser = subparsers.add_parser("alignment", help="Create a Smith-Waterman-like alignment using a reference fasta, its minimizers, and query sequence, and its minimizers.")
+    alignment_parser.add_argument("reference", type=str, help="Reference sequences in .fa/.fna/.fasta format")
+    alignment_parser.add_argument("query", type=str, help="Query sequences in .fa/.fna/.fasta format")
+    
+    alignment_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    alignment_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    alignment_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    alignment_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
+    alignment_parser.set_defaults(func=get_alignments)
     
     usage_parser = subparsers.add_parser("usage", help="provide expanded usage information on parameters and functions provided")
     usage_parser.add_argument("method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), help="Print expanded usage statement")
