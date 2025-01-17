@@ -29,8 +29,8 @@ requirements_dev_count = 8
 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
 
 # 12 subcommands, and associated function names in __init__.py
-subcommands = ["profile", "graph", "get_minimizers", "matrix", "distance", "kmeans", "hierarchical", "view", "header", "index", "shuf", "usage", "help", "version"]
-subcommand_functions = ["profile", "make_graph", "get_minimizers", "get_matrix", "distances", "kmeans", "hierarchical", "view", "header", "index_file", "shuf", "expanded_help", "expanded_help", "version"]
+subcommands = ["profile", "graph", "get_minimizers", "get_alignments", "matrix", "distance", "kmeans", "hierarchical", "view", "header", "index", "shuf", "usage", "help", "version"]
+subcommand_functions = ["profile", "make_graph", "get_minimizers", "get_alignments", "get_matrix", "distances", "kmeans", "hierarchical", "view", "header", "index_file", "shuf", "expanded_help", "expanded_help", "version"]
 
 default_logline_choices = (20, 50, 100, 200)
 KDB_COLUMN_NUMBER = 4
