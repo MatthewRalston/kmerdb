@@ -234,12 +234,15 @@ COMMAND INFO
 
 
 
-command_1_name, command_2_name, command_11_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_12_name, command_13_name, command_14_name = config.subcommands
+command_1_name, command_2_name, command_11_name, command_12_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_12_name, command_13_name, command_14_name = config.subcommands
+
+#print(config.subcommands)
 
 COMMANDS = [
     command_1_name, #"profile",
     command_2_name, #"graph",
     command_11_name, #"get_minimizers",
+    command_12_name, #"get_alignments",
     command_3_name, #"matrix",
     command_4_name, #"distance",
     command_5_name, #"kmeans",
@@ -2086,28 +2089,16 @@ COMMAND_11_STEPS = OrderedDict({
 
 })
 
-
-
-command_12_description = "K-mer Markov sequence probability feature  (Deprecated)"
+command_12_description = "Calculate minimizers"
 command_12_description_long = """
- Uses conditional probabilities and multiplication rule along with Markov model of sequence to use likelihood/odds ratios to test likelihood of the sequence(s) given the inputs. Unadjusted for multiple-hypothesis testing.
-
-Conditional probability :
-
-P(X|Y) = P(XY)/P(Y)
-
-
-Multiplication rule :
-
-P(X) = P(an|an-1,an-2,...a1)     a { N  , X = an-1,an-2,...,a1
-
-
+    Calculate minimizers, outputs a binary array to associate with a index array.
+    
 
 
 """
-command_12_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
+command_12_parameters = "Parameter of interest is window size"
 command_12_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_12_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
+command_12_usage = "kmerdb minimizers -vv --debug input1.12.kdb > input1.12.minimizers.kdbi"
 
 
         
@@ -2144,7 +2135,7 @@ COMMAND_12_BANNER = """
 
 --------------------------
 
-                    kmerdb prob <--db input.kdb> sequences.fasta[.gz]
+                    kmerdb minimizers input1.12.kdb input1.12.minimizers.kdbi
 
                     [-]    inputs : 
 
@@ -2187,7 +2178,7 @@ COMMAND_12_PARAMS = OrderedDict({
         {
             "name": "K-mer database file.",
             "type": "file",
-            "value": "[NOTE] : multiple may be specified. | The k-mer frequencies to use in the Markov model probability calculations, and likelihood/odds-ratio tests"
+            "value": "The k-mer count proifle to calculate minimizers."
         }
     ]
 })
@@ -2198,9 +2189,9 @@ COMMAND_12_INPUTS = OrderedDict({
     "type": "array",
     "items": [
         {
-            "name": "Input .fa|.fasta|.fa.gz files.",
-            "type": "array",
-            "value": "File(s) to query against the k-mer database."
+            "name": "Input count matrix (.tsv)",
+            "type": "file",
+            "value": "File to decompose the k-mer profile into its parts."
         }
         
     ]
@@ -2211,7 +2202,7 @@ COMMAND_12_FEATURES = OrderedDict({
     "type": "array",
     "items": [
         OrderedDict({
-            "name": "[FIXME! 7/28/24 Hi fross, glhf!]",
+            "name": "linear regression for ",
             "shortname": "",
             "description" : ""
         }),
@@ -2245,43 +2236,20 @@ COMMAND_12_STEPS = OrderedDict({
 
 
 
-command_14_description = "Compositional analysis"
-command_14_description_long = """
-    Linear regression wth two inputs.
-    A 2D array 'A' with two dimensions, and non-necessarily square.
-
-    and a vector of data determining the linear constants in the regression.
+command_13_description = "Sequence alignment"
+command_13_description_long = """
+        Perform Smith-Waterman alignment on a reference database using seed regions (minimizers) determined from the reference .fasta sequence and the associated .kdb file.
     
-
-    least squares problems occur when b is not in the column space of A.
-    
-    They are solvable if and only if the matrix A:
-      * is non-singular
-      * has independent rows/columns
-      * a non-zero determinant (i.e. it is *not* row identical to the identity matrix)
-      * and is full-rank. 
-
-    
-    ############
-    # definition
-    ############
-    At(b-Ax) = 0 OR
-    AtAx = Atb
-
-    but, less developed...
-    Ax = b
-
-    These are the normal equations.
 
 
 """
-command_14_parameters = "inputs are the table of counts to use in the decomposition, and the composite/collated metagenomic k-mer profile (as .kdb) to decompose."
-command_14_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_14_usage = "kmerdb composition -vv --debug input1.12.kdb 12_mer_profiles.tsv"
+command_13_parameters = "Parameter of interest is window size"
+command_13_inputs = "Input is a v{0} .kdb count vector file and two fasta files, a query and a reference".format(config.VERSION)
+command_13_usage = "kmerdb alignment -vv --debug query.fasta reference.fasta input1.8.kdb"
 
 
         
-COMMAND_14_BANNER = """
+COMMAND_13_BANNER = """
 
 
 
@@ -2297,7 +2265,7 @@ COMMAND_14_BANNER = """
 [--------------------------------------------------------------------------------------]
 
 
-
+        kmerdb alignment -vv --debug query.fasta reference.fasta input1.8.kdb
 
 
 
@@ -2314,7 +2282,7 @@ COMMAND_14_BANNER = """
 
 --------------------------
 
-                    kmerdb composition composite1.12.kdb kmer_counts.12.tsv
+
 
                     [-]    inputs : 
 
@@ -2346,44 +2314,56 @@ COMMAND_14_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_14_name, command_14_description, command_14_description_long, command_14_inputs, command_14_parameters, command_14_usage)
+""".format(command_13_name, command_13_description, command_13_description_long, command_13_inputs, command_13_parameters, command_13_usage)
 
         
 
-COMMAND_14_PARAMS = OrderedDict({
+COMMAND_13_PARAMS = OrderedDict({
     "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "Window size",
+            "type": "int",
+            "value": "The window-size to use to count minimizers with."
+        }
+    ]
+})
+
+        
+COMMAND_13_INPUTS = OrderedDict({
+    "name": "inputs",
     "type": "array",
     "items": [
         {
             "name": "K-mer database file.",
             "type": "file",
-            "value": "The k-mer count proifle of a composite/metagenomic population to decompose into percentages"
-        }
-    ]
-})
-
-        
-COMMAND_14_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
+            "value": "The k-mer count proifle to calculate minimizers."
+        },
         {
-            "name": "Input count matrix (.tsv)",
+            "name": "Reference fasta file.",
             "type": "file",
-            "value": "File to decompose the k-mer profile into its parts."
+            "value": "The reference fasta file to calculate minimizers and perform alignment against."
+        },
+        {
+            "name": "Query fasta file.",
+            "type": "file",
+            "value": "The query fasta file to calculate minimizers and perform alignment with."
         }
-        
+
     ]
 })
 
-COMMAND_14_FEATURES = OrderedDict({
+                                
+
+COMMAND_13_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
         OrderedDict({
-            "name": "linear regression for ",
-            "shortname": "",
-            "description" : ""
+            "name": "calculate minimizers from the reference and query .fasta sequences ",
+            "shortname": "calculate minimizers",
+            "description" : "Use a sliding window to calculate minimizers with"
         }),
         OrderedDict({
             "name": "",
@@ -2393,24 +2373,360 @@ COMMAND_14_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_14_STEPS = OrderedDict({
+COMMAND_13_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
         OrderedDict({
-            "name": "",
+            "name": "Calculate minimizers from reference .fasta and .kdb file",
             "shortname": "",
-            "description": "(uhhhh...)",
+            "description": "",
         }),
         OrderedDict({
-            "name": "",
+            "name": "Generate .kdb file from query .fasta",
             "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        }),
+        OrderedDict({
+            "name": "Calculate minimizers from query .fasta",
+            "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        }),
+        OrderedDict({
+            "name": "Perform SW alignment",
+            "shortname": "Smith-Waterman alignment",
             "description": "(Deprecated)"
         })
 
     ]
 
 })
+
+
+
+# command_12_description = "K-mer Markov sequence probability feature  (Deprecated)"
+# command_12_description_long = """
+#  Uses conditional probabilities and multiplication rule along with Markov model of sequence to use likelihood/odds ratios to test likelihood of the sequence(s) given the inputs. Unadjusted for multiple-hypothesis testing.
+
+# Conditional probability :
+
+# P(X|Y) = P(XY)/P(Y)
+
+
+# Multiplication rule :
+
+# P(X) = P(an|an-1,an-2,...a1)     a { N  , X = an-1,an-2,...,a1
+
+
+
+
+# """
+# command_12_parameters = "inputs may be one or more fasta files, and the .kdb files needed for the model's output probability."
+# command_12_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+# command_12_usage = "kmerdb prob --db <kmer_count_vector_1.kdb> [--db kmer_count_vector_2.kdb] <query_sequences_1.fasta.gz> [query_sequences_2.fasta.gz]"
+
+
+        
+# COMMAND_12_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+# [--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+#                         [  n a m e    ]         :  -   {0}
+
+#                    description : {1}
+
+# {2}
+
+
+
+
+# --------------------------
+
+#                     kmerdb prob <--db input.kdb> sequences.fasta[.gz]
+
+#                     [-]    inputs : 
+
+#                            {3}
+
+#                     [-]    parameters : 
+
+#                            {4}
+
+
+
+#                     [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# [--------------------------------------------------------------------------------------]
+# """.format(command_12_name, command_12_description, command_12_description_long, command_12_inputs, command_12_parameters, command_12_usage)
+
+        
+
+# COMMAND_12_PARAMS = OrderedDict({
+#     "name": "arguments",
+#     "type": "array",
+#     "items": [
+#         {
+#             "name": "K-mer database file.",
+#             "type": "file",
+#             "value": "[NOTE] : multiple may be specified. | The k-mer frequencies to use in the Markov model probability calculations, and likelihood/odds-ratio tests"
+#         }
+#     ]
+# })
+
+        
+# COMMAND_12_INPUTS = OrderedDict({
+#     "name": "inputs",
+#     "type": "array",
+#     "items": [
+#         {
+#             "name": "Input .fa|.fasta|.fa.gz files.",
+#             "type": "array",
+#             "value": "File(s) to query against the k-mer database."
+#         }
+        
+#     ]
+# })
+
+# COMMAND_12_FEATURES = OrderedDict({
+#     "name": "features",
+#     "type": "array",
+#     "items": [
+#         OrderedDict({
+#             "name": "[FIXME! 7/28/24 Hi fross, glhf!]",
+#             "shortname": "",
+#             "description" : ""
+#         }),
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "",
+#             "description": "(Deprecated)"
+#         })
+#     ]
+# })
+    
+# COMMAND_12_STEPS = OrderedDict({
+#     "name": "steps",
+#     "type": "array",
+#     "items": [
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "",
+#             "description": "(uhhhh...)",
+#         }),
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "Shuffle k-mer counts",
+#             "description": "(Deprecated)"
+#         })
+
+#     ]
+
+# })
+
+
+
+
+# command_14_description = "Compositional analysis"
+# command_14_description_long = """
+#     Linear regression wth two inputs.
+#     A 2D array 'A' with two dimensions, and non-necessarily square.
+
+#     and a vector of data determining the linear constants in the regression.
+    
+
+#     least squares problems occur when b is not in the column space of A.
+    
+#     They are solvable if and only if the matrix A:
+#       * is non-singular
+#       * has independent rows/columns
+#       * a non-zero determinant (i.e. it is *not* row identical to the identity matrix)
+#       * and is full-rank. 
+
+    
+#     ############
+#     # definition
+#     ############
+#     At(b-Ax) = 0 OR
+#     AtAx = Atb
+
+#     but, less developed...
+#     Ax = b
+
+#     These are the normal equations.
+
+
+# """
+# command_14_parameters = "inputs are the table of counts to use in the decomposition, and the composite/collated metagenomic k-mer profile (as .kdb) to decompose."
+# command_14_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+# command_14_usage = "kmerdb composition -vv --debug input1.12.kdb 12_mer_profiles.tsv"
+
+
+        
+# COMMAND_14_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+# [--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+#                         [  n a m e    ]         :  -   {0}
+
+#                    description : {1}
+
+# {2}
+
+
+
+
+# --------------------------
+
+#                     kmerdb composition composite1.12.kdb kmer_counts.12.tsv
+
+#                     [-]    inputs : 
+
+#                            {3}
+
+#                     [-]    parameters : 
+
+#                            {4}
+
+
+
+#                     [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# [--------------------------------------------------------------------------------------]
+# """.format(command_14_name, command_14_description, command_14_description_long, command_14_inputs, command_14_parameters, command_14_usage)
+
+        
+
+# COMMAND_14_PARAMS = OrderedDict({
+#     "name": "arguments",
+#     "type": "array",
+#     "items": [
+#         {
+#             "name": "K-mer database file.",
+#             "type": "file",
+#             "value": "The k-mer count proifle of a composite/metagenomic population to decompose into percentages"
+#         }
+#     ]
+# })
+
+        
+# COMMAND_14_INPUTS = OrderedDict({
+#     "name": "inputs",
+#     "type": "array",
+#     "items": [
+#         {
+#             "name": "Input count matrix (.tsv)",
+#             "type": "file",
+#             "value": "File to decompose the k-mer profile into its parts."
+#         }
+        
+#     ]
+# })
+
+# COMMAND_14_FEATURES = OrderedDict({
+#     "name": "features",
+#     "type": "array",
+#     "items": [
+#         OrderedDict({
+#             "name": "linear regression for ",
+#             "shortname": "",
+#             "description" : ""
+#         }),
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "",
+#             "description": "(Deprecated)"
+#         })
+#     ]
+# })
+    
+# COMMAND_14_STEPS = OrderedDict({
+#     "name": "steps",
+#     "type": "array",
+#     "items": [
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "",
+#             "description": "(uhhhh...)",
+#         }),
+#         OrderedDict({
+#             "name": "",
+#             "shortname": "Shuffle k-mer counts",
+#             "description": "(Deprecated)"
+#         })
+
+#     ]
+
+# })
 
 
 
@@ -2434,7 +2750,8 @@ ALL_PARAMS = {
     "index": COMMAND_9_PARAMS["items"],
     "shuf": COMMAND_10_PARAMS["items"],
     "minimizers": COMMAND_11_PARAMS["items"],
-    "composition": COMMAND_14_PARAMS["items"],
+    "alignment": COMMAND_12_PARAMS["items"],
+    #"composition": COMMAND_14_PARAMS["items"],
 }
 
 ALL_INPUTS = {
@@ -2450,7 +2767,8 @@ ALL_INPUTS = {
     "shuf": COMMAND_10_INPUTS["items"],
     
     "minimizers": COMMAND_11_INPUTS["items"],
-    "composition": COMMAND_14_INPUTS["items"],
+    "alignment": COMMAND_12_INPUTS["items"],
+    #"composition": COMMAND_14_INPUTS["items"],
 }
 
 ALL_FEATURES = {
@@ -2465,7 +2783,8 @@ ALL_FEATURES = {
     "index": COMMAND_9_FEATURES["items"],
     "shuf": COMMAND_10_FEATURES["items"],
     "minimizers": COMMAND_11_FEATURES["items"],
-    "composition": COMMAND_14_FEATURES["items"],
+    "alignment": COMMAND_12_FEATURES["items"],
+    #"composition": COMMAND_14_FEATURES["items"],
 
 }
 
@@ -2483,7 +2802,8 @@ ALL_STEPS = {
     "index": COMMAND_9_STEPS["items"],
     "shuf": COMMAND_10_STEPS["items"],
     "minimizers": COMMAND_11_FEATURES["items"],
-    "composition": COMMAND_14_STEPS["items"],
+    "alignment": COMMAND_12_FEATURES["items"],
+    #"composition": COMMAND_14_STEPS["items"],
 }
 
 

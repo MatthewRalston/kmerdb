@@ -112,7 +112,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
                     elif kmer_is_selected == 1:
                         mins[i] = 1
                 
-    return minimizers
+    return minimizers, kmer_ids
 
 def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 
@@ -124,6 +124,10 @@ def read_minimizer_kdbi_index_file(kdbi1):
     """
     Read a minimizer file into memory
     """
+
+    if kdbi_sfx != ".kdbi.1": # A filepath with invalid suffix
+        raise IOError("Input .kdb index filepath '{0}' does not end in '.kdb'".format(arguments.kdbi1))
+
     minimizers = []
     with open(kdbi1, 'r') as minimizer_index_file:
         for l in minimizer_index_file:
@@ -136,3 +140,24 @@ def read_minimizer_kdbi_index_file(kdbi1):
             if is_minimizer == 1:
                 minimizers.append(kmer_id)
     return minimizers
+
+def print_minimizer_kdbi_index_file(mins, kmer_ids, filename):
+    """
+    Print a minimizer array 
+    """
+
+    if type(mins) is not list:
+        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file epects its first positional argument to be a list")
+    elif type(kmer_ids) is not list:
+        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file epects its second positional argument to be a list")
+    elif len(mins) != len(kmer_ids):
+        raise ValueError("kmerdb.minimizer.print_minmimizer_kdbi_index_file expects the number of minimizers should match the number of potential kmers")
+    elif type(filename) is not str:
+        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file expects the third positional argument to be a str")
+    
+    with open(filename, 'w') as ofile:
+        for kmer, i in enumerate(kmer_ids):
+            ofile.write("{0}\t{1}\n".format(kmer, mins[i]))
+
+    return filename
+            
