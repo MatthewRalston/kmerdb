@@ -248,10 +248,15 @@ def get_alignments(arguments):
     Produces Smith-Waterman alignment by loading minimizers
 
     """
-
-    from Bio import SeqIO
     import tempfile
     import copy
+    import gzip
+    import shutil
+
+    
+    from Bio import SeqIO
+
+    from kmerdb import minimizer, fileutil, parse, kmer, util
 
     
     reference_minimizers = []
@@ -270,7 +275,6 @@ def get_alignments(arguments):
     reference_kdb_sfx = os.path.splitext(arguments.reference_kdb)[-1]
 
     # Create as temporary file, hold minimizer array in memory
-    
 
 
 
@@ -285,27 +289,38 @@ def get_alignments(arguments):
         raise IOError("Viewable .fasta filepath '{0}' does not exist on the filesystem".format(arguments.query))
     elif reference_kdb_sfx != ".kdb":
         raise IOError("Viewable .kdb filepath does not end in '.kdb'")
-    elif not os.path.exists(arguments.reference_kdb_sfx):
+    elif not os.path.exists(arguments.reference_kdb):
         raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.reference_kdb_sfx))
 
 
-    
+    if str(arguments.reference).endswith(".fasta.gz") or str(arguments.reference).endswith(".fna.gz") or str(arguments.reference).endswith(".fa.gz"):
+        with gzip.open(arguments.reference, mode="r") as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                reference_fasta_seqs.append(str(record.seq))
+    else:
+        with open(arguments.reference, mode="r") as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                reference_fasta_seqs.append(str(record.seq))
+    if str(arguments.query).endswith(".fasta.gz") or str(arguments.query).endswith(".fna.gz") or str(arguments.query).endswith(".fa.gz"):
+        with gzip.open(arguments.query, mode="r") as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                reference_fasta_seqs.append(str(record.seq))
+    else:
+        with open(arguments.query, mode="r") as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                reference_fasta_seqs.append(str(record.seq))
+                
 
-    
-    with open(arguments.reference, mode="r") as ifile:
-        for record in SeqIO.parse(ifile, "fasta"):
-            reference_fasta_seqs.append(str(record.seq))
-    with open(arguments.query, mode="r") as ifile:
-        for record in SeqIO.parse(ifile, "fasta"):
-            reference_fasta_seqs.append(str(record.seq))
 
-    reference_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.reference, arguments.reference_kdb, arguments.window_size)
-    query_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.query_kdb, arguments.window_size)
+
+    # Make Query kdb
+
+
+    # Calculate minimizers
 
      
-
     if reference_kdb_sfx == ".kdb":
-        with fileutil.open(arguments.kdb, mode='r', slurp=True) as kdb_in:
+        with fileutil.open(arguments.reference_kdb, mode='r', slurp=True) as kdb_in:
             metadata = kdb_in.metadata
 
             
@@ -314,22 +329,44 @@ def get_alignments(arguments):
             k = metadata["k"]
             if metadata["version"] != config.VERSION:
                 logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
-            if arguments.header:
-                yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
-                print(yaml.dump(metadata, sort_keys=False))
-                print(config.header_delimiter)
             logger.log_it("Reading from file...", "INFO")
 
             kmer_ids = kdb_in.kmer_ids
 
+    
     newargs = copy.deepcopy(arguments)
 
     newargs.k = k
-    newargs.output_name = ".".join(arguments.query.splitext(".")[:-1])
+    newargs.minK = None
+    newargs.maxK = None
 
-    print(newargs)
     
+    #newargs.output_name = ".".join(os.path.splitext(str(arguments.query))[:-1])
+    
+    newargs.output_name = "temporary_kdb_file"
+    
+    newargs.parallel = 1
+    newargs.input = [str(newargs.query)]
 
+    newargs.show_hist = False
+    newargs.sorted = False
+    newargs.quiet = True
+    #print(newargs)
+    
+    _profile(newargs)
+
+
+    query_kdb_filepath = "{0}.{1}.kdb".format(newargs.output_name, k)
+
+    if not os.path.exists(query_kdb_filepath):
+        OSError("Could not locate temporary kdb filepath '{0}' on filesystem".format(query_kdb_filepath))
+    else:
+        logger.log_it("Completed generating .kdb file '{0}' from query fasta file '{1}'.".format(query_kdb_filepath, newargs.query), "INFO")
+
+    reference_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.reference, arguments.reference_kdb, arguments.window_size)    
+    query_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.query, query_kdb_filepath, arguments.window_size)
+
+    print("DONE")
             
     
 def distances(arguments):
@@ -2498,6 +2535,8 @@ def cli():
     alignment_parser.add_argument("reference", type=str, help="Reference sequences in .fa/.fna/.fasta format")
     alignment_parser.add_argument("reference_kdb", type=str, help="Reference kmer count vector in .kdb format")
     alignment_parser.add_argument("query", type=str, help="Query sequences in .fa/.fna/.fasta format")
+
+    alignment_parser.add_argument("-w", "--window-size", type=int, help="Window size for sliding window in minimizer selection.", required=True)
     
     alignment_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     alignment_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
