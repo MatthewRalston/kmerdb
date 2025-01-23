@@ -234,13 +234,13 @@ def get_minimizers(arguments):
         raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
     
 
-    mins, kmer_ids = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
+    kmer_ids, fasta_ids, coords, mins = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
     
     output_index_file = "{0}.kdbi.1".format(str(arguments.kdb).strip(".kdb"))
     logger.log_it("\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file), "INFO")
     with open(output_index_file, "w") as ofile:
         for kmer, i in enumerate(kmer_ids):
-            ofile.write("{0}\t{1}\n".format(kmer, mins[i]))
+            ofile.write("\t".join((kmer, fasta_ids[i], coords[i], mins[i])) + "\n")
 
 
 def get_alignments(arguments):
@@ -264,6 +264,9 @@ def get_alignments(arguments):
 
     reference_fasta_seqs = []
     query_fasta_seqs = []
+
+    reference_fasta_ids = []
+    query_fasta_ids = []
 
     kmer_ids = None
     k = None
@@ -297,18 +300,23 @@ def get_alignments(arguments):
         with gzip.open(arguments.reference, mode="r") as ifile:
             for record in SeqIO.parse(ifile, "fasta"):
                 reference_fasta_seqs.append(str(record.seq))
+                reference_fasta_ids.append(str(record.id))
     else:
         with open(arguments.reference, mode="r") as ifile:
             for record in SeqIO.parse(ifile, "fasta"):
                 reference_fasta_seqs.append(str(record.seq))
+                reference_fasta_ids.append(str(record.id))
     if str(arguments.query).endswith(".fasta.gz") or str(arguments.query).endswith(".fna.gz") or str(arguments.query).endswith(".fa.gz"):
         with gzip.open(arguments.query, mode="r") as ifile:
             for record in SeqIO.parse(ifile, "fasta"):
-                reference_fasta_seqs.append(str(record.seq))
+                query_fasta_seqs.append(str(record.seq))
+                query_fasta_ids.append(str(record.id))
     else:
         with open(arguments.query, mode="r") as ifile:
             for record in SeqIO.parse(ifile, "fasta"):
-                reference_fasta_seqs.append(str(record.seq))
+                query_fasta_seqs.append(str(record.seq))
+                query_fasta_ids.append(str(record.id))
+
                 
 
 
@@ -363,11 +371,17 @@ def get_alignments(arguments):
     else:
         logger.log_it("Completed generating .kdb file '{0}' from query fasta file '{1}'.".format(query_kdb_filepath, newargs.query), "INFO")
 
-    reference_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.reference, arguments.reference_kdb, arguments.window_size)    
-    query_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.query, query_kdb_filepath, arguments.window_size)
+    kmer_ids, reference_fasta_ids, reference_fasta_coords, reference_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.reference, arguments.reference_kdb, arguments.window_size)    
+    kmer_ids, query_fasta_ids, query_fasta_coords, query_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.query, query_kdb_filepath, arguments.window_size)
 
-    print("DONE")
-            
+
+    print("unimplemented")
+    #alignment.smith_waterman_with_minimizers(query_fasta_ids, reference_fasta_ids, query_fasta_seqs, reference_fasta_seqs, arguments.reference_kdb, query_kdb_filepath, query_coords, reference_coords, reference_minimizers, query_minimizers)
+        
+    
+
+    print(config.DONE)
+    
     
 def distances(arguments):
     """
