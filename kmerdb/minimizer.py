@@ -47,15 +47,17 @@ def select_lexicographical_minimizers(seq, k, window_size, kmer_ids):
         raise ValueError("Sequence length was less than k")
 
     minimizers = np.zeros(N, dtype="int16")
+    coords = np.zeros(N, dtype="int32")
+    
 
     for i in range(N - k + 1):
         if i % window_size == 0:
             subseq = seq[i:i+k]
             kmer_id = kmer.kmer_to_id(subseq)
             minimizers[kmer_id] = 1
+            coords[kmer_id] = i
 
-
-    return minimizers
+    return minimizers, coords
 
 
 def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
@@ -67,6 +69,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
     N = None
     kmer_ids = None
     fasta_seqs = []
+    fasta_ids = []
     mins = None
 
     fa_sfx = os.path.splitext(fasta_file)[-1]
@@ -83,6 +86,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
     with open(fasta_file, mode="r") as ifile:
         for record in SeqIO.parse(ifile, "fasta"):
             fasta_seqs.append(str(record.seq))
+            fasta_ids.append(str(record.id))
 
     with fileutil.open(kdb_file, mode='r', slurp=True) as kdb_in:
         metadata = kdb_in.metadata
@@ -96,7 +100,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
 
         for seq in fasta_seqs:
 
-            minimizers = minimizer.select_lexicographical_minimizers(seq, metadata['k'], window_size, kmer_ids)
+            minimizers, coords = minimizer.select_lexicographical_minimizers(seq, metadata['k'], window_size, kmer_ids)
 
             # TODO: FIXME
             
@@ -112,7 +116,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
                     elif kmer_is_selected == 1:
                         mins[i] = 1
                 
-    return minimizers, kmer_ids
+    return kmer_ids, fasta_ids, coords, fasta_ids, mins
 
 def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 
