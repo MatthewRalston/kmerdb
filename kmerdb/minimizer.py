@@ -46,18 +46,84 @@ def select_lexicographical_minimizers(seq, k, window_size, kmer_ids):
     if len(seq) < k:
         raise ValueError("Sequence length was less than k")
 
-    minimizers = np.zeros(N, dtype="int16")
-    coords = np.zeros(N, dtype="int32")
-    
+    #is_minimizer = np.zeros(N, dtype="int8")
 
-    for i in range(N - k + 1):
+    is_minimizer = {}
+    #coords = np.zeros(N, dtype="int32") kmer coordinate space
+
+    coords = {}
+    
+    seqlen = N - k + 1
+    for i in range(seqlen)
         if i % window_size == 0:
             subseq = seq[i:i+k]
             kmer_id = kmer.kmer_to_id(subseq)
-            minimizers[kmer_id] = 1
-            coords[kmer_id] = i
+            is_minimizer[kmer_id] = 1
+            coords[i] = kmer_id
 
-    return minimizers, coords
+    return bp_range, is_minimizer, coords # coords is a hashmap of kmer ids storing kmer start positions in the input fasta sequence, referencing the kmer_id of minimizer position
+
+def read_sequences_from_fastafile(fasta_file)
+    """
+    Parse sequence identifiers and sequences into two arrays.
+    """
+    fasta_seqs = []
+    fasta_ids = []
+    from Bio import SeqIO
+    with open(fasta_file, mode="r") as ifile:
+        for record in SeqIO.parse(ifile, "fasta"):
+            fasta_seqs.append(str(record.seq))
+            fasta_ids.append(str(record.id))
+    return fasta_seqs, fasta_ids
+
+
+def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, seqs:list=None, ids:list=None):
+
+    if seqs is None or ids is None:
+        fasta_seqs, fasta_ids = read_sequences_from_input_fastafile(fasta_file)
+    elif not all(type(fasta_id) is str for fasta_id, i in ids):
+        raise TypeError("fasta_ids list is not a list of fasta sequence ids")
+    elif not all(type(fasta_seq) is str for fasta_seq, j in seqs):
+        fasta_seqs = seqs
+        fasta_ids = ids
+
+    coord_map = []
+        
+    if fasta_file is None or type(fasta_file) is not str:
+        raise TypeError("")
+    elif type(kdbfile) is not str or not os.path.exists(kdbfile):
+        raise ValueError("kmerdb.minimizer.get_minimizers_from_kdbfile_and_input_fastafile .kdb path does not exist on filesystem")
+    else:
+        with fileutil.open(kdb_file, mode='r', slurp=True) as kdb_in:
+            metadata = kdb_in.metadata
+
+            
+            kmer_ids_dtype = metadata["kmer_ids_dtype"]
+            N = 4**metadata["k"]
+            if metadata["version"] != config.VERSION:
+                logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
+            kmer_ids = kdb_in.kmer_ids
+
+
+            
+            for seq, i in enumerate(fasta_seqs):
+                # is minimizer is a boolean array 0 or 1
+                # coords is a numpy 32 array of kmer_ids
+                seqlen, is_minimizer, coords = minimizer.select_lexicographical_minimizers(seq, metadata['k'], window_size, kmer_ids)
+
+
+                """
+                Fixme! coordmap should be primarily indexed on coordinate
+                """
+
+                coordmap[kmer_ids[i]] = {} # coordmap becomes 4d hashmap structure with kmer_id, fasta_seq_id1, start_coord1 , fasta_seq_id2, start_coord2
+
+                
+                for j in range(seqlen):
+
+                    coordmap.push({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j})
+                
+    return kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
 
 
 def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
@@ -70,7 +136,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
     kmer_ids = None
     fasta_seqs = []
     fasta_ids = []
-    mins = None
+    mins = {}
 
     fa_sfx = os.path.splitext(fasta_file)[-1]
     kdb_sfx = os.path.splitext(kdb_file)[-1]
@@ -83,40 +149,21 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
     elif fa_sfx != ".fa" and fa_sfx != ".fna" and fa_sfx != ".fasta":
         raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
 
-    with open(fasta_file, mode="r") as ifile:
-        for record in SeqIO.parse(ifile, "fasta"):
-            fasta_seqs.append(str(record.seq))
-            fasta_ids.append(str(record.id))
+    fasta_ids, fasta_seqs = read_sequences_from_fastafile(fasta_file)
 
-    with fileutil.open(kdb_file, mode='r', slurp=True) as kdb_in:
-        metadata = kdb_in.metadata
-
+    
             
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
-        N = 4**metadata["k"]
-        if metadata["version"] != config.VERSION:
-            logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
-        kmer_ids = kdb_in.kmer_ids
 
-        for seq in fasta_seqs:
+    """
+    Fixme
+    """ 
 
-            minimizers, coords = minimizer.select_lexicographical_minimizers(seq, metadata['k'], window_size, kmer_ids)
-
-            # TODO: FIXME
+    assert len(is_minimizer) == len(kmer_ids)
+    # TODO: FIXME
             
-            mins_as_list = list(map(int, minimizers))
+    kmer_ids, fasta_ids, coordmap = None#
 
-            # 
-            if mins is None:
-                mins=mins_as_list
-            else:
-                for kmer_is_selected, i in enumerate(mins_as_list):
-                    if mins_as_list[i] == 1:
-                        pass
-                    elif kmer_is_selected == 1:
-                        mins[i] = 1
-                
-    return kmer_ids, fasta_ids, coords, fasta_ids, mins
+    return kmer_ids, fasta_ids, coords, mins # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, mins 
 
 def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 

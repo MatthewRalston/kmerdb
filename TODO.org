@@ -6,15 +6,26 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+
+* 1/24/25 | alignment
+
+** Step 1: revise minimizer index file
+
+*** fasta_id, fasta_coord, kmer_id, is_minimizer
+*** 
+** Step 2: create minimizer match file
+*** kmer_id, fasta_id1, fasta_coord1, fasta_id2, fasta_coord2
+** Step 3: use n minimizer matches in alignment table
+*** fasta_id1, fasta_id2, common_minimizer_count, common_minimizer_coords_array
 * 1/13/25 | Minimizers (lexicographic with window size)
 
-** Use the 5 best scoring  (wrt original genome/kdb) minimizers by match count to seed alignment
+** Use the best -n scoring  (wrt original genome/kdb) minimizers by match count to seed alignment
 
-** More specifically, a match is seeded by the 5 most optimal scores by optimal number of matches of minimizer counts
+** More specifically, a match is seeded by the n most optimal scores by optimal number of matches of minimizer counts
 
 ** match is intersection of minimizer optima with group of max score SW alignment.
 
-** match is restricted to 5 (ln of sequence) or more minimizer matches or next closest (matchmin 4+)
+** match is restricted to n (upper bound ln of sequence) or more minimizer matches or next closest (matchmin 4+)
 ** Top scoring is considered a candidate for alignment
 ** Scoring determined by minimixer match and then alignment with score of mismatch and match (+1/-1) and successful SW alignment
 ** Reference matches produced by enumerating all pairs possible sequence alignemnt of query vs reference sequences.
