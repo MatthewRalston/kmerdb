@@ -8,8 +8,17 @@
 
 * 1/13/25 | Minimizers (lexicographic with window size)
 
-** Use the most 5? abundant (wrt original genome/kdb) minimizers
+** Use the 5 best scoring  (wrt original genome/kdb) minimizers by match count to seed alignment
 
+** More specifically, a match is seeded by the 5 most optimal scores by optimal number of matches of minimizer counts
+
+** match is intersection of minimizer optima with group of max score SW alignment.
+
+** match is restricted to 5 (ln of sequence) or more minimizer matches or next closest (matchmin 4+)
+** Top scoring is considered a candidate for alignment
+** Scoring determined by minimixer match and then alignment with score of mismatch and match (+1/-1) and successful SW alignment
+** Reference matches produced by enumerating all pairs possible sequence alignemnt of query vs reference sequences.
+** 
 *** Filtering the alignment seeds/kmers by abundance should be a good heuristic for creating biologically meaningful seed regions for alignment.
 
 ** The --window-size parameter is important for kmer/minimizer filtering and restricting the number of Smith Waterman alignments that must be done.
