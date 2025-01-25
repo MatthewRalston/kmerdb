@@ -35,20 +35,20 @@ a list of the unicode character encodings for the DNA alphabet
 note 65 is A, 67 is C, 71 is G, 84 is T.
 """
 
-letterToBinary={ # Unicode UTF-8 byte codes for ACGT
+letterToBinary#={ # Unicode UTF-8 byte codes for standard NA residues: ACGT NOTE: letterToBinaryNA
     65: 0,
     67: 1,
     71: 2,
     84: 3
 }
-binaryToLetter=['A', 'C', 'G', 'T']
+binaryToLetter=['A', 'C', 'G', 'T'] # FIXME: binaryToLetterNA
 standard_letters=set("ACTG")
 
 
 """
 IUPAC support mappings for the k-mer counter (NOT USED IN THE ASSEMBLER)
 """
-IUPAC_TO_DOUBLET = {
+IUPAC_NA_DOUBLETS = {
     "R": ["A", "G"],
     "Y": ["C", "T"],
     "S": ["G", "C"],
@@ -56,14 +56,14 @@ IUPAC_TO_DOUBLET = {
     "K": ["G", "T"],
     "M": ["A", "C"]
 }
-IUPAC_DOUBLET_CHARS=IUPAC_TO_DOUBLET.keys()
-IUPAC_TO_TRIPLET = {
+IUPAC_NA_DOUBLET_CHARS=set(IUPAC_NA_DOUBLETS.keys())
+IUPAC_NA_TRIPLETS = {
     "B": ["C", "G", "T"],
     "D": ["A", "G", "T"],
     "H": ["A", "C", "T"],
     "V": ["A", "C", "G"]
 }
-IUPAC_TRIPLET_CHARS=IUPAC_TO_TRIPLET.keys()
+IUPAC_NA_TRIPLET_CHARS=set(IUPAC_NA_TRIPLETS.keys())
 # *extremely* necessary variable
 n = "N"
 #############################
@@ -73,9 +73,20 @@ n = "N"
 #############################
 
 
-get_doublet_chars = lambda x: IUPAC_TO_DOUBLET[x] # list
-get_triplet_chars = lambda x: IUPAC_TO_TRIPLET[x]
+get_doublet_chars = lambda x: IUPAC_NA_DOUBLETS[x] # list
+get_triplet_chars = lambda x: IUPAC_NA_TRIPLETS[x]
 replace_char = lambda seq, x, y: seq.replace(x, y) # str
+
+standard_letters=set("ACTG") # Backwards compatibility
+# IUPAC_NA_TRIPLET_CHARACTERS
+# IUPAC_NA_DOUBLE_CHARACTERS
+# ALL_IUPAC_SYMBOLS
+__permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS + IUPAC_NA_DOUBLET_CHARS + standard_letters # set("ACTGRYSWKMBDHV")
+__permitted_NA_characters_with_N = __permitted_NA_characters + set(n)
+__core_NA_letters=set("ACTG") 
+
+
+
 
 #############################
 #
@@ -117,7 +128,9 @@ class Kmers:
         self.strand_specific = strand_specific
         self.verbose = verbose
         self.all_metadata = all_metadata
-        self.__permitted_chars = set("ACTGRYSWKMBDHVN")
+        self.__all_permitted_NA_characters = __permitted_NA_characters_with_N
+        self.__permitted_NA_characters_with_N =
+        self.__permitted_extended_NA_characters = __permitted_NA_characters
 
     def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, is_fasta:bool=True, quiet_iupac_warning:bool=True):
         """
@@ -147,14 +160,15 @@ class Kmers:
             logger.error("Offending sequence ID: {0}".format(seqRecord.id))
             raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects that each input sequence is longer than k.")
         
-        all_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
+        extended_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
+        has_N = __permitted_NA_characters_with_N 
         all_non_iupac_symbols = list(letters - self.__permitted_chars)
         
         if len(all_non_iupac_symbols) > 0:
             logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.is_fasta else "fastq"))
             logger.warning(list(letters - self.__permitted_chars))
             raise ValueError("Non-IUPAC symbols detected in the fasta file")
-        elif len(all_iupac_symbols) > 0:
+        elif len(extended_iupac_symbols) > 0: # FIXME: 
             if quiet_iupac_warning is False:
                 logger.warning("Will completely refuse to include k-mers with 'N'")
                 logger.warning("All counts for k-mers including N will be discarded")
@@ -182,10 +196,10 @@ class Kmers:
 
         # Iterate over *each* k-mer in the sequence by index
         for i in range(seqlen - self.k + 1):
-            s = seqRecord.seq[i:(i+self.k)] # Creates the k-mer as a slice of a seqRecord.seq
+            kmer_seq = seqRecord.seq[i:(i+self.k)] # Creates the k-mer as a slice of a seqRecord.seq
             # No non-standard IUPAC residues allowed for _shred for use in graph.py
-            nonstandard_iupac_symbols = list(set(s) - standard_letters)
-            non_iupac_symbols = list(set(s) - self.__permitted_chars)
+            nonstandard_iupac_symbols = list(set(kmer_seq) - standard_letters)
+            non_iupac_symbols = list(set(kmer_seq) - self.__permitted_chars)
 
             if len(non_iupac_symbols) > 1:
                 logger.error("Non-IUPAC symbols:")

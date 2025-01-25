@@ -24,44 +24,57 @@ import numpy as np
 
 from kmerdb import kmer, config, util
 
-def select_lexicographical_minimizers(seq, k, window_size, kmer_ids):
+def select_lexicographical_minimizers(seq, seq_id, k, window_size, kmer_ids):
     """
     Select k-mers based on lexicographical minimizers and return a binary array indicating selected k-mers.
     
     :param seq: Input DNA sequence
     :type seq: str
+    :param seq_id: Sequence ID as fasta header string
+    :type seq_id: str
     :param k: Choice of k
     :type k: int
+    
     :param window_size: Size of the sliding window
     :type window_size: int
     :param kmer_ids: Array of kmer IDs (1 to 4^k)
     :type kmer_ids: list
 
     :returns: Binary array where 1 indicates selected k-mer, 0 otherwise
-    :rtype: np.array
+    :rtype: int, np.array
     """
 
-    N = len(kmer_ids)
     
+    
+    N = len(kmer_ids)
+    if not type(seq) is str:
+        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers expects a str as its first positional argument")        
     if len(seq) < k:
         raise ValueError("Sequence length was less than k")
-
-    #is_minimizer = np.zeros(N, dtype="int8")
-
-    is_minimizer = {}
-    #coords = np.zeros(N, dtype="int32") kmer coordinate space
-
-    coords = {}
     
-    seqlen = N - k + 1
-    for i in range(seqlen)
+    sequence_length = len(seq)
+    
+    is_minimizer = np.array(sequence_length, dtype="uint8")
+
+
+    coords = list(map(lambda i: (seq_id, i, kmer_id, True), list(range(L)))
+
+    
+    L = N - k + 1
+    for i in range(L): # Number of minimizers = floor(sequence_length/window_size)
         if i % window_size == 0:
             subseq = seq[i:i+k]
             kmer_id = kmer.kmer_to_id(subseq)
-            is_minimizer[kmer_id] = 1
+            is_minimizer[i] = 1
             coords[i] = kmer_id
 
-    return bp_range, is_minimizer, coords # coords is a hashmap of kmer ids storing kmer start positions in the input fasta sequence, referencing the kmer_id of minimizer position
+    
+    # coords is [(seq_id, i:L, kmer_id, is_minimizer), ...]            
+    return math.floor(L / window_size), is_minimizer, coords # coords is a list of kmer start positions in the input fasta sequence, referencing the kmer_id of the k-mer at the minimizer position, is_minimizer has dimension L = N-k+1, and the number of minimizers selected as first positional return, is_minimizer array as second positional return, and coordinate array with kmer_id values and 1:L/window_size number of elements pointing to the kmer_ids associated with the threetuple of (fasta_id, fasta_coord, kmer_id)
+
+
+
+    # len(coord.subtract.keys)
 
 def read_sequences_from_fastafile(fasta_file)
     """
@@ -77,7 +90,7 @@ def read_sequences_from_fastafile(fasta_file)
     return fasta_seqs, fasta_ids
 
 
-def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, seqs:list=None, ids:list=None):
+def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, seqs:list=None, ids:list=None):
 
     if seqs is None or ids is None:
         fasta_seqs, fasta_ids = read_sequences_from_input_fastafile(fasta_file)
@@ -161,9 +174,9 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
     assert len(is_minimizer) == len(kmer_ids)
     # TODO: FIXME
             
-    kmer_ids, fasta_ids, coordmap = None#
+    kmer_ids, fasta_ids, coordmap = get_minimizers_from_kdbfile_and_input_fastafile(kdb_file, fasta_file)
 
-    return kmer_ids, fasta_ids, coords, mins # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, mins 
+    return kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, coordmap is a list of coordinate-as-index based minimizer locations. coordmap = [{"fasta_id": ..., "seqlen": n, }, ...] 
 
 def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 
