@@ -35,7 +35,7 @@ a list of the unicode character encodings for the DNA alphabet
 note 65 is A, 67 is C, 71 is G, 84 is T.
 """
 
-letterToBinary#={ # Unicode UTF-8 byte codes for standard NA residues: ACGT NOTE: letterToBinaryNA
+letterToBinary={ # Unicode UTF-8 byte codes for standard NA residues: ACGT NOTE: letterToBinaryNA
     65: 0,
     67: 1,
     71: 2,
@@ -81,8 +81,8 @@ standard_letters=set("ACTG") # Backwards compatibility
 # IUPAC_NA_TRIPLET_CHARACTERS
 # IUPAC_NA_DOUBLE_CHARACTERS
 # ALL_IUPAC_SYMBOLS
-__permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS + IUPAC_NA_DOUBLET_CHARS + standard_letters # set("ACTGRYSWKMBDHV")
-__permitted_NA_characters_with_N = __permitted_NA_characters + set(n)
+__permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS.union(IUPAC_NA_DOUBLET_CHARS).union(standard_letters) # set("ACTGRYSWKMBDHV")
+__permitted_NA_characters_with_N = __permitted_NA_characters.union(set(n))
 __core_NA_letters=set("ACTG") 
 
 
@@ -129,7 +129,7 @@ class Kmers:
         self.verbose = verbose
         self.all_metadata = all_metadata
         self.__all_permitted_NA_characters = __permitted_NA_characters_with_N
-        self.__permitted_NA_characters_with_N =
+        self.__permitted_NA_characters_with_N = __permitted_NA_characters_with_N
         self.__permitted_extended_NA_characters = __permitted_NA_characters
 
     def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, is_fasta:bool=True, quiet_iupac_warning:bool=True):

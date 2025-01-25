@@ -14,7 +14,7 @@
 *** fasta_id, fasta_coord, kmer_id, is_minimizer
 *** 
 ** Step 2: create minimizer match file
-*** kmer_id, fasta_id1, fasta_coord1, fasta_id2, fasta_coord2
+*** kmer_id, is_minimizer, is_match, fasta_id1, fasta_coord1, fasta_id2, fasta_coord2
 ** Step 3: use n minimizer matches in alignment table
 *** fasta_id1, fasta_id2, common_minimizer_count, common_minimizer_coords_array
 * 1/13/25 | Minimizers (lexicographic with window size)
