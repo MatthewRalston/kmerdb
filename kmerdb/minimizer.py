@@ -57,7 +57,7 @@ def select_lexicographical_minimizers(seq, seq_id, k, window_size, kmer_ids):
     is_minimizer = np.array(sequence_length, dtype="uint8")
 
 
-    coords = list(map(lambda i: (seq_id, i, kmer_id, True), list(range(L)))
+    coords = list(map(lambda i: (seq_id, i, kmer_id, True), list(range(L))))
 
     
     L = N - k + 1
@@ -76,7 +76,7 @@ def select_lexicographical_minimizers(seq, seq_id, k, window_size, kmer_ids):
 
     # len(coord.subtract.keys)
 
-def read_sequences_from_fastafile(fasta_file)
+def read_sequences_from_fastafile(fasta_file):
     """
     Parse sequence identifiers and sequences into two arrays.
     """
@@ -90,7 +90,7 @@ def read_sequences_from_fastafile(fasta_file)
     return fasta_seqs, fasta_ids
 
 
-def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, seqs:list=None, ids:list=None):
+def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, seqs:list=None, ids:list=None):
 
     if seqs is None or ids is None:
         fasta_seqs, fasta_ids = read_sequences_from_input_fastafile(fasta_file)
@@ -101,6 +101,7 @@ def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str
         fasta_ids = ids
 
     coord_map = []
+    is_min = {}
         
     if fasta_file is None or type(fasta_file) is not str:
         raise TypeError("")
@@ -110,7 +111,7 @@ def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str
         with fileutil.open(kdb_file, mode='r', slurp=True) as kdb_in:
             metadata = kdb_in.metadata
 
-            
+            k = metadata["k"]
             kmer_ids_dtype = metadata["kmer_ids_dtype"]
             N = 4**metadata["k"]
             if metadata["version"] != config.VERSION:
@@ -122,9 +123,9 @@ def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str
             for seq, i in enumerate(fasta_seqs):
                 # is minimizer is a boolean array 0 or 1
                 # coords is a numpy 32 array of kmer_ids
-                seqlen, is_minimizer, coords = minimizer.select_lexicographical_minimizers(seq, metadata['k'], window_size, kmer_ids)
+                seqlen, is_minimizer, coords = minimizer.select_lexicographical_minimizers(seq, seq_id, metadata['k'], window_size, kmer_ids)
 
-
+                is_min[seq_id] = is_minimizer
                 """
                 Fixme! coordmap should be primarily indexed on coordinate
                 """
@@ -135,8 +136,10 @@ def  get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str
                 for j in range(seqlen):
 
                     coordmap.push({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j})
+
                 
-    return kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
+                    
+        return k, kmer_ids, fasta_ids, is_min, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
 
 
 def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
@@ -176,7 +179,7 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
             
     kmer_ids, fasta_ids, coordmap = get_minimizers_from_kdbfile_and_input_fastafile(kdb_file, fasta_file)
 
-    return kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, coordmap is a list of coordinate-as-index based minimizer locations. coordmap = [{"fasta_id": ..., "seqlen": n, }, ...] 
+    return k, kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, coordmap is a list of coordinate-as-index based minimizer locations. coordmap = [{"fasta_id": ..., "seqlen": n, }, ...] 
 
 def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 

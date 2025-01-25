@@ -236,11 +236,11 @@ def get_minimizers(arguments):
 
     # coordmap = [(fasta_id_str, i:L, kmer_id, is_minimizer), ...]
     # kmer_ids length : input
-    # is_minimizer length: m = L/window_size
+    # is_minimizer length : m = L/window_size hashmap of sequence coords and is_minimizer bool
     # coordmap 4-tuple (fasta_id_str, i:floor(m), kmer_id)
-    kmer_ids, is_minimizer, coordmap = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
+    k, kmer_ids, fasta_ids, is_minimizer, coordmap = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
     
-    output_index_file = "{0}.kdbi.1".format(str(arguments.kdb).strip(".kdb"))
+    output_index_file = "{0}.{1}.kdbi.1".format(str(arguments.kdb).strip(".kdb"), k)
     logger.log_it("\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file), "INFO")
 
     m = num_minimizers = len(is_minimizer)
@@ -256,18 +256,23 @@ def get_minimizers(arguments):
     """
     with open(output_index_file, "w") as ofile:
         if all_minimizers:
-            for i in range(len(is_minimizer)):
+            for seq in is_minimizer.keys():
+
                 """
-                fasta_id_str, coord, kmer_id_at_coord, is_minimizer
+                FIXME
                 """
-                ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
+                for i in range(len(is_minimizer[seq])):
+                    """
+                    fasta_id_str, coord, kmer_id_at_coord, is_minimizer
+                    """
+                    ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
         else:
             for minimizer_sequence_coordinate, i in enumerate(range(len(coordmap))):
 
                 ofile.write("\t".join((fasta_ids[i], minimizer_sequence_coordinate, coordmap[i][2], True)) + "\n")
 
                 
-
+    logger.log_it("Wrote minimizers to .kdbi.1 index file '{0}'...".format(output_index_file), "INFO")
 
             
 
@@ -2563,7 +2568,8 @@ def cli():
     minimizer_parser = subparsers.add_parser("minimizers", help="Index an array of minimizers (selected-or-not) to associate with a position in reference")
 
     minimizer_parser.add_argument("fasta", type=str, help="A fasta file (.fa) to generate minimizers from")
-    minimizer_parser.add_argument("-k", type=int, help="Choice of k for minimizer-selection", required=True)
+    minimizer_parser.add_argument("kdb", type=str, help="A .kdb file to generate minimizers")
+    #minimizer_parser.add_argument("-k", type=int, help="Choice of k for minimizer-selection", required=True)
     minimizer_parser.add_argument("-w", "--window-size",  type=int, help="Choice of window size (in base-pairs) to select minimizers with", required=True)
 
     
