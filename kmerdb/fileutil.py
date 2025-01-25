@@ -38,7 +38,7 @@ from Bio import SeqIO, bgzf
 
 #sys.path.append('..')
 
-from kmerdb import kmer, util, config, appmap
+from kmerdb import util, config, appmap
 
 # Logging configuration
 global logger
