@@ -220,7 +220,7 @@ def get_minimizers(arguments):
     N = None
     kmer_ids = None
     fasta_seqs = []
-    mins = None
+    coordmap = None
     
     assert type(arguments.kdb) is str, "kdb_in must be a str"
     kdb_sfx = os.path.splitext(arguments.kdb)[-1]
@@ -234,14 +234,42 @@ def get_minimizers(arguments):
         raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
     
 
-    kmer_ids, fasta_ids, coords, mins = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
+    # coordmap = [(fasta_id_str, i:L, kmer_id, is_minimizer), ...]
+    # kmer_ids length : input
+    # is_minimizer length: m = L/window_size
+    # coordmap 4-tuple (fasta_id_str, i:floor(m), kmer_id)
+    kmer_ids, is_minimizer, coordmap = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
     
     output_index_file = "{0}.kdbi.1".format(str(arguments.kdb).strip(".kdb"))
     logger.log_it("\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file), "INFO")
-    with open(output_index_file, "w") as ofile:
-        for kmer, i in enumerate(kmer_ids):
-            ofile.write("\t".join((kmer, fasta_ids[i], coords[i], mins[i])) + "\n")
 
+    m = num_minimizers = len(is_minimizer)
+
+
+
+    """
+    Writes the fourtuple to a plain-text index-file (.kdbi.1)
+
+    (fasta_id_str, 1:num_possible_minimizers, kmer_id, is_minimizer_bool)
+    
+    if --include-unselected-minimizers (-a) is provided, will write all L=N-k+1 possible minimizer selections from input sequences
+    """
+    with open(output_index_file, "w") as ofile:
+        if all_minimizers:
+            for i in range(len(is_minimizer)):
+                """
+                fasta_id_str, coord, kmer_id_at_coord, is_minimizer
+                """
+                ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
+        else:
+            for minimizer_sequence_coordinate, i in enumerate(range(len(coordmap))):
+
+                ofile.write("\t".join((fasta_ids[i], minimizer_sequence_coordinate, coordmap[i][2], True)) + "\n")
+
+                
+
+
+            
 
 def get_alignments(arguments):
     """
@@ -2532,13 +2560,14 @@ def cli():
     # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
     # assembly_parser.set_defaults(func=assembly)
 
-    minimizer_parser = subparsers.add_parser("minimizers", help="Calculate an binary array of minimizers to associate with a .kdb count vector")
+    minimizer_parser = subparsers.add_parser("minimizers", help="Index an array of minimizers (selected-or-not) to associate with a position in reference")
 
-    minimizer_parser.add_argument("fasta", type=str, help="A fasta file (.fa)")
-    minimizer_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
-    
+    minimizer_parser.add_argument("fasta", type=str, help="A fasta file (.fa) to generate minimizers from")
+    minimizer_parser.add_argument("-k", type=int, help="Choice of k for minimizer-selection", required=True)
     minimizer_parser.add_argument("-w", "--window-size",  type=int, help="Choice of window size (in base-pairs) to select minimizers with", required=True)
 
+    
+    minimizer_parser.add_argument("-a", "--include-unselected-minimizers", action="store_true", default=False, help="Include minimizer positions that were not selected as minimizers (length: (N-k+1)/window_size)")
     minimizer_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     minimizer_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     minimizer_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
@@ -2547,9 +2576,16 @@ def cli():
 
     alignment_parser = subparsers.add_parser("alignment", help="Create a Smith-Waterman-like alignment using a reference fasta, its minimizers, and query sequence, and its minimizers.")
     alignment_parser.add_argument("reference", type=str, help="Reference sequences in .fa/.fna/.fasta format")
-    alignment_parser.add_argument("reference_kdb", type=str, help="Reference kmer count vector in .kdb format")
-    alignment_parser.add_argument("query", type=str, help="Query sequences in .fa/.fna/.fasta format")
+    alignment_parser.add_argument("reference_kdb", type=str, help="Reference requires kmer count vector in .kdb format for minimizer selection to seed alignment")
+    alignment_parser.add_argument("query", type=str, help="Query sequences in .fa/.fna/.fasta format. Not expected to be .kdb or indexed")
+    alignment_parser.add_argument("-n", "--num-mins", type=int, help="Number of minimizers to seed an alignment")
+    alignment_parser.add_argument("--match-score", type=int, default=3, help="Score of extending an SW alignment from minimizer seed match by 1bp (int| default: 3) ")
+    alignment_parser.add_argument("--mismatch-score", type=int, default=-1, help="Mismatch penalty for SW alignment (int: -1)")
 
+    
+    #alignment_parser.add_argument("--gap-opening", type=int, default=-10, help="Affine gap opening penalty (int| default: -10)")
+    #alignment_parser.add_argument("--gap-extend", type=int, default=-1, help="gap mismatch extension penalty (int| default: -1)")
+    
     alignment_parser.add_argument("-w", "--window-size", type=int, help="Window size for sliding window in minimizer selection.", required=True)
     
     alignment_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
