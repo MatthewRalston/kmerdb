@@ -101,6 +101,7 @@ def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str,
         fasta_ids = ids
 
     coord_map = []
+    coord_obj_array = []
     is_min = {}
         
     if fasta_file is None or type(fasta_file) is not str:
@@ -130,16 +131,47 @@ def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str,
                 Fixme! coordmap should be primarily indexed on coordinate
                 """
 
-                coordmap[kmer_ids[i]] = {} # coordmap becomes 4d hashmap structure with kmer_id, fasta_seq_id1, start_coord1 , fasta_seq_id2, start_coord2
+                coordmap[kmer_ids[i]] = {} # coordmap becomes hashmap structure with kmer_id, fasta_seq_id1, start_coord1 , fasta_seq_id2, start_coord2
 
                 
                 for j in range(seqlen):
 
-                    coordmap.push({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j})
+                    coordmap.push({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j, "is_minimizer": is_minimizer[j]}) # Is_min should be the jth sequence element as a k-mer, and whether or not the jth k-mer is used as a minimizer
 
+
+                    # fasta_id[i] where i is number of queries, len, the coord, and the is_minimizer bool
+
+
+                    coord_obj_array.push((fasta_ids[i], seqlen, j, is_minimizer[j]))
+                    # As hashmapped structure
+                    #coord_obj_array[fasta_ids[i]].push((fasta_ids[i], seqlen, j, is_minimizer[j]))
                 
                     
-        return k, kmer_ids, fasta_ids, is_min, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
+        return k, kmer_ids, fasta_ids, is_min, coordmap, coord_obj # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
+
+
+def print_coordmap(coordinate_mapping):
+    """
+    A hash of hashes, 2D associative array, not implemented further.
+
+
+    
+    
+    """
+
+
+    for fasta_id, sequence_length, basepair, is_min in coordinate_mapping:
+        assert type(fasta_id) is str, "FASTA ID was not a sequence id string"
+        assert type(sequence_length) is int, "Sequence length input was not a number"
+        assert type(basepair) is int, " - error no coordinate \_( |>\">| )_/ ... ( ...wtf?)"
+        assert type(is_min) is int, "should be typed numeric 1s and 0s"
+        
+        print("\t".join((fasta_id, sequence, basepair, is_min)))
+    return
+
+
+
+
 
 
 def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
@@ -181,12 +213,9 @@ def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
 
     return k, kmer_ids, fasta_ids, coordmap # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, coordmap is a list of coordinate-as-index based minimizer locations. coordmap = [{"fasta_id": ..., "seqlen": n, }, ...] 
 
-def make_alignment(reference_fasta_seqs, query_fasta_seqs, k):
 
 
-    reference_minimizers = select_lexicographical_minimizers()
-
-
+    
 def read_minimizer_kdbi_index_file(kdbi1):
     """
     Read a minimizer file into memory
@@ -210,7 +239,7 @@ def read_minimizer_kdbi_index_file(kdbi1):
 
 def print_minimizer_kdbi_index_file(mins, kmer_ids, filename):
     """
-    Print a minimizer array 
+    Print a minimizer array to a .kdbi.1 index file
     """
 
     if type(mins) is not list:
