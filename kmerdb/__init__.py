@@ -238,7 +238,7 @@ def get_minimizers(arguments):
     # kmer_ids length : input
     # is_minimizer length : m = L/window_size hashmap of sequence coords and is_minimizer bool
     # coordmap 4-tuple (fasta_id_str, i:floor(m), kmer_id)
-    k, kmer_ids, fasta_ids, is_minimizer, coordmap = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
+    k, kmer_ids, fasta_ids, is_minimizer, coordmap, coord_obj_array = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
     
     output_index_file = "{0}.{1}.kdbi.1".format(str(arguments.kdb).strip(".kdb"), k)
     logger.log_it("\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file), "INFO")
@@ -255,23 +255,31 @@ def get_minimizers(arguments):
     if --include-unselected-minimizers (-a) is provided, will write all L=N-k+1 possible minimizer selections from input sequences
     """
     with open(output_index_file, "w") as ofile:
-        if all_minimizers:
-            for seq in is_minimizer.keys():
+        # if arguments.include_unselected_minimizers:
+        #     for seq in is_minimizer.keys():
 
-                """
-                FIXME
-                """
-                for i in range(len(is_minimizer[seq])):
-                    """
-                    fasta_id_str, coord, kmer_id_at_coord, is_minimizer
-                    """
-                    ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
-        else:
-            for minimizer_sequence_coordinate, i in enumerate(range(len(coordmap))):
+        #         """
+        #         FIXME
+        #         """
+        #         for i in range(len(is_minimizer[seq])):
+        #             """
+        #             fasta_id_str, coord, kmer_id_at_coord, is_minimizer
+        #             """
+        #             ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
+        # else:
+        
+        # for minimizer_sequence_coordinate, i in enumerate(range(len(coordmap))):
 
-                ofile.write("\t".join((fasta_ids[i], minimizer_sequence_coordinate, coordmap[i][2], True)) + "\n")
+        #     ofile.write("\t".join((fasta_ids[i], minimizer_sequence_coordinate, coordmap[i][2], True)) + "\n")
 
-                
+
+        for i, ktuple in enumerate(coord_obj_array):
+            ofile.write("\t".join(list(map(str, ktuple))) + "\n")
+            if not arguments.quiet:
+                print(ktuple)
+
+        
+        
     logger.log_it("Wrote minimizers to .kdbi.1 index file '{0}'...".format(output_index_file), "INFO")
 
             
@@ -2571,10 +2579,10 @@ def cli():
     minimizer_parser.add_argument("kdb", type=str, help="A .kdb file to generate minimizers")
     #minimizer_parser.add_argument("-k", type=int, help="Choice of k for minimizer-selection", required=True)
     minimizer_parser.add_argument("-w", "--window-size",  type=int, help="Choice of window size (in base-pairs) to select minimizers with", required=True)
-
     
     minimizer_parser.add_argument("-a", "--include-unselected-minimizers", action="store_true", default=False, help="Include minimizer positions that were not selected as minimizers (length: (N-k+1)/window_size)")
     minimizer_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    minimizer_parser.add_argument("--quiet", action="store_true", default=False, help="Do not produce additional stdout")
     minimizer_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     minimizer_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
     minimizer_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)

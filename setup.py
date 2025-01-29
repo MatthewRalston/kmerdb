@@ -110,7 +110,7 @@ DESCRIPTION = 'Yet another kmer library for Python'
 long_description = 'See README.md for details'
 #REQUIRES_PYTHON = ">=3.7.4"
 REQUIRES_PYTHON = '>=3.12.2'
-VERSION = "0.8.12"
+VERSION = "0.8.13"
 URL = 'https://github.com/MatthewRalston/kmerdb'
 CURRENT_RELEASE = "https://github.com/MatthewRalston/kmerdb/archive/v{0}.tar.gz".format(VERSION)
 EMAIL = 'mralston.development@gmail.com'
@@ -204,4 +204,4 @@ if can_import('numpy') is not None:
         zip_safe=False,
     )
 else:
-    raise ValueError("Could not cythonize")
+    raise ValueError("Could not cythonize. what's wrong with you...o")
