@@ -5,8 +5,13 @@
 
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
-
-
+* 1/28/25 | [0.8.13] pre-alignment : adjustments to coordinate matching precursors, index file is now a simple linked list. just 1 vector of 4tuples across all sequences and basepairs multiplied together.
+** Releasing on PyPI as 0.8.13
+** Coord_obj_array = [(fasta_id, seqlen, i, kmer_id, is_minimizer), ...]
+*** The coordinate object array is a normalized table data structure
+*** its a list of 5-tuples (flexible to change)
+** [Acceptance tested] for the kmerdb minimizer function
+** [Unimplemented] the kmerdb alignment function
 * 1/24/25 | alignment
 
 ** Step 1: revise minimizer index file
