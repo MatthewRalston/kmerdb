@@ -1,22 +1,22 @@
 # site settings
 title: kdb
 subtitle: A Pythonic k-mer module and CLI for k-mer calculations. 
-email: mrals89@gmail.com
+email: professional.bio.coder@gmail.com
 description: A bgzf file format for the analysis and storage of k-mer abundances.
 baseurl: "/" # the subpath of your site, e.g. /blog
 url: # the base hostname & protocol for your site
 author:
   name: "Matthew Ralston"
-  email: mralston.development@gmail.com
+  email: professional.bio.coder@gmail.com
   url: "https://matthewralston.github.io"
   twitter: "TheWaterAndWind"
 
-street_address: 1170 Old Wilmington Rd.
-city: Hockessin
+street_address: Please ask
+city: Newark
 state: DE
-zip_code: 19707
+zip_code: 19711
 country: United States of America
-phone: (302) 547-2437
+phone: (610) 470-8028
 
 # homepage tiles
 tiles-source: pages # accepts "posts" or "pages"

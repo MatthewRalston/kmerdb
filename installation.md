@@ -28,7 +28,6 @@ Install locally for development
 ```bashn
 git clone git@github.com:MatthewRalston/kmerdb.git
 cd kmerdb
-pip install -r requirements.txt
 pip install .
 ```
 

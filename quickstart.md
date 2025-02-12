@@ -12,7 +12,11 @@ toc: true
 * [Install](#install)
 * [Usage](#usage)
     * [kmerdb profile](#kmerdb-profile)
+	* [kmerdb graph](#kmerdb-graph)
+	* [kmerdb minimizers](#kmerdb-minimizers)
+	* [kmerdb alignment](#kmerdb-alignment)
     * [kmerdb view](#kmerdb-view)
+	* [kmerdb header](#kmerdb-view)
     * [kmerdb matrix](#kmerdb-matrix)
 	* [kmerdb distance](#kmerdb-distance)
     * [kmerdb kmeans](#kmerdb-kmeans)
@@ -32,13 +36,13 @@ toc: true
 
 ## What is `kmerdb`?
 
-The K-mer database profile `kmerdb` is a file format (.kdb) and command-line utility (CLI) for creating k-mer count vector profiles from sequencing data. kmerdb views k-mers and their De Bruijn graphs as fundamental tools for biological sequence abundances and sequence similarities. K-mer methods have been noted as fast and are used in areas from NGS quality control to phylogenomic investigations.
+The K-mer database project `kmerdb` consists of a file format (.kdb) and command-line utility (CLI) for creating k-mer count vector profiles from sequencing data. kmerdb views k-mers and their De Bruijn graphs as fundamental tools for biological sequence abundances and sequence similarities. K-mer methods have been noted as fast and are used in areas from NGS quality control, sequence alignment, phylogenomic investigations, and more.
 
 kmerdb is based on the block GNU-zip file (bgzf) standard. Each .kdb file has a metadata header section, much like .bam files. It is essentially a tab-delimited format with a YAML header. Input file checksums, unique and total k-mer counts, and nullomer counts are stored in the metadata block at the top of the file.
 
-Please visit the [Install](#/install) page for details on installation.
+Please visit the [Install](/installation) page for details on installation.
 
-See the commands in the [Usage](#/usage) section for an idea of what functionality is built in to kdb.
+See the commands in the [Usage](#usage) section for an idea of what functionality is built in to kdb.
 
 See the original blog post on the concept [here](https://matthewralston.github.io/blog/kmer-database-format-part-1).
 
@@ -77,37 +81,101 @@ See the [install](/installation) page for development install instructions.
 # Usage
 
 
-## How to view --help
+## How to view `-h|--help`
 
 Use '-h' to view detailed usage information about the subcommands
 
+## About `--debug`
+
+A debug mode is included to omit the error handling and condensing for the purposes of reporting an error exactly as raised. This doesn't happen at all times due to the nature of exception handling in kmerdb. If the program doesn't produce a description of what it's doing with `-v|-vv` vebose log settings, then please use `-vv --debug` options to report the issue to the [issue tracker](https://github.com/MatthewRalston/kmerdb/issues).
+
 ```bash
-# Usage    --help option    --debug mode
+# Usage    -h|--help, -v|-vv verbosity, --debug mode, --quiet mode
 kmerdb --help # [+ --debug mode]
 kmerdb usage graph
 
-**** 
  o-O      |||
 o---O     |||             [|[          kmerdb           ]|]
 O---o     |||
- O-o      |||        version :     v0.8.2
+ O-o      |||        version :     v0.8.13
   O       |||
  o-O      |||        GitHub  : https://github.com/MatthewRalston/kmerdb/issues
 o---O     |||         PyPI   : https://pypi.org/project/kmerdb/
 O---o     |||      Website   : https://matthewralston.github.io/kmerdb
  O-o      |||
+
+
+
+
+
+
+
+
+
+# |||||||||||||||||||||||||||||||||||||||
+#      [ Usage ] :        |||||||||||||||
+# |||||||||||||||||||||||||||||||||||||||
+
+
+#  Check test/data for example fasta files.
+
+
+# -----------------------------
+# Generate k-mer count profiles
+# -----------------------------
+kmerdb profile -k 12 -o profile_1 input_1.fa.gz [input_2.fq] ...
+...
+
+
+# -----------------------------
+# Merge profiles
+# -----------------------------
+kmerdb matrix pass profile_1.12.kdb profile_2.12.kdb profile_3.12.kdb ... > count_matrix.tsv
+
+# -----------------------------
+# Generate inter-profile distances
+# -----------------------------
+kmerdb distance pearson count_matrix.tsv
+
+
+# -----------------------------
+# Pipeline form
+# -----------------------------
+
+kmerdb matrix pass ... | kmerdb distance pearson STDIN > pearson_correlation_matrix.tsv
+
+# -----------------------------
+# Okay, how about PCA, t-SNE?
+# -----------------------------
+kmerdb matrix PCA -n 25 ... > 25_pseudomer_count_profiles.tsv
+# kmerdb matrix tSNE -n 25
+
+
+# -----------------------------
+# k-means clustering?
+# -----------------------------
+kmerdb kmeans <Biopython|sklearn> -k 4 --distance e -i input_distance_matrix.tsv # Using 'e' for Euclidean distance with Biopython. Check the source, Biopython RTD, and sklearn RTD.
+# Produces
+
+# -----------------------------
+# okay, now straight-up hierarchical clustering:
+# -----------------------------
+kmerdb hierarchical -i input_distance_matrix.tsv --method complete # Uses complete linkage
+
+
+
                                                                        lang :         python
                                                                           v :      >= v3.7.4
 
                       package manger : pip
                         version      : >= 24.0
-        package root : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb
-        exe file     : /home/user/.local/share/virtualenvs/kdb-venv/lib/python3.12/site-packages/kmerdb/__init__.py
+        package root : /home/matt/.local/share/virtualenvs/kdb-A0LvysMk/lib/python3.12/site-packages/kmerdb
+        exe file     : /home/matt/.local/share/virtualenvs/kdb-A0LvysMk/lib/python3.12/site-packages/kmerdb/__init__.py
 
-                      required packages : 9
-                   development packages : 9
+                      required packages : 11
+                   development packages : 8
 
-           ARGV : ['/home/user/.local/share/virtualenvs/kdb-venv/bin/kmerdb', 'usage', 'graph']
+           ARGV : ['/home/matt/.local/share/virtualenvs/kdb-A0LvysMk/bin/kmerdb', 'usage', 'graph']
         
 O---o
  O-o
@@ -129,6 +197,12 @@ o---O
 
 
 Beginning program...
+========================================
+[ DEBUG ] : Default is warning-only logging. [-v,-vv, --debug, --quiet]
+[ INFO  ] : Default is warning-only logging. [-v,-vv, --debug, --quiet]
+========================================
+WARNING. Some features are experimental. Note: you are tracking kmerdb/main. Visit the README.md header, usage section, or quickstart page for additl.
+----------------------------------------
 
 
 
@@ -172,7 +246,7 @@ Beginning program...
 
                     [-]    parameters : 
 
-                           uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging. --
+                           uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging.
 
 
 
@@ -235,6 +309,30 @@ items:
     in the sequence data are added to the tally of the k-mer nodes of the de Bruijn
     graph and the edges provided by the data.
 
+
+
+
+name: steps
+type: array
+items:
+- name: read input file(s) from filesystem into k-mer arrays
+  shortname: shred inputs into k-mer count arrays
+  description: shred input sequences into k-mer count vector
+- name: merge k-mer arrays and aggregate metadata
+  shortname: merge k-mer count arrays for aggregate metadata (header)
+  description: merge counts of nullomers, unique kmers, and total kmers.
+- name: collate the weighted edge lists after reading multiple files. Output data
+    consists of a edge_list, analogous metadata-header as YAML, kmer_counts, and nullomer_ids.
+  shortname: extract undirected weighted graph
+  description: consists of info from a .kdb file and a .kdbg file. The node IDs, the
+    edges, and the number of times the pair was observed from forward sequences in
+    the provided dataset
+- name: print 'table' Final stats and close output file
+  shortname: metrics and shutdown
+  description: print final statistics, typically metadata values, and ensure file
+  is closed.
+
+  
 ...
 
 
@@ -261,12 +359,12 @@ kmerdb header profile_1.8.kdb
 ## Optional normalization, dim reduction, and distance matrix features:
 
 # K-mer count matrix - Cython Pearson coefficient of correlation [ ssxy/sqrt(ssxx*ssyy) ]
-kmerdb matrix pass *.8.kdb | kmerdb distance pearson STDIN
+kmerdb matrix from *.8.kdb | kmerdb distance pearson STDIN
 # 
 # kmerdb matrix DESeq2 *.8.kdb
 # kmerdb matrix PCA *.8.kdb
 # kmerdb matrix tSNE *.8.kdb
-#   # <pass> just makes a k-mer count matrix from k-mer count vectors.
+#   # <from> just makes a k-mer count matrix from k-mer count vectors.
 # 
 
 # Distances on count matrices [ SciPy ]  pdists + [ Cython ] Pearson correlation, scipy Spearman and scipy correlation pdist calculations are available ]
@@ -285,17 +383,59 @@ kmerdb hierarchical -i dist.tsv
 
 ```
 
-## kmredb profile
+
+## kmerdb minimizers
+
+
+The kmerdb `minimizers` command produces a plain-text index file from either a samplesheet or one-or-more `.fa|.fq` files. The output is a table of the fasta sequence identifier, the length of the sequence, the coordinate of the k-mer in the fasta sequence, the k-mer id corresponding to that position, and a boolean whether or not the k-mer id is chosen as a minimizer.
+
+```bash
+kmerdb minimizers --help
+
+usage: kmerdb minimizers [-h] -w WINDOW_SIZE [-a] [-v] [--quiet] [--debug] fasta kdb
+
+positional arguments:
+  fasta                 A fasta file (.fa) to generate minimizers from
+  kdb                   A .kdb file to generate minimizers
+
+options:
+  -h, --help            show this help message and exit
+  -w WINDOW_SIZE, --window-size WINDOW_SIZE
+                        Choice of window size (in base-pairs) to select minimizers with
+  -a, --include-unselected-minimizers
+                        Include minimizer positions that were not selected as minimizers (length: (N-k+1)/window_size)
+  -v, --verbose         Prints warnings to the console by default
+  --quiet               Do not produce additional stdout
+  --debug               Debug mode. Do not format errors and condense log
+
+```
+
+## kmerdb alignment
+
+
+TBD, Work in progress, based off of Smith-Waterman alignment using minimizer seed regions and dynamic programming seed-extension patterns.
+
+
+
+
+- Reference
+
+> Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common Molecular Subsequences". Journal of Molecular Biology. 147 (1): 195–197.
+
+
+
+
+## kmerdb profile
 
 A typical workflow first requires the generation of k-mer count vector profiles. The following command will generate multiple profiles at `$K`-mer resolution simultaneously.
 
 ```bash
-parallel 'kmerdb profile -k $K {} {.}.$K.kdb' ::: $(/bin/ls test/data/*.fasta.gz)
+parallel 'kmerdb profile -k $K -o {.} {}' ::: $(/bin/ls test/data/*.fasta.gz)
 ```
 
 NOTE: the test datasets include with the kmerdb git repository may be used to practice creating profiles, count matrices, distance matrices, and clustering output from small microbial genomic datasets.
 
-## kmerdb
+## kmerdb view
 
 As mentioned before under [KDB format](#kdb-is-a-file-format), the kdb file consists of a header or metadata section, followed by data blocks until the end of the file. The header is YAML formatted and the data blocks are formatted as tab-separated value files (.tsv), with the last/right-most column being a JSON formatted metadata column. For developers, the YAML schema can be found in the config.py file.
 ```bash
@@ -361,9 +501,9 @@ usage: kmerdb matrix [-h] [-v] [--debug] [-l LOG_FILE] [-nl {20,50,100,200}]
                      [<kdbfile1 kdbfile2 ...|input.tsv|STDIN> ...]
 
 positional arguments:
-  {PCA,tSNE,DESeq2,pass,Frequency}
+  {PCA,tSNE,DESeq2,from}
                         Choice of dimensionality reduction, normalization
-                        method (DESeq2), or pass (no action)
+                        method (DESeq2), or matrix-from (collate data only)
   <kdbfile1 kdbfile2 ...|input.tsv|STDIN>
                         Two or more .kdb files, or another count matrix in
                         tsv/csv
