@@ -463,13 +463,16 @@ def id_to_kmer(id, k):
     else:
         kmer = ""
         for i in range(k):
+
+            
             kmer += binaryToLetter[id & 0x03]
             id = id >> 2
         kmer = list(kmer)
 
         assert len(kmer) == k, "kmer.id_to_kmer encountered an inconsistency error"
-        
+
         #just_reversed = kmer.reverse()
+        kmer.reverse()
         return ''.join(kmer)
 
 
