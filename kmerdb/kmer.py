@@ -81,9 +81,9 @@ standard_letters=set("ACTG") # Backwards compatibility
 # IUPAC_NA_TRIPLET_CHARACTERS
 # IUPAC_NA_DOUBLE_CHARACTERS
 # ALL_IUPAC_SYMBOLS
-__permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS.union(IUPAC_NA_DOUBLET_CHARS).union(standard_letters) # set("ACTGRYSWKMBDHV")
-__permitted_NA_characters_with_N = __permitted_NA_characters.union(set(n))
-__core_NA_letters=set("ACTG") 
+permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS.union(IUPAC_NA_DOUBLET_CHARS).union(standard_letters) # set("ACTGRYSWKMBDHV")
+permitted_NA_characters_with_N = permitted_NA_characters.union(set(n))
+core_NA_letters=set("ACTG") 
 
 
 
@@ -128,9 +128,10 @@ class Kmers:
         self.strand_specific = strand_specific
         self.verbose = verbose
         self.all_metadata = all_metadata
-        self.__all_permitted_NA_characters = __permitted_NA_characters_with_N
-        self.__permitted_NA_characters_with_N = __permitted_NA_characters_with_N
-        self.__permitted_extended_NA_characters = __permitted_NA_characters
+        #self.__all_permitted_NA_characters = __permitted_NA_characters_with_N
+        self._permitted_NA_characters = permitted_NA_characters_with_N
+        self._permitted_NA_characters_with_N = permitted_NA_characters_with_N
+        self._permitted_extended_NA_characters = permitted_NA_characters
 
     def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, is_fasta:bool=True, quiet_iupac_warning:bool=True):
         """
@@ -160,13 +161,13 @@ class Kmers:
             logger.error("Offending sequence ID: {0}".format(seqRecord.id))
             raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects that each input sequence is longer than k.")
         
-        extended_iupac_symbols = list(letters.intersection(self.__permitted_chars) - standard_letters)
-        has_N = __permitted_NA_characters_with_N 
-        all_non_iupac_symbols = list(letters - self.__permitted_chars)
+        extended_iupac_symbols = list(letters.intersection(self._permitted_NA_characters) - standard_letters)
+        has_N = self._permitted_NA_characters_with_N 
+        all_non_iupac_symbols = list(letters - self._permitted_NA_characters)
         
         if len(all_non_iupac_symbols) > 0:
             logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.is_fasta else "fastq"))
-            logger.warning(list(letters - self.__permitted_chars))
+            logger.warning(list(letters - self._permitted_NA_characters))
             raise ValueError("Non-IUPAC symbols detected in the fasta file")
         elif len(extended_iupac_symbols) > 0: # FIXME: 
             if quiet_iupac_warning is False:
@@ -199,7 +200,7 @@ class Kmers:
             kmer_seq = seqRecord.seq[i:(i+self.k)] # Creates the k-mer as a slice of a seqRecord.seq
             # No non-standard IUPAC residues allowed for _shred for use in graph.py
             nonstandard_iupac_symbols = list(set(kmer_seq) - standard_letters)
-            non_iupac_symbols = list(set(kmer_seq) - self.__permitted_chars)
+            non_iupac_symbols = list(set(kmer_seq) - self._permitted_NA_characters)
 
             if len(non_iupac_symbols) > 1:
                 logger.error("Non-IUPAC symbols:")
@@ -237,8 +238,8 @@ class Kmers:
         kmers = [seqRecord.seq[i:(i+self.k)] for i in range(seqlen - self.k + 1)]
 
         for s in kmers:
-            iupac_symbols = list(set(list(s)).intersection(self.__permitted_chars))
-            non_iupac_symbols = list(set(list(s)) - self.__permitted_chars)
+            iupac_symbols = list(set(list(s)).intersection(self._permitted_NA_characters))
+            non_iupac_symbols = list(set(list(s)) - self._permitted_NA_characters)
 
             ######################################################################33
             #       I U P A C        m o d u l e
@@ -329,7 +330,7 @@ class Kmers:
                     # So even though the lambda is correct, you have to do separate metadata for each id
             # elif len(non_iupac_symbols) > 0:
             #     sys.stderr.write("TEST CONDITIONS:\n")
-            #     sys.stderr.write("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self.__permitted_chars)) + "\n")
+            #     sys.stderr.write("Non-permitted characters should be 0: {0}".format(len(set(str(s)) - self._permitted_NA_characters)) + "\n")
             #     sys.stderr.write("IUPAC symbols should be > 0: {0}".format(len(iupac_symbols)) + "\n")
             #     sys.stderr.write("Non-IUPAC characters should be 0: {0}".format(len(non_iupac_symbols)) + "\n")
             #     sys.stderr.write("Non-IUPAC symbols: {0}".format(non_iupac_symbols) + "\n")
@@ -347,7 +348,7 @@ class Kmers:
             #         sys.stderr.write("This caused the following KeyError\n")
             #         sys.stderr.write(e.__str__() + "\n")
             #         sys.stderr.write("Letters in the sequence: {0}".format(letters) + "\n")
-            #         sys.stderr.write("Permitted letters: {0}".format(self.__permitted_chars) + "\n")
+            #         sys.stderr.write("Permitted letters: {0}".format(self._permitted_NA_characters) + "\n")
             #         raise RuntimeError("IUPAC standard extra base pairs (R, B, etc.) or non-IUPAC characters detected in the sequence")
             del s
         if self.verbose:
