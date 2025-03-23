@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.14" # LOL 03-01-25 omfg.
+VERSION="0.8.15" # LOL 03-01-25 omfg.
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
