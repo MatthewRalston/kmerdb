@@ -71,7 +71,7 @@ kmerdb profile -k 12 -o profile_1 input_1.fa.gz [input_2.fq] ...
 # -----------------------------
 # Merge profiles
 # -----------------------------
-kmerdb matrix pass profile_1.12.kdb profile_2.12.kdb profile_3.12.kdb ... > count_matrix.tsv
+kmerdb matrix from profile_1.12.kdb profile_2.12.kdb profile_3.12.kdb ... > count_matrix.tsv
 
 # -----------------------------
 # Generate inter-profile distances
@@ -260,7 +260,7 @@ COMMANDS = [
 
 
         
-command_1_description = "create a k-mer count vector from fasta input. g-zipped/.bgzf   -  4 column table with YAML header."
+command_1_description = "create a k-mer count vector from fasta/fastq input. g-zipped/.bgzf   -  4 column table with YAML header."
 command_1_description_long = """
 
       :           4 columns output table       :    [   row idx   |   k-mer id  |    count   |  frequency  ]
@@ -275,7 +275,7 @@ command_1_description_long = """
 
 
 
->kmerdb profile -k 12 test/data/Cdifficile_R3.fa.gz output.12.kdb
+>kmerdb profile -k 12 -o profile_1 test/data/Cdifficile_R3.fa.gz
 
 
 ...
@@ -349,7 +349,7 @@ files:
 
 command_1_parameters = "use < -k > for k-mer size, --quiet to stop STDOUT redundancy, -vv for debug level logging. -v for info."
 command_1_inputs = "Input file can be < .fasta | .fastq | .fa.gz >. Last positional arg is output, a gzipped .tsv of k-mer counts and frequencies"
-command_1_usage = "kmerdb profile -k $K --quiet <example_1.fa.gz> [example_2.fq.gz] <output_count_vector_file.12.kdb>"
+command_1_usage = "kmerdb profile -k $K --quiet --debug -vv -o output_profile1 <example_1.fa.gz> [example_2.fq.gz]"
 COMMAND_1_BANNER = """
 
 
