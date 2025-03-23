@@ -15,16 +15,21 @@ valid_kdb_filepath = os.path.join(os.path.dirname(__file__), "data/test_Cac_ATCC
 valid_kdb_metadata_str = """
 count_dtype: uint64
 files:
-- filename: test/data/Cacetobutylicum_ATCC824.fasta.gz
+- avg_read_length: 2066440
+  filename: test/data/Cacetobutylicum_ATCC824.fasta.gz
+  max_read_length: 0
   md5: 0a0f73e1c8b8285703e29279bafaabef
+  min_read_length: 50
   nullomers: 1433
   sha256: f9081291b62ff3387f1ca6ee2484669c849ed1840fdf2dd9dc3a0c93e9e87951
   total_kmers: 4132866
   total_reads: 2
   unique_kmers: 64103
 frequencies_dtype: float64
-header_offset: 324
+header_offset: 377
 k: 8
+kmer_coverage: 1826
+kmer_coverage_histogram_dtype: uint64
 kmer_ids_dtype: uint64
 metadata: false
 metadata_blocks: 1
@@ -34,7 +39,7 @@ tags: []
 total_kmers: 4132866
 unique_kmers: 64103
 unique_nullomers: 1433
-version: 0.8.3
+version: 0.8.15
 """
  
 

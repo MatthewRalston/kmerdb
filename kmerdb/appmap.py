@@ -30,7 +30,7 @@ from kmerdb import config, util
 yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
 
 default_logline_choices = (20, 50, 100, 200)
-PINNED_ISSUES = (140, 141, 143, 149, 150, 153,)
+PINNED_ISSUES = (140, 143, 150, 152, 153,)
 
 PROGRAM_BANNER = """
 
@@ -208,7 +208,7 @@ GITHUB_PROJECT_BANNER = """
                   ||      G i t H u b     ||
 ==============================================================
                          Repo: kmerdb
-               Feature branch: interface
+               Feature branch: main
 
 Issue Tracker: https://github.com/MatthewRalston/kmerdb/issues
 -------------------------------------------------------
@@ -491,12 +491,12 @@ COMMAND_1_STEPS = OrderedDict({
         OrderedDict({
             "name": "collate the count array",
             "shortname": "collate the count array",
-            "description": "aggregate counts from different input files"
+            "description": "aggregate counts from different sequences within a single file"
         }),
         OrderedDict({
             "name": "merge k-mer arrays and aggregate metadata",
-            "shortname": "merge k-mer count arrays for aggregate metadata (header)",
-            "description": "merge counts of nullomers, unique kmers, and total kmers."
+            "shortname": "merge k-mer count arrays and metadata (header) across all files",
+            "description": "merge counts of nullomers, unique kmers, and total kmers across all files."
         }),
         OrderedDict({
             "name": "print 'table' Final stats and close output file",
