@@ -10,8 +10,6 @@ jobs:
     steps:
       - checkout
       - run:
-          command: rm .python-version
-      - run:
           command: python3 --version
           name: Check python version
       - python/install-packages:
