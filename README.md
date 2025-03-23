@@ -4,14 +4,18 @@
 NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn graph edge-list formats.
 
 ## Development Status
-[![Downloads](https://static.pepy.tech/personalized-badge/kmerdb?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads)](https://pypi.org/project/kmerdb)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/kmerdb)
-[![GitHub Downloads](https://img.shields.io/github/downloads/MatthewRalston/kdb/total.svg?style=social&logo=github&label=Download)](https://github.com/MatthewRalston/kmerdb/releases)
+![GitHub License](https://img.shields.io/github/license/matthewralston/kmerdb)
 [![PyPI version](https://img.shields.io/pypi/v/kmerdb.svg)][pip]
 [![Python versions](https://img.shields.io/pypi/pyversions/kmerdb.svg)][Pythons]
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/TxK1S2m7siJCSY89Dc6s4A/Dm3xDervECRDhDYKUkgUJN/tree/main)
 [![codecov](https://codecov.io/gh/MatthewRalston/kmerdb/graph/badge.svg?token=8VB0RVRTSV)](https://codecov.io/gh/MatthewRalston/kmerdb)
 [![ReadTheDocs status](https://readthedocs.org/projects/kmerdb/badge/?version=latest&style=flat)][RTD]
+[![Downloads](https://static.pepy.tech/personalized-badge/kmerdb?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads)](https://pypi.org/project/kmerdb)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/kmerdb)
+![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/matthewralston/kmerdb/latest/total)
+<!--
+[![GitHub Downloads](https://img.shields.io/github/downloads/MatthewRalston/kmerdb/total.svg?style=social&logo=github&label=Download)](https://github.com/MatthewRalston/kmerdb/releases)
+-->
 
 
 [pip]: https://pypi.org/project/kmerdb/
@@ -31,6 +35,8 @@ NOTE: Beta-stage `.bgzf` and `zlib` compatible k-mer count vectors and DeBruijn 
 - [ x ] `kmerdb usage subcommand_name`
   - `profile` - Make k-mer count vectors/profiles, calculate unique k-mer counts, total k-mer counts, nullomer counts. Import to read/write NumPy arrays from profile object attributes.
   - `graph` - Make a weighted edge list of kmer-to-kmer relationships, akin to a De Bruijn graph.
+  - `minimizers` - Generate minimizers in a plain-text format from input sequences.
+  - `alignment` - Generate Smith-Waterman alignment (not yet functional)
   - `usage` - Display verbose input file/parameter and algorithm details of subcommands.
   - `help` - Display verbose input file/parameter and algorithm details of subcommands.
   - `view` - View .tsv count/frequency vectors with/without preamble.
@@ -77,18 +83,18 @@ kmerdb profile -vv -k 8 --output-name sample_1 sample_1_rep1.fq.gz [sample_1_rep
 kmerdb graph -vv -k 12 example_1.fq.gz example_2.fq.gz edges_1.kdbg
 
 # View k-mer count vector
-kmerdb view -vv profile_1.8.kdb # -H for full header
+kmerdb view profile_1.8.kdb # -H for full header
 
 # Note: zlib compatibility
 #zcat profile_1.8.kdb
 
 # View header (config.py[kdb_metadata_schema#L84])
-kmerdb header -vv profile_1.8.kdb
+kmerdb header profile_1.8.kdb
 
 ## [ 3 main features: ]   [ 2. Optional normalization, PCA/tSNE, and distance metrics ]
 
 # K-mer count matrix - Cython Pearson coefficient of correlation [ ssxy/sqrt(ssxx*ssyy) ]
-kmerdb matrix -vv from *.8.kdb | kmerdb distance pearson STDIN
+kmerdb matrix from *.8.kdb | kmerdb distance pearson STDIN
 # 
 # kmerdb matrix -vv DESeq2 *.8.kdb
 # kmerdb matrix -vv PCA *.8.kdb
