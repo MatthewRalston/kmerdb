@@ -35,14 +35,14 @@ a list of the unicode character encodings for the DNA alphabet
 note 65 is A, 67 is C, 71 is G, 84 is T.
 """
 
-letterToBinary={ # Unicode UTF-8 byte codes for standard NA residues: ACGT NOTE: letterToBinaryNA
+letterToBinaryNA={ # Unicode UTF-8 byte codes for standard NA residues: ACGT NOTE: letterToBinaryNA
     65: 0,
     67: 1,
     71: 2,
     84: 3
 }
-binaryToLetter=['A', 'C', 'G', 'T'] # FIXME: binaryToLetterNA
-standard_letters=set("ACTG")
+binaryToLetterNA=['A', 'C', 'G', 'T'] # FIXME: binaryToLetterNA
+standard_lettersNA=set("ACTG")
 
 
 """
@@ -65,28 +65,115 @@ IUPAC_NA_TRIPLETS = {
 }
 IUPAC_NA_TRIPLET_CHARS=set(IUPAC_NA_TRIPLETS.keys())
 # *extremely* necessary variable
-n = "N"
-#############################
-#
-# Lambdas
-#
-#############################
 
 
-get_doublet_chars = lambda x: IUPAC_NA_DOUBLETS[x] # list
-get_triplet_chars = lambda x: IUPAC_NA_TRIPLETS[x]
+permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS.union(IUPAC_NA_DOUBLET_CHARS).union(standard_lettersNA) # set("ACTGRYSWKMBDHV")
+permitted_NA_characters_with_N = permitted_NA_characters.union(set("N"))
+
+
+
+
+"""
+Amino acid dictionaries
+"""
+
+letterToBinaryAA = {
+    65: 0, # A
+    67: 1, # C
+    68: 2, # D
+    69: 3, # E
+    70: 4, # F
+    71: 5, # G
+    72: 6, # H
+    73: 7, # I
+    75: 8, # K
+    76: 9, # L
+    77: 10,# M
+    78: 11,# N
+    80: 12,# P
+    81: 13,# Q
+    82: 14,# R
+    83: 15,# S
+    84: 16,# T
+    86: 17,# V
+    87: 18,# W
+    88: 19, # X = Unknown amino acid
+    89: 20,# Y
+    33: 21, # ! = dummy
+    34: 22, # " = dummy
+    35: 23, # # = dummy
+    36: 24, # $ = dummy
+    37: 25, # % = dummy
+    38: 26, # & = dummy
+    39: 27, # ' = dummy
+    40: 28, # (
+    41: 29, # ) 
+    42: 30, # *
+    43: 31, # +
+    44: 32, # ,
+}
+
+binaryToLetterAA = ["A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y"] + ["!", '"', "#", "$", "%", "&", "'", "(", ")", "*", "+", ","] # original 20 elements + 12 dummy characters
+
+standard_lettersAA = set(binaryToLetterAA)
+
+IUPAC_AA_DOUBLETS = {
+    "B": ["R", "N"], # Aspartate (R) or Aspartamine (N)
+    "Z": ["E", "Q"], # Glutamate (E) or Glutamine (Q)
+    "J": ["L", "I"]  # Leucine (L) or Isoleucine (I)
+}
+IUPAC_AA_DOUBLET_CHARS=set(IUPAC_AA_DOUBLETS)
+
+get_doublet_chars_AA = lambda x: IUPAC_AA_DOUBLETS[x]
+get_triplet_chars_AA = lambda x: IUPAC_AA_DOUBLETS[x]
+permitted_AA_characters = standard_lettersAA
+permitted_AA_characters_extended = standard_lettersAA.union(IUPAC_AA_DOUBLET_CHARS)
+
+
+
+#############################
+#
+# Key quick lambdas
+#
+#############################
 replace_char = lambda seq, x, y: seq.replace(x, y) # str
 
-standard_letters=set("ACTG") # Backwards compatibility
-# IUPAC_NA_TRIPLET_CHARACTERS
-# IUPAC_NA_DOUBLE_CHARACTERS
-# ALL_IUPAC_SYMBOLS
-permitted_NA_characters = IUPAC_NA_TRIPLET_CHARS.union(IUPAC_NA_DOUBLET_CHARS).union(standard_letters) # set("ACTGRYSWKMBDHV")
-permitted_NA_characters_with_N = permitted_NA_characters.union(set(n))
-core_NA_letters=set("ACTG") 
+get_doublet_chars_AA = lambda x: IUPAC_AA_DOUBLETS[x]
+get_triplet_chars_AA = lambda x: IUPAC_AA_DOUBLETS[x]
+get_doublet_chars_NA = lambda x: IUPAC_NA_DOUBLETS[x] # list
+get_triplet_chars_NA = lambda x: IUPAC_NA_TRIPLETS[x]
+
+def is_sequence_na(s:str):
+    if type(s) is str:
+        letters = set(str(s))
+    elif isinstance(s, Bio.SeqRecord.SeqRecord):
+        letters = set(str(s.seq))
+    else:
+        raise TypeError("kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument")
+
+    if letters.difference(permitted_NA_characters_with_N) == set():
+        return True
+    elif letters.difference(permitted_AA_characters_extended) == set():
+        return False
+    else:
+        raise ValueError("Unable to determine IUPAC nature of the following sequence\n{0}".format(s))
 
 
+def is_sequence_aa(s:str):
+    if type(s) is str:
+        letters = set(str(s))
+    elif isinstance(s, Bio.SeqRecord.SeqRecord):
+        letters = set(str(s.seq))
+    else:
+        raise TypeError("kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument")
 
+    if letters.difference(permitted_AA_characters_extended) == set():
+        return True
+    elif letters.difference(permitted_NA_characters_with_N) == set():
+        return False
+    else:
+        raise ValueError("Unable to determine IUPAC nature of the following sequence\n{0}".format(s))
+    
 
 #############################
 #
@@ -102,7 +189,7 @@ class Kmers:
     :ivar verbose: print extra logging in the case of fasta files
     :ivar all_metadata: return extra metadata about sequence locations
     """
-    def __init__(self, k, strand_specific:bool=True, verbose:bool=False, all_metadata:bool=False):
+    def __init__(self, k, strand_specific:bool=True, amino_acid:bool=False, verbose:bool=False, all_metadata:bool=False):
         """
 
         :param k: The choice of k to shred with
@@ -119,25 +206,48 @@ class Kmers:
         if type(k) is not int:
             raise TypeError("kmerdb.kmer.Kmers expects an int as its first positional argument")
         elif type(strand_specific) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers expects a bool as its second positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its first keyword argument 'strand_specific'")
+        elif type(amino_acid) is not bool:
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its second keyword argument 'amino_acid'")
         elif type(verbose) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers expects a bool as its third positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its third keyword argument 'verbose'")
         elif type(all_metadata) is not bool:
-            raise TypeError("kmerdb.kmer.Kmers expects a bool as its fourth positional argument")
+            raise TypeError("kmerdb.kmer.Kmers expects a bool as its fourth keyword argument 'all_metadata' [DEPRECATED]")
         self.k = k 
         self.strand_specific = strand_specific
+        self.amino_acid = amino_acid
         self.verbose = verbose
         self.all_metadata = all_metadata
+
         #self.__all_permitted_NA_characters = __permitted_NA_characters_with_N
-        self._permitted_NA_characters = permitted_NA_characters_with_N
-        self._permitted_NA_characters_with_N = permitted_NA_characters_with_N
-        self._permitted_extended_NA_characters = permitted_NA_characters
+        if self.amino_acid is False:
+            self.n = "N"
+            self.IUPAC_DOUBLET = IUPAC_NA_DOUBLETS
+            self.IUPAC_TRIPLET = IUPAC_NA_TRIPLETS
+            self.get_doublet_chars = get_doublet_chars_NA
+            self.get_triplet_chars = get_triplet_chars_NA
+            
+            self._permitted_characters = permitted_NA_characters_with_N
+            self._permitted_characters_with_N = permitted_NA_characters_with_N
+            self._permitted_characters_extended = permitted_NA_characters
+            self.standard_letters = standard_lettersNA
+        else:
+            self.n = "X"
+            self.IUPAC_DOUBLE = IUPAC_AA_DOUBLETS
+            self.IUPAC_TRIPLET = {}
+            self.get_doublet_chars = get_doublet_chars_AA
+            self.get_triplet_chars = get_doublet_chars_AA
+            
+            self._permitted_characters = permitted_AA_characters
+            self._permitted_characters_with_N = permitted_AA_characters
+            self._permitted_characters_extended = permitted_AA_characters_extended
+            self.standard_letters = standard_lettersAA
 
-    def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, is_fasta:bool=True, quiet_iupac_warning:bool=True):
+    def validate_seqRecord_and_detect_IUPAC(self, seqRecord:Bio.SeqRecord.SeqRecord, is_fasta:bool=True, is_aa:bool=False, quiet_iupac_warning:bool=True):
         """
-        Helper method for validating seqRecord and warnings for non-standard IUPAC residues.
+        Helper method for validating seqRecord and warnings for non-standard IUPAC residues for Nucleic Acid sequences
 
-        :param seqRecord: a BioPython SeqRecord object 
+        :param seqRecord: a BioPython SeqRecord object containing a nucleic acid string
         :type seqRecord: Bio.SeqRecord.SeqRecord 
         :param is_fasta: are the inputs ALL .fasta?
         :type is_fasta: bool
@@ -150,33 +260,35 @@ class Kmers:
 
         """
         if type(quiet_iupac_warning) is not bool:
-            raise TypeError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects keyword argument 'quiet_iupac_warning' to be a bool")
+            raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects keyword argument 'quiet_iupac_warning' to be a bool")
+        elif type(is_aa) is not bool:
+            raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects keyword argument 'is_aa' to be a bool")
         elif not isinstance(seqRecord, Bio.SeqRecord.SeqRecord):
-            raise TypeError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
-        letters = set(seqRecord.seq) # This is ugly. Should really be explicitly cast to str
-        seqlen = len(seqRecord.seq)  # `` Ditto. Should be explicitly cast to str
+            raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+        letters = set(str(seqRecord.seq)) 
+        seqlen = len(str(seqRecord.seq))  
 
         
         if seqlen < self.k:
             logger.error("Offending sequence ID: {0}".format(seqRecord.id))
-            raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects that each input sequence is longer than k.")
+            raise ValueError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC_NA expects that each input sequence is longer than k.")
         
-        extended_iupac_symbols = list(letters.intersection(self._permitted_NA_characters) - standard_letters)
-        has_N = self._permitted_NA_characters_with_N 
-        all_non_iupac_symbols = list(letters - self._permitted_NA_characters)
+        extended_iupac_symbols = list(letters.intersection(self._permitted_characters_extended) - self.standard_letters)
+        #has_N = self._permitted_NA_characters_with_N 
+        all_non_iupac_symbols = list(letters - self._permitted_characters_extended)
         
         if len(all_non_iupac_symbols) > 0:
             logger.warning("One or more unexpected characters in the {0} sequence".format("fasta" if self.is_fasta else "fastq"))
-            logger.warning(list(letters - self._permitted_NA_characters))
-            raise ValueError("Non-IUPAC symbols detected in the fasta file")
+            logger.warning(all_non_iupac_symbols)
+            raise ValueError("Non-IUPAC symbols detected in the sequence '{0}'".format(seqRecord.id))
         elif len(extended_iupac_symbols) > 0: # FIXME: 
             if quiet_iupac_warning is False:
-                logger.warning("Will completely refuse to include k-mers with 'N'")
+                logger.warning("Will completely refuse to include k-mers with 'N' (or 'X' for AA sequences)")
                 logger.warning("All counts for k-mers including N will be discarded")
                 logger.warning("Other IUPAC symbols will be replaced with their respective pairs/triads")
                 logger.warning("And a count will be given to each, rather than a half count")
             elif quiet_iupac_warning is True:
-                logger.warning("Suppressing warning that non-standard IUPAC residues (including N) are detected.")
+                logger.warning("Suppressing warning that non-standard IUPAC residues (including N/X) are detected.")
         return (letters, seqlen)
 
 
@@ -199,8 +311,8 @@ class Kmers:
         for i in range(seqlen - self.k + 1):
             kmer_seq = seqRecord.seq[i:(i+self.k)] # Creates the k-mer as a slice of a seqRecord.seq
             # No non-standard IUPAC residues allowed for _shred for use in graph.py
-            nonstandard_iupac_symbols = list(set(kmer_seq) - standard_letters)
-            non_iupac_symbols = list(set(kmer_seq) - self._permitted_NA_characters)
+            nonstandard_iupac_symbols = list(set(kmer_seq) - self.standard_letters)
+            non_iupac_symbols = list(set(kmer_seq) - self._permitted_characters_extended)
 
             if len(non_iupac_symbols) > 1:
                 logger.error("Non-IUPAC symbols:")
@@ -209,7 +321,7 @@ class Kmers:
             elif len(nonstandard_iupac_symbols) == 0:
                 #logger.debug("Perfect sequence content (ATCG) detected...")
                 kmers.append(kmer_to_id(s))
-            elif len(nonstandard_iupac_symbols) == 1 and iupac_symbols[0] == n:
+            elif len(nonstandard_iupac_symbols) == 1 and iupac_symbols[0] == self.n:
                 #logger.debug("Only N-abnormal sequence content detected (aside from ATCG)...")
                 kmers.append(kmer_to_id(s))
             elif len(nonstandard_iupac_symbols) > 1:
@@ -217,7 +329,7 @@ class Kmers:
                 raise RuntimeError("Non-standard IUPAC symbols detected in .fa/.fq file...")
         return kmers
             
-    def shred(self, seqRecord):
+    def shred(self, seqRecord, is_aa:bool=False):
         """
         Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
         Doublets become replace with two counts, etc.
@@ -230,7 +342,8 @@ class Kmers:
         :rtype: dict
 
         """
-        letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, quiet_iupac_warning=True)
+
+        letters, seqlen = self.validate_seqRecord_and_detect_IUPAC(seqRecord, is_aa=is_aa, quiet_iupac_warning=True)
 
             
         kmers = []
@@ -238,8 +351,8 @@ class Kmers:
         kmers = [seqRecord.seq[i:(i+self.k)] for i in range(seqlen - self.k + 1)]
 
         for s in kmers:
-            iupac_symbols = list(set(list(s)).intersection(self._permitted_NA_characters))
-            non_iupac_symbols = list(set(list(s)) - self._permitted_NA_characters)
+            iupac_symbols = list(set(list(s)).intersection(self._permitted_characters_extended))
+            non_iupac_symbols = list(set(list(s)).difference(self._permitted_characters_extended))
 
             ######################################################################33
             #       I U P A C        m o d u l e
@@ -252,10 +365,10 @@ class Kmers:
                 sys.stderr.write("running IUPAC module. generating sequences. L252\n") # 10/1/24
                 sys.stderr.write("system message: k-mer sequence -        [| {0} |]\n".format(s))
                 sys.stderr.write("Iterating over k-mer for doublet/triplet iupac expansion\n")
-            nonstandard_chars = (set(list(s)) - set(n)) - standard_letters
+            nonstandard_chars = (set(list(s)) - set(self.n)) - self.standard_letters
             for c in list(nonstandard_chars):
 
-                print("Non-permitted character found: {0}".format(c))
+                sys.stderr.write("Non-permitted character found: {0}".format(c))
                 raise RuntimeError("can we get in here actually?")
                 sys.stderr.write("character: {0}\n".format(c))
                 sys.stderr.write("K-mer: {0}\n".format(s))
@@ -263,30 +376,29 @@ class Kmers:
                 sys.stderr.write("Non-IUPAC symbols in the whole sequence: {0}\n".format(non_iupac_symbols))
                 if len(iupac_symbols) > 0:
                     sys.stderr.write("expanding iupac doublets/triplets...\n")
-                print("seq0: {0}".format(seqs))
-                if c in standard_letters:
+                #print("seq0: {0}".format(seqs))
+                if c in self.standard_letters:
                     raise ValueError("Cannot have standard letters to this point")
 
 
-                
                 # print(c)
                 # print("doublet expansions:")
-                if c in IUPAC_TO_DOUBLET.keys():
-                    for x in get_doublet_chars(c):
+                if c in self.IUPAC_DOUBLET.keys():
+                    for x in self.get_doublet_chars(c):
                         doublet1, doublet2 = replace_char(s, c, x)
                         seqs.append(doublet1)
                         seqs.append(doublet2)
 
-                if c in IUPAC_TO_TRIPLET.keys():
-                    for x in get_triplet_chars(c):
-                        trip1, trip2, trip3 = replace_chars(s, c, x)
+                if c in self.IUPAC_TRIPLET.keys():
+                    for x in self.get_triplet_chars(c):
+                        trip1, trip2, trip3 = replace_char(s, c, x)
                         seqs.append(trip1)
                         seqs.append(trip2)
                         seqs.append(trip3)
             
             if seqs is None and len(non_iupac_symbols) > 0:
                 raise ValueError("Non-IUPAC symbols detected in {0}".format(s))
-            elif seqs is None and len(iupac_symbols) == 4 and len(set(iupac_symbols) - standard_letters) == 0:
+            elif seqs is None and len(iupac_symbols) == 4 and len(set(iupac_symbols) - self.standard_letters) == 0:
                 e = ValueError("standard iupac symbols likely. ATCG or a subset for this k-mer. Likely not generated from sequencing data")
                 #raise e
                 continue # 9/30/24 whooopsshuaazzzaaah
@@ -390,7 +502,7 @@ class Kmers:
 
     
 
-def kmer_to_id(s):
+def kmer_to_id(s, is_aa:bool=False):
     """Convert a fixed length k-mer string to the binary encoding parameterized upon that same k
 
     Note that the conversion of a k-mer string to an id integer
@@ -414,35 +526,71 @@ def kmer_to_id(s):
 
     :param s: The input k-mer as string
     :type s: str
+    :param is_aa: Is the input an amino acid?
+    :type is_aa: bool
     :raise TypeError: str argument required, non-str type detected
     :raise KeyError: Non-standard (ATCG) character detected
     :returns: The kPal-inspired binary encoding (thanks!)
     :rtype: int
 
     """
-
-    if not isinstance(s, str) and type(s) is not str and not isinstance(s, Bio.Seq.Seq) and not isinstance(s, Bio.SeqRecord.SeqRecord): # Typecheck the input k-mer
+        # and not isinstance(s, Bio.Seq.Seq)  # Shortened the checker as this is a common function.
+    if type(s) is not str and not isinstance(s, Bio.SeqRecord.SeqRecord) and not isinstance(s, Bio.Seq.Seq): # Typecheck the input k-mer
         logger.error("Seq: {0}, type: {1}".format(s, type(s)))
-        raise TypeError("kmerdb.kmer.kmer_to_id expects a str as its argument")
-    elif s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
+        raise TypeError("kmerdb.kmer.kmer_to_id expects a str as its positional argument")
+    """
+    Determine if sequence is NA or AA
+    Offloaded to a bool
+    
+    Omitting the is_aa bool typecheck as this is a frequently used function
+    """
+    idx = 0
+    if is_aa is True and s.find("X") != -1:
+        idx = None
+    elif is_aa is False and s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
-        return None
-    else: 
-        idx = 0
-        if isinstance(s, Bio.Seq.Seq) or isinstance(s, Bio.SeqRecord.SeqRecord):
-            s = str(s)
-        for c in bytes(s, "UTF-8"): # Use byteshifting for fast conversion to binary encoding
-            idx = idx << 2
+        idx = None
+
+    # print("Is sequence NA? {0}".format(is_sequence_na(str(s))))
+    # print("Is sequence AA? {0}".format(is_sequence_aa(str(s))))
+        
+    if is_aa is False and is_sequence_na(str(s)) is True: #and is_sequence_aa(str(s)) is False:
+        #logger.debug("k-mer '{0}' is determined as an nucleic acid sequence".format(s))
+        pass
+    elif is_aa is True and is_sequence_aa(str(s)) is True: #and is_sequence_na(str(s)) is False:
+        #logger.debug("k-mer '{0}' is determined as an amino acid sequence".format(s))
+        pass
+    else:
+        
+        raise ValueError("Could not determine whether sequence was amino acid or nucleic acid: \n{0}".format(str(s)))
+
+    if isinstance(s, Bio.Seq.Seq) or isinstance(s, Bio.SeqRecord.SeqRecord):
+        s = str(s)        
+    for c in bytes(s, "UTF-8"): # Use byteshifting for fast conversion to binary encoding
+        #print("Full sequence: {0}".format(s))
+        #print("Character: {0}".format(c))
+        if is_aa is True:
+            idx = idx << 5
             try:
-                idx = idx | letterToBinary[c]
+                idx = idx | letterToBinaryAA[c]
             except KeyError as e:
                 sys.stderr.write("Entire sequence: {0}".format(s) + "\n")
                 sys.stderr.write("Problematic character: {0}".format(c) + "\n")
                 raise e
-        return idx
+        elif is_aa is False:
+            idx = idx << 2
+            try:
+                idx = idx | letterToBinaryNA[c]
+            except KeyError as e:
+                sys.stderr.write("Entire sequence: {0}".format(s) + "\n")
+                sys.stderr.write("Problematic character: {0}".format(c) + "\n")
+                raise e
+    if idx is None:
+        raise ValueError("kmer.kmer_to_id produced an invalid k-mer id")
+    return idx
 
 
-def id_to_kmer(id, k):
+def id_to_kmer(id, k, is_aa:bool=False):
     """
     Convert an id_to_kmer. I don't understand this docstring's purpose.
 
@@ -461,16 +609,26 @@ def id_to_kmer(id, k):
     elif type(k) is not int:
         sys.stderr.write(str(type(k)) + "\n")
         raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
-    else:
+    elif type(is_aa) is not bool:
+        raise TypeError("kmerdb.id_to_kmer expects the keyword argument 'is_aa' to be a bool")
+    
         kmer = ""
         for i in range(k):
 
-            
-            kmer += binaryToLetter[id & 0x03]
-            id = id >> 2
+            if is_aa is False:
+                kmer += binaryToLetterNA[id & 0x03]
+                id = id >> 2
+            elif is_aa is True:
+                kmer += binaryToLetterAA[id & 0x1F] # 1F otherwise
+                id = id >> 5
         kmer = list(kmer)
+        kmer_len = len(kmer)
 
-        assert len(kmer) == k, "kmer.id_to_kmer encountered an inconsistency error"
+        if kmer_len != 0:
+            raise ValueError("kmer.id_to_kmer returned an empty k-mer. The kmer-id was '{0}', the choice of k is {1}".format(id, k))
+        elif kmer_len != k:
+            raise ValueError("kmer.id_to_kmer encountered an inconsistency error. Expected lenght of k-mer sequence was {0}".format(k, kmer_len))
+
 
         #just_reversed = kmer.reverse()
         kmer.reverse()
@@ -507,7 +665,7 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
         raise ValueError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
     else:
         import copy
-        letters1 = copy.deepcopy(binaryToLetter)
+        letters1 = copy.deepcopy(binaryToLetterNA)
         letters2 = copy.deepcopy(letters1)
     
         firstCharRemoved = kmer[1:]
