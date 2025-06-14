@@ -5,6 +5,11 @@
 
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
+* 6/14/25 | [0.8.17] codons added. kmer, parse module fixed
+** Released on PyPI as 0.8.17
+** Fixed kmer module kmer_to_id and id_to_kmer functions, added is_aa amino acid conversions
+** Parse module fixed to include correct min/max sequence lengths.
+** codon usage functionality starting to be implemented
 * 1/28/25 | [0.8.13] pre-alignment : adjustments to coordinate matching precursors, index file is now a simple linked list. just 1 vector of 4tuples across all sequences and basepairs multiplied together.
 ** Releasing on PyPI as 0.8.13
 ** Coord_obj_array = [(fasta_id, seqlen, i, kmer_id, is_minimizer), ...]
@@ -780,6 +785,28 @@ DEADLINE: <2022-01-29 Sat> SCHEDULED: <2022-01-27 Thu>
   - [X] parse
 ** TODO Logging
 ** TODO Revisit Sphinx documentation
+:LOGBOOK:
+CLOCK: [2025-03-01 Sat 10:08]
+- State "IN-PROGRESS" from "WAITING"    [2025-03-01 Sat 10:08]
+- State "WAITING"    from "FEEDBACK"   [2025-03-01 Sat 10:08]
+- State "FEEDBACK"   from "DONE"       [2025-03-01 Sat 10:08]
+- State "DONE"       from "CANCELED"   [2025-03-01 Sat 10:08]
+- State "CANCELED"   from "DONE"       [2025-03-01 Sat 10:08]
+- State "DONE"       from "FEEDBACK"   [2025-03-01 Sat 10:08]
+- State "FEEDBACK"   from "WAITING"    [2025-03-01 Sat 10:08]
+- State "WAITING"    from "IN-PROGRESS" [2025-03-01 Sat 10:08]
+- State "IN-PROGRESS" from "NEXT"       [2025-03-01 Sat 10:08]
+- State "IN-PROGRESS" from "WAITING"    [2025-03-01 Sat 10:08]
+- State "WAITING"    from "FEEDBACK"   [2025-03-01 Sat 10:08]
+- State "FEEDBACK"   from "DONE"       [2025-03-01 Sat 10:08]
+- State "DONE"       from "FEEDBACK"   [2025-03-01 Sat 10:08]
+- State "FEEDBACK"   from "WAITING"    [2025-03-01 Sat 10:08]
+- State "WAITING"    from "IN-PROGRESS" [2025-03-01 Sat 10:08]
+- State "IN-PROGRESS" from "WAITING"    [2025-03-01 Sat 10:08]
+- State "WAITING"    from "IN-PROGRESS" [2025-03-01 Sat 10:08]
+- State "IN-PROGRESS" from "NEXT"       [2025-03-01 Sat 10:07]
+:END:
+
 ** TODO Unit tests
 ** Acceptance tests
 ** Variable naming
