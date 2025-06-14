@@ -165,9 +165,10 @@ def parsefile(filepath:str, k:int, logger=None, quiet=True): #rows_per_batch:int
             logger.log_it("The _kmer_ids placeholder has {0} elements.".format(len(_kmer_ids)), "INFO")
             kmer_ids = kmer_ids + _kmer_ids
 
-                    
-        seqprsr.max_read_length = max(read_lengths)
-        seqprsr.min_read_length = min(read_lengths)
+        min_read_length = max(read_lengths)
+        max_read_length = min(read_lengths)
+        seqprsr.max_read_length = max_read_length
+        seqprsr.min_read_length = min_read_length
 
         
         seqprsr.avg_read_length = int(np.mean(np.array(read_lengths, dtype="uint32")))
