@@ -611,28 +611,23 @@ def id_to_kmer(id, k, is_aa:bool=False):
         raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
     elif type(is_aa) is not bool:
         raise TypeError("kmerdb.id_to_kmer expects the keyword argument 'is_aa' to be a bool")
-    
-        kmer = ""
-        for i in range(k):
-
-            if is_aa is False:
-                kmer += binaryToLetterNA[id & 0x03]
-                id = id >> 2
-            elif is_aa is True:
-                kmer += binaryToLetterAA[id & 0x1F] # 1F otherwise
-                id = id >> 5
-        kmer = list(kmer)
-        kmer_len = len(kmer)
-
-        if kmer_len != 0:
-            raise ValueError("kmer.id_to_kmer returned an empty k-mer. The kmer-id was '{0}', the choice of k is {1}".format(id, k))
-        elif kmer_len != k:
-            raise ValueError("kmer.id_to_kmer encountered an inconsistency error. Expected lenght of k-mer sequence was {0}".format(k, kmer_len))
-
-
-        #just_reversed = kmer.reverse()
-        kmer.reverse()
-        return ''.join(kmer)
+    kmer = ""
+    for i in range(k):
+        if is_aa is False:
+            kmer += binaryToLetterNA[id & 0x03]
+            id = id >> 2
+        elif is_aa is True:
+            kmer += binaryToLetterAA[id & 0x1F] # 1F otherwise
+            id = id >> 5
+    kmer = list(kmer)
+    kmer_len = len(kmer)
+    if kmer_len == 0:
+        raise ValueError("kmer.id_to_kmer returned an empty k-mer. The kmer-id was '{0}', the choice of k is {1}".format(id, k))
+    elif kmer_len != k:
+        raise ValueError("kmer.id_to_kmer encountered an inconsistency error. Expected lenght of k-mer sequence was {0}".format(k, kmer_len))
+    #just_reversed = kmer.reverse()
+    kmer.reverse()
+    return ''.join(kmer)
 
 
 def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
