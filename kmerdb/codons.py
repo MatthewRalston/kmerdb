@@ -96,7 +96,10 @@ codon_table = { # A 3-mer id hashed to the value, which is a amino acid letter o
     42: "G",
     43: "G"
 }
+CODON_LIST = list(codon_table.keys())
 
+STOP_CODONS = [48, 50, 56]
+POSSIBLE_START_CODONS = [14, 46, 62]
 
 synonymous_usage = {
     "F": [61, 63],
@@ -121,3 +124,56 @@ synonymous_usage = {
     "S": [9, 11],
     "G": [40, 41, 42, 43]
 }
+
+
+
+def codon_frequency_table(seq):
+    """
+    Takes an input sequence 'seq' and produces 3-mer frequencies
+    Returns a tuple of codon ids, and codon counts, and codon frequencies
+    """
+
+    if type(seq) is not str:
+        raise TypeError("kmerdb.codons.codon_frequency_table expects a str as its first positional argument")
+
+    
+    #seq_len = len(seq) # Do not use seq_len as proxy for CDS length, as stop codons will be included
+    if seq_len % 3 != 0:
+        raise ValueError("kmerdb.codons.codon_frequency_table expects the sequence to be divisible by three")
+    
+    codons = get_codons_in_order(seq) # Returns a list of int codon ids, in order of translation frame
+    codon_counts = []
+    for cdn in CODON_LIST:
+        codon_counts.append(codons.count(cdn))
+    # Instead of using seq_len as CDS length, use length of codon list as it doesnt include STOP codons.
+    return (CODON_LIST, codon_counts, list(map(lambda c: float(c)/len(codons), codon_counts)))
+
+def get_codons_in_order(seq):
+    if type(seq) is not str:
+        raise TypeError("kmerdb.codons.codon_frequency_table expects a str as its first positional argument")
+    elif len(seq) % 3 != 0:
+        raise ValueError("kmerdb.codons.codon_frequency_table expects the sequence to be divisible by three")
+    seq_len = len(seq)
+
+    codons = []
+    codon = ''
+    
+    i = 0
+    for j, c in enumerate(seq):
+        codon += c
+        if i == 2:
+            if kmer.kmer_to_id(codon) in STOP_CODONS:
+                if j == seq_len:
+                    break
+                else:
+                    raise ValueError("Internal stop codon identified: {0}\n\nOffending sequence: {1}".format(codon, seq))
+            else:
+                codons.append(kmer.kmer_to_id(codon)) # Convert to k-mer id before returning
+                codon = ''
+                i = 0
+        else:
+            i+=1
+        
+    return codons
+
+
