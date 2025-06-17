@@ -210,6 +210,68 @@ def expanded_help(arguments):
         
     sys.stderr.write("\n\nUse --help for expanded usage\n")
 
+
+def get_codon_table(arguments):
+
+    from Bio import SeqIO
+    import numpy as np
+    import pandas as pd
+    from kmerdb import codons, kmer
+
+    cdn_ids = [] # 64
+    seq_ids = [] # N
+    cdn_tbl = [] # N
+    data = {}
+    
+    num_valid = 0
+    total_num = 0
+    with open(arguments.fasta, 'r') as fasta:
+        reader = SeqIO.parse(fasta, "fasta")
+        for s in reader:
+            if not kmer.is_sequence_na(s):
+                raise ValueError("codons expects untranslated nucleotide sequences")
+            elif not codons.is_sequence_cds(s, ignore_noncanonicals=arguments.ignore_noncanonicals, ignore_invalid_cds=arguments.ignore_invalid_cds):
+                #logger.log_it("codons expects a valid untranslated nucleotide sequence. see 'kmerdb.log' for details...", "WARNING")
+                logger.log_it("The sequence '{0}' was not a valid CDS. It contained a non-standard start-codon, stop-codon, or its length was not divisible by 3\n\n\n".format(s.id), "WARNING")
+                if arguments.ignore_invalid_cds is True:
+                    #logger.log_it("Ignore invalid CDS? {0}".format(arguments.ignore_invalid_cds), "WARNING")
+                    pass
+                else:
+                    raise ValueError("codons expects an untranslated CDS (coding sequence) as input.")
+            codon_ids, codon_counts, codon_frequencies = codons.codon_frequency_table(str(s.seq), str(s.id), ignore_invalid_cds=arguments.ignore_invalid_cds)
+            #print(codon_ids, codon_counts, codon_frequencies)
+            if codon_ids == None:
+                continue # Skip a loop
+            elif num_valid == 0:
+                cdn_ids = codon_ids
+                    #cdn_ids = np.array(codon_ids, dtype="uint32")
+            if arguments.as_frequencies is True:
+                data[s.id] = codon_frequencies
+                #cdn_freqs = np.array(codon_frequencies, dtype="float32")
+                #cdn_table.append(cdn_freqs)
+            else:
+                data[s.id] = codon_counts
+                #cdn_cnts = np.array(codon_counts, dtype="uint32")
+                #cdn_table.append(cdn_cnts)
+            num_valid += 1
+            total_num += 1
+    # if len(seq_ids) != len(cdn_tbl):
+    #     logger.warning("There were {0} valid CDS sequence in the file '{1}'. Total sequences: {2}. Expected number of sequence ids {num_valid} did not match the count of ids in the array".format(num_valid, total_num, len(seq_ids)))
+    #     raise ValueError("Mismatch between the number of ids and the number of entries in the codon table...")
+    df = pd.DataFrame(data)
+    #remap = { i:kmer.id_to_kmer(cdn, 3) for i, cdn in enumerate(cdn_ids)}
+    #df.rename(remap)
+    cdns = [kmer.id_to_kmer(c, 3) for c in cdn_ids]
+    #print(cdns)
+    df = df.transpose()
+
+    #print(df.shape)
+    #print(df.head())
+
+    df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=True, header=cdns)
+
+
+    
 def get_minimizers(arguments):
 
     from Bio import SeqIO
@@ -2607,6 +2669,19 @@ def cli():
     alignment_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
     alignment_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     alignment_parser.set_defaults(func=get_alignments)
+
+    codon_table_parser = subparsers.add_parser("codons", help="Create a codon frequency table from .faa input")
+    codon_table_parser.add_argument("fasta", type=str, help="An amino-acid sequence fasta file")
+    codon_table_parser.add_argument("--as-frequencies", action="store_true", default=False, help="Use frequencies instead of codon counts, per CDS")
+    codon_table_parser.add_argument("--ignore-noncanonicals", action="store_true", default=False, help="Ignore non-canonical start/stop codons")
+    codon_table_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore invalid CDS sequences (length divisible by 3, valid start/stop codons")
+    codon_table_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. DEFAULT: '\t'")
+    codon_table_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
+    codon_table_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    codon_table_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
+    codon_table_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
+    codon_table_parser.set_defaults(func=get_codon_table)
+    
     
     usage_parser = subparsers.add_parser("usage", help="provide expanded usage information on parameters and functions provided")
     usage_parser.add_argument("method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), help="Print expanded usage statement")
@@ -2863,6 +2938,7 @@ def cli():
     kmerdb_appmap.print_verbosity_header()
     
     if args.debug is True:
+        logger.log_it(str(args), "WARNING")
         args.func(args)
     else:
         logger.log_it("Running with error summary feature enabled, bypass with --debug for vague/invalid exceptions", "DEBUG")

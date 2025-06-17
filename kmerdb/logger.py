@@ -34,8 +34,8 @@ import logging
 logger = logging.getLogger(__file__)
 
 
-my_log_format = "%(levelname)s: %(asctime)s %(funcName)s L%(lineno)s| %(message)s"
-
+my_log_format = '%(levelname)s: %(asctime)s %(funcName)s L%(lineno)s| %(message)s'
+formatter = logging.Formatter(my_log_format, datefmt="%Y/%m/%d %I:%M:%S")
 
 
 def get_root_logger(level:int, logfile:str=None):
@@ -50,15 +50,17 @@ def get_root_logger(level:int, logfile:str=None):
     levels=[logging.WARNING, logging.INFO, logging.DEBUG]
     if level < 0 or level > 2:
         raise TypeError("{0}.get_root_logger expects a verbosity between 0-2".format(__file__))
-    logging.basicConfig(level=levels[level], format=my_log_format, datefmt="%Y/%m/%d %I:%M:%S")
-    root_logger = logging.getLogger()
+    logger.setLevel
 
+    root_logger = logging.getLogger()
+    root_logger.setLevel(levels[level])
+    stderr_handler = logging.StreamHandler(stream=sys.stderr)
+    root_logger.addHandler(stderr_handler)
+    stderr_handler.setFormatter(formatter)
     
     for name in logging.Logger.manager.loggerDict.keys():
         if ('boto' in name) or ('urllib3' in name) or ('s3' in name) or ('findfont' in name):
             logging.getLogger(name).setLevel(logging.WARNING)
-
-    
             
     return root_logger
 
@@ -90,7 +92,7 @@ class Loggah:
         if logfile is not None:
             
             fh = logging.FileHandler(logfile, mode="w")
-            fh.setFormatter(my_log_format)
+            fh.setFormatter(formatter)
             fh.setLevel(logging.DEBUG)
             self._logger.addHandler(fh)
             
