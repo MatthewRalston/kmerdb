@@ -234,26 +234,25 @@ COMMAND INFO
 
 
 
-command_1_name, command_2_name, command_11_name, command_12_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_12_name, command_13_name, command_14_name = config.subcommands
-
-#print(config.subcommands)
+command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name, command_13_name, command_14_name, command_15_name, command_16_name = config.subcommands
 
 COMMANDS = [
     command_1_name, #"profile",
-    command_2_name, #"graph",
-    command_11_name, #"get_minimizers",
-    command_12_name, #"get_alignments",
-    command_3_name, #"matrix",
-    command_4_name, #"distance",
-    command_5_name, #"kmeans",
-    command_6_name, #"hierarchical",
-    command_7_name, #"view",
-    command_8_name, #"header",
-    command_9_name, #"index", #
-    command_10_name, #"shuf",
-    command_12_name, #"usage",
-    command_13_name, #"help",
-    command_14_name, #"version"]
+    command_2_name, #"view",
+    command_3_name, #"header",
+    command_4_name, #"matrix",
+    command_5_name, #"distance",
+    command_6_name, #"kmeans",
+    command_7_name, #"hierarchical",
+    command_8_name, #"codons",
+    command_9_name, #"graph",
+    command_10_name, #"get_minimizers",
+    command_11_name, #"get_alignments",
+    command_12_name, #"index", #
+    command_13_name, #"shuf",
+    command_14_name, #"usage",
+    command_15_name, #"help",
+    command_16_name, #"version"]
 ]
 
 
