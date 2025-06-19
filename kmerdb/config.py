@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.18" # 6/17/25 
+VERSION="0.8.19" # 6/17/25 
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -29,9 +29,9 @@ requirements_dev_count = 8
 # 4/9/24 there are some duplicates sure, but the requirements evolve faster than the dev do, are more essential for function, and I dont change the -dev file much. 
 
 # 12 subcommands, and associated function names in __init__.py
-subcommands = ["profile", "view", "header", "matrix", "distance", "kmeans", "hierarchical", "codons", "graph", "minimizers", "alignments", "index", "shuf", "usage", "help", "version"]
+subcommands = ["profile", "view", "header", "matrix", "distance", "kmeans", "hierarchical", "codons", "CUB", "graph", "minimizers", "alignments", "index", "shuf", "usage", "help", "version"]
 #subcommands = ["profile", "graph", "minimizers", "alignment", "matrix", "distance", "kmeans", "hierarchical", "view", "header", "index", "shuf", "usage", "help", "version"]
-subcommand_functions = ["profile", "view", "header", "get_matrix", "distances", "kmeans", "hierarchical", "get_codon_table", "make_graph", "get_minimizers", "get_alignments", "index_file", "shuf", "expanded_help", "expanded_help", "version"]
+subcommand_functions = ["profile", "view", "header", "get_matrix", "distances", "kmeans", "hierarchical", "get_codon_table", "codon_usage_bias", "make_graph", "get_minimizers", "get_alignments", "index_file", "shuf", "expanded_help", "expanded_help", "version"]
 #subcommand_functions = ["profile", "make_graph", "get_minimizers", "get_alignments", "get_matrix", "distances", "kmeans", "hierarchical", "view", "header", "index_file", "shuf", "expanded_help", "expanded_help", "version"]
 
 default_logline_choices = (20, 50, 100, 200)
