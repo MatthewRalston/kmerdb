@@ -5,6 +5,13 @@
 
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
+
+* 6/21/25 | [0.8.19] CUB added, still in progress
+
+I found several things that *didnt* work. First, when codon frequencies are equal to 1 (i.e. when observed codon counts for an amino acid for one codon are divided by the expected and this equals 1), the chisquare test returns NaN
+I also added some options to include/exclude start/stop codon counts in the table, or to totally refuse stop codon counts from the table, and then parse and remedy that same table if the stop codon counts are excluded.
+This is still giving inf and NaN results from the chisquare, or at times is just doing 0.0. All results of chisquare so far have been unfruitful.
+
 * 6/14/25 | [0.8.17] codons added. kmer, parse module fixed
 Released on PyPI as 0.8.17
 Fixed kmer.py module kmer_to_id and id_to_kmer functions, added is_aa amino acid conversions

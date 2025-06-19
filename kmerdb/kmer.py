@@ -114,7 +114,9 @@ letterToBinaryAA = {
     44: 32, # ,
 }
 
-binaryToLetterAA = ["A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y"] + ["!", '"', "#", "$", "%", "&", "'", "(", ")", "*", "+", ","] # original 20 elements + 12 dummy characters
+
+AMINO_ACID_IUPAC_CODES = ["A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y"]
+binaryToLetterAA = AMINO_ACID_IUPAC_CODES + ["X", "!", '"', "#", "$", "%", "&", "'", "(", ")", "*", "+", ","] # original 20 elements + 12 dummy characters
 
 standard_lettersAA = set(binaryToLetterAA)
 
@@ -145,9 +147,15 @@ get_doublet_chars_NA = lambda x: IUPAC_NA_DOUBLETS[x] # list
 get_triplet_chars_NA = lambda x: IUPAC_NA_TRIPLETS[x]
 
 def is_sequence_na(s:str):
-    # print(s)
-    # print(type(s))
-    # print(s.seq)
+    """
+    :param s: The sequence to ask is the sequence an amino-acid fasta sequence
+    :type s: str
+    :raises TypeError: Raises a TypeError if the sequence is not str or Bio.SeqRecord
+    :raises ValueError: Raises a ValueError if the sequence contains non-IUPAC letter codes for nucleic acid OR amino acid sequences
+    :returns: Whether or not the sequence is an amino-acid using standard IUPAC letter codes
+    :rtype: bool
+
+    """
     if type(s) is str:
         letters = set(str(s))
     elif isinstance(s, SeqRecord):
@@ -166,9 +174,14 @@ def is_sequence_na(s:str):
 
 
 def is_sequence_aa(s:str):
-    # print(s)
-    # print(type(s))
-    # print(s.seq)
+    """
+    :param s: The sequence to ask is the sequence an amino-acid fasta sequence
+    :type s: str
+    :raises TypeError: Raises a TypeError if the sequence is not str or Bio.SeqRecord
+    :raises ValueError: Raises a ValueError if the sequence contains non-IUPAC letter codes for nucleic acid OR amino acid sequences
+    :returns: Whether or not the sequence is an amino-acid using standard IUPAC letter codes
+    :rtype: bool
+    """
 
     if type(s) is str:
         letters = set(str(s))
@@ -209,7 +222,10 @@ class Kmers:
         :type verbose: bool
         :param all_metadata: Whether or not to pass back extra metadata (TO BE DEPRECATED)
         :type all_metadata: bool
-
+        :raises TypeError: If the k parameter (first argument) is not an int
+        :raises TypeError: If the strand_specific keyword argument is not a bool
+        :raises TypeError: If the amino_acid keyword argument is not a bool
+        :raises TypeError: If the all_metadata keyword argument is not a bool (deprecated)
 
         """
         if type(k) is not int:
@@ -262,7 +278,11 @@ class Kmers:
         :type is_fasta: bool
         :param quiet_iupac_warning: verbosity parameter
         :type quiet_iupac_warning: bool
-        :raise ValueError: if *non* IUPAC symbols are detected in the seqRecord object.
+        :raises TypeError: if quiet_iupac_warning keyword argument is not a bool
+        :raises TypeError: if is_aa keyword argument is not a bool
+        :raises TypeError: if the input (first argument) is not a Bio.SeqRecord
+        :raises ValueError: if *non* IUPAC symbols are detected in the seqRecord object.
+        :raises ValueError: if the input (first argument) is shorter than k
         :returns: a set of the letters detected, and length of the validated Bio.SeqRecord sequence
         :rtype: tuple
 
@@ -308,7 +328,7 @@ class Kmers:
         :param seqRecord: a BioPython sequence object to shred into k-mers
         :type seqRecord: Bio.SeqRecord.SeqRecord
         :raise RuntimeError: Non-IUPAC and non-standard IUPAC (other than ATGC+N) residues detected
-        :return: k-mer ids
+        :returns: k-mer ids
         :rtype: list
         """
         kmers = []
@@ -345,8 +365,8 @@ class Kmers:
 
         :param seqRecord: 
         :type seqRecord: Bio.SeqRecord.SeqRecord
-        :raise RuntimeError: No IUPAC characters detected or Non-IUPAC characters detected
-        :raise ValueError: Non-IUPAC characters detected
+        :raises RuntimeError: No IUPAC characters detected or Non-IUPAC characters detected
+        :raises ValueError: Non-IUPAC characters detected
         :returns: a dictionary of information about the Bio.SeqRecord shredded and the k-mers produced (including the IUPAC doublet/triplet expansion
         :rtype: dict
 
@@ -378,7 +398,7 @@ class Kmers:
             for c in list(nonstandard_chars):
 
                 sys.stderr.write("Non-permitted character found: {0}".format(c))
-                raise RuntimeError("can we get in here actually?")
+               # raise RuntimeError("can we get in here actually?")
                 sys.stderr.write("character: {0}\n".format(c))
                 sys.stderr.write("K-mer: {0}\n".format(s))
                 sys.stderr.write("IUPAC symbols in the whole sequence: {0}\n".format(iupac_symbols))
@@ -404,7 +424,7 @@ class Kmers:
                         seqs.append(trip1)
                         seqs.append(trip2)
                         seqs.append(trip3)
-            
+            # Continue otherwise if no non-standard IUPAC characters are found.
             if seqs is None and len(non_iupac_symbols) > 0:
                 raise ValueError("Non-IUPAC symbols detected in {0}".format(s))
             elif seqs is None and len(iupac_symbols) == 4 and len(set(iupac_symbols) - self.standard_letters) == 0:
@@ -438,7 +458,9 @@ class Kmers:
             #     print("Seeeeqquueeencees:")
             #     print(seqs)
 
-
+            """
+            Otherwise shred the sequence
+            """
                 
             for x in seqs:
                 logger.debug(x)
@@ -537,8 +559,9 @@ def kmer_to_id(s, is_aa:bool=False):
     :type s: str
     :param is_aa: Is the input an amino acid?
     :type is_aa: bool
-    :raise TypeError: str argument required, non-str type detected
-    :raise KeyError: Non-standard (ATCG) character detected
+    :raises TypeError: if the input (first argument) is not a str
+    :raises KeyError: if non-standard (ATCG) character detected
+    :raises ValueError: if non-IUPAC single letter codes for nucleic-acids OR amino-acids are detected
     :returns: The kPal-inspired binary encoding (thanks!)
     :rtype: int
 
@@ -607,7 +630,11 @@ def id_to_kmer(id, k, is_aa:bool=False):
     :type id: int
     :param k: The int k is used to byte convert the id to the sequence of characters
     :type k: int
-    :raise TypeError: int argument required, non-int type detected
+    :raises TypeError: if input (first argument) kmer-id encoding is not an int
+    :raises TypeError: if input (second argument) of choice of k is not an int
+    :raises TypeError: if is_aa keyword argument is not a bool
+    :raises ValueError: if the k-mer length from the id is erroneously 0. Shouldn't happen
+    :raises ValueError: if the k-mer length from the id is erroneously not equal to k. Shouldn't happen.
     :returns: The k-mer as string
     :rtype: str
     """
@@ -655,16 +682,19 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
     :type kmer_id: int
     :param k: The int k 
     :type k: int
-    :raise TypeError: Requires either a Bio.SeqRecord or str
-    :raise TypeError: Requires k to be an int
-    :raise ValueError: k must match the length of the input k-mer
+    :raises TypeError: if the input (first argument) k-mer is not a str or Bio.SeqRecord
+    :raises TypeError: if the input (second argument) kmer_id is not an int
+    :raises TypeError: if the input (third argument) k is not an int
+    :raises ValueError: if the input kmer has lenght not equal to k. Shouldn't happen
     :returns: A list of 'neighboring' or 'adjacent' k-mers from derived from the input k-mer
     :rtype: list
     """
     if not isinstance(kmer, str):
         raise TypeError("kmerdb.kmer.neighbors expects a Biopython Seq object as its first positional argument")
-    elif type(k) is not int:
+    elif type(kmer_id) is not int:
         raise TypeError("kmerdb.kmer.neighbors expects an int as its second positional argument")
+    elif type(k) is not int:
+        raise TypeError("kmerdb.kmer.neighbors expects an int as its third positional argument")
     elif len(kmer) != k:
         raise ValueError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
     else:

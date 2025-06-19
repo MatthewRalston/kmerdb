@@ -234,7 +234,7 @@ COMMAND INFO
 
 
 
-command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name, command_13_name, command_14_name, command_15_name, command_16_name = config.subcommands
+command_1_name, command_2_name, command_3_name, command_4_name, command_5_name, command_6_name, command_7_name, command_8_name, command_9_name, command_10_name, command_11_name, command_12_name, command_13_name, command_14_name, command_15_name, command_16_name, command_17_name = config.subcommands
 
 COMMANDS = [
     command_1_name, #"profile",
@@ -245,14 +245,15 @@ COMMANDS = [
     command_6_name, #"kmeans",
     command_7_name, #"hierarchical",
     command_8_name, #"codons",
-    command_9_name, #"graph",
-    command_10_name, #"get_minimizers",
-    command_11_name, #"get_alignments",
-    command_12_name, #"index", #
-    command_13_name, #"shuf",
-    command_14_name, #"usage",
-    command_15_name, #"help",
-    command_16_name, #"version"]
+    command_9_name, #"CUB",
+    command_10_name, #"graph",
+    command_11_name, #"get_minimizers",
+    command_12_name, #"get_alignments",
+    command_13_name, #"index", #
+    command_14_name, #"shuf",
+    command_15_name, #"usage",
+    command_16_name, #"help",
+    command_17_name, #"version"]
 ]
 
 
@@ -508,579 +509,29 @@ COMMAND_1_STEPS = OrderedDict({
 })
 
 
-command_2_description = "create a edge list in (block) .gz format from .fasta|.fa or .fastq format."
+command_2_description = "Decompress and view contents of .kdb(g) file "
 command_2_description_long = """
 
 
-   :     4 column output : [ row idx | k-mer id node #1 | k-mer id node #2 | edge weight (adjacency count) ]
-
-   :  make a deBruijn graph, count the number of k-mer adjacencies,  printing the edge list to STDOUT
 
 
 
 
-                  +=============+====================+====================+=================================+
-                  <    row idx  |  k-mer id node #1  |  k-mer id node #2  |  edge weight (adjacency count)  >
-                  |             |                    |                    |                                 |
-                  |             +
-                  |
-                  |
-                  |
-                  |
-                  |
+
+
+...
+
+
+
+
+
 """
+command_2_parameters = "Use -H|--header to additionally print header."
+command_2_inputs = "Input may be a v{0} count vector (.kdb) or edge list (.kdbg) file.".format(config.VERSION)
+command_2_usage = "kmerdb view -H <input_1.12.kdb>"
+
         
-command_2_parameters = "uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging."
-command_2_inputs = "Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)"
-command_2_usage = "kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>" 
-
-
 COMMAND_2_BANNER = """
-
-
-
-                          [ name ] :         {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-
-                    kmerdb {0} -k 12 input_1.fa [example_2.fastq] output.12.kdbg
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-""".format(command_2_name, command_2_description, command_2_description_long, command_2_inputs, command_2_parameters, command_2_usage)
-
-        
-
-        
-COMMAND_2_PARAMS = OrderedDict({
-    "name": "arguments",
-    "type": "array",
-    "items": [
-        {
-            "name"  : "k",
-            "type"  : "int",
-            "value" : "choice of k-mer size"
-        },
-        {
-            "name"  : "quiet",
-            "type"  : "flag",
-            "value" : "Write additional debug level information to stderr?"
-        }
-    ]
-})
-        
-        
-
-COMMAND_2_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name"  : "<.fasta|.fastq>",
-            "type"  : "array",
-            "value" : "gzipped or uncompressed input .fasta or .fastq file(s)"
-        },
-        {
-            "name"  : ".kdbg",
-            "type"  : "file",
-            "value" : "Output edge-list filepath."
-        }
-    ]
-})
-
-
-COMMAND_2_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "k-mer count arrays, linear, produced as file is read through sliding window. (Un)compressed support for .fa/.fq.",
-            "shortname": "parallel faux-OP sliding window k-mer shredding",
-            "description": "Sequential k-mers from the input .fq|.fa files are added to the De Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics for the entire file are given for each file read, + a transparent data structure."
-        }),
-        OrderedDict({
-            "name": "k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights",
-            "shortname": "weighted undirected graph",
-            "description": "an edge list of a De Bruijn graph is generated from all k-mers in the forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers in the sequence data are added to the tally of the k-mer nodes of the de Bruijn graph and the edges provided by the data."
-        })
-    ]
-})
-
-
-COMMAND_2_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "read input file(s) from filesystem into k-mer arrays",
-            "shortname": "shred inputs into k-mer count arrays",
-            "description": "shred input sequences into k-mer count vector",
-        }),
-        OrderedDict({
-            "name": "merge k-mer arrays and aggregate metadata",
-            "shortname": "merge k-mer count arrays for aggregate metadata (header)",
-            "description": "merge counts of nullomers, unique kmers, and total kmers."
-        }),
-        OrderedDict({
-            "name": "collate the weighted edge lists after reading multiple files. Output data consists of a edge_list, analogous metadata-header as YAML, kmer_counts, and nullomer_ids.",
-            "shortname": "extract undirected weighted graph",
-            "description": "consists of info from a .kdb file and a .kdbg file. The node IDs, the edges, and the number of times the pair was observed from forward sequences in the provided dataset"
-        }),
-        OrderedDict({
-            "name": "print 'table' Final stats and close output file",
-            "shortname": "metrics and shutdown",
-            "description": "print final statistics, typically metadata values, and ensure file is closed."
-        })
-        
-            ]
-})
-        
-
-command_3_description = "Aggregate k-mer count vectors into k-mer count matrix. Output is plain text .tsv"
-command_3_description_long = """
-
-
-
-
-
-
-
-
-...
-
-
-
-
-
-"""
-command_3_parameters = "Use PCA or tSNE for dim. reduction. Use DESeq2 for count vector sample normalization. Use 'pass' to just aggregate count vectors into .tsv"
-command_3_inputs = "Several input files with the same [-k]. Or a k-mer count matrix as .tsv. Use 'STDIN' in place of an input file to read .tsv from STDIN in a Unix pipe. Prints .tsv to stdout."
-command_3_usage = "kmerdb matrix <pass|PCA|tSNE|DESeq2> [input1.12.kdb input2.12.kdb ...] [OR] kmerdb matrix DESeq2 <input_count_matrix.tsv> [OR] kmerdb matrix PCA -k 5 STDIN"
-
-        
-COMMAND_3_BANNER = """
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-
-
-
-
-
-
-
-
-                        [  n a m e    ]         :  -   {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-                    kmerdb matrix <pass|PCA|tSNE|DESeq2> input1.12.kdb input2.12.kdb ...
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-""".format(command_3_name, command_3_description, command_3_description_long, command_3_inputs, command_3_parameters, command_3_usage)
-        
-        
-COMMAND_3_PARAMS = OrderedDict({
-    "name": "arguments",
-    "type": "array",
-    "items": [
-        {
-            "name" : "function",
-            "type": "parameter",
-            "value" : "dimensionality reduction, DESeq2 normalization (via rpy2), or pass - no-transformation, or (deprecated) k-mer Frequency matrix. [PCA, tSNE, DESeq2, pass, Frequency]",
-        },
-        {
-            "name" : "n",
-            "type":  "int",
-            "value": "dimension choise for scipy PCA or tSNE"
-        },
-        {
-            "name": "perplexity",
-            "type": "int",
-            "value" : "perplexity parameter for scipy tSNE"
-        },
-        {
-            "name": "no-normalized-ints",
-            "type": "flag",
-            "value": "do not round counts to nearest integer when importing from RPy2 from DESeq2 normalization"
-        }
-    ]
-})
-
-
-COMMAND_3_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name": "kdbfiles",
-            "type": "file(s)",
-            "value": ".kdb count vector files produced from command #1 in the profile <-> k-mer count matrix <-> count distance matrix pipeline"
-        },
-        {
-            "name": "input.tsv",
-            "type": "file",
-            "value": "A table of csv/tsv file counts, possibly for dimensionality reduction."
-        },
-        {
-            "name": "STDIN",
-            "type": "flag",
-            "value": "Read from STDIN, possibly in a unix pipe."
-        }
-        
-            ]
-})
-
-COMMAND_3_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "read/import datasets",
-            "shortname": "read/import multiple count vectors",
-            "description" : "count vectors in columns of csv/tsv input over 'STDIN', .tsv/csv file (with --delimiter option), or multiple .kdb files."
-        }),
-        OrderedDict({
-            "name": "Pandas library .csv sanitation",
-            "shortname": "validate input",
-            "description": "sanitize and structure validation on inputs (TODO: 4/5/24 not done yet. Uses a pandas csv loader on tsv/csv files or 'STDIN' to read a matrix/DataFrame input from a standard input stream. Otherwise collates multiple .kdb count vectors and coerces the input into a NumPy array otherwise failure.)"
-        }),
-        OrderedDict({
-            "name": "transformation on data matrix",
-            "shortname": "transformation on data matrix",
-            "description": "Apply 'transformation' to input matrix. Not a distance calculation, but a restructuring of the data. Options are PCA (+scipy), t-stochastic neighbor embedding(scipy), 'DESeq2' median-of-ratios normalization, or retrieve frequencies for related applications."
-        })
-    ]
-})
-
-COMMAND_3_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "read input file(s) from filesystem into k-mer arrays",
-            "shortname": "read .kdb files into k-mer count arrays",
-            "description": "read multiple .kdb files into k-mer count matrix",
-        }),
-        OrderedDict({
-            "name": "parse .csv into Pandas DataFrame",
-            "shortname": "Pandas .csv import from input file or STDIN",
-            "description": "merge counts of nullomers, unique kmers, and total kmers."
-        }),
-        OrderedDict({
-            "name": "Apply PCA dimensionality reduction with provided dimensionality n",
-            "shortname": "PCA dim reduction",
-            "description": "Uses scipy PCA to apply dimensionality reduction on input matrix"
-        }),
-        OrderedDict({
-            "name": "Apply t-SNE dimensionality reduction with provided dimensionality n",
-            "shortname": "t-SNE dim reduction",
-            "description": "Uses scipy t-SNE to apply dimensionality reduction on input matrix"
-        }),
-        OrderedDict({
-            "name": "Apply DESeq-2 'median-of-ratios' count normalization",
-            "shortname": "DESeq-2 normalize",
-            "description": "Uses rpy2 to call the R server and pass the data matrix for DESeq-2 normalization"
-
-                    }),
-        OrderedDict({
-            "name": "pass unnormalized counts",
-            "shortname": "unnormalized data",
-            "description": "Passes the unnormalized data in Data Frame tsv format to STDOUT/file"
-        })
-
-    ]
-
-})
-
-
-
-command_4_description = "Create distance matrix from input count matrix (.tsv). Output is plain text .tsv"
-command_4_description_long = """
-
-
-
-
-
-
-
-
-...
-
-
-
-
-
-"""
-command_4_parameters = "Choose a distance metric. 23 distances available. 'pearson' 'correlation' and 'spearman' are relevant for k-mer count vector similarity."
-command_4_inputs = "Several input files with the same [-k]. Or a k-mer count matrix as .tsv. Use 'STDIN' in place of an input file to read .tsv from STDIN in a Unix pipe. Prints .tsv to stdout."
-command_4_usage = "kmerdb distance  [input1.12.kdb input2.12.kdb ...] [OR] kmerdb distance correlation <input.tsv> [OR] kmerdb distance spearman STDIN"
-
-        
-COMMAND_4_BANNER = """
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-
-
-
-
-
-
-
-
-                        [  n a m e    ]         :  -   {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-                    kmerdb distance pearson [input1.12.kdb input2.12.kdb ...]  OR kmerdb distance pearson <input.tsv> or kmerdb distance pearson STDIN
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-""".format(command_4_name, command_4_description, command_4_description_long, command_4_inputs, command_4_parameters, command_4_usage)
-
-        
-
-COMMAND_4_PARAMS = OrderedDict({
-    "name": "arguments",
-            "type": "array",
-    "items": [
-        {
-            "name" : "distance method",
-            "type": "parameter",
-            "value" : "braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule distances. 'spearman' and 'correlation' distances provided by scipy. 'pearson' is a custom Cython correlation coefficient: ssxy/sqrt(ssxx^2 x ssyy^2) | all others provided by scipy",
-        },
-    ]
-})
-
-        
-COMMAND_4_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name": "kdbfiles",
-            "type": "file(s)",
-            "value": ".kdb count vector files produced from kmerdb profile"
-        },
-        {
-            "name": "input.tsv",
-            "type": "file",
-            "value": "A table of csv/tsv file counts, possibly for dimensionality reduction."
-        },
-        {
-            "name": "STDIN",
-            "type": "flag",
-            "value": "Read from STDIN, possibly in a unix pipe."
-        }
-        
-            ]
-})
-
-COMMAND_4_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "read/import datasets",
-            "shortname": "read/import multiple count vectors",
-            "description" : "count vectors in columns of csv/tsv input over 'STDIN', .tsv/csv file (with --delimiter option), or multiple .kdb files."
-        }),
-        OrderedDict({
-            "name": "Pandas library .csv sanitation",
-            "shortname": "validate input",
-            "description": "sanitize and structure validation on inputs (TODO: 4/5/24 not done yet. Uses a pandas csv loader on tsv or STDIN input. Otherwise collates multiple .kdb count vectors and coerces the input into a NumPy array otherwise failure.)"
-        }),
-        OrderedDict({
-            "name": "generates distance matrix",
-            "shortname": "generates distance matrix",
-            "description": "Choose 'distance method' to apply to input matrix. Available SciPy distances include 'braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule' distances. 'spearman' and 'correlation' distances provided by scipy. 'pearson' is a custom Cython correlation coefficient: ssxy/sqrt(ssxx^2 x ssyy^2) | all others provided by scipy. All distances availalable on -h|--help"
-        })
-    ]
-})
-    
-COMMAND_4_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "read input file(s) from filesystem into k-mer arrays",
-            "shortname": "read .kdb files into k-mer count arrays",
-            "description": "read multiple .kdb files into k-mer count matrix",
-        }),
-        OrderedDict({
-            "name": "parse .csv into Pandas DataFrame",
-            "shortname": "Pandas .csv import from input file or STDIN",
-            "description": "merge counts of nullomers, unique kmers, and total kmers."
-        }),
-        OrderedDict({
-            "name": "calculate distance matrix from input data matrix",
-            "shortname": "distance matrix generation",
-            "description": "Use input data matrix to create a distance matrix, produced by SciPy and a choice of distance method"
-        })
-
-    ]
-    
-})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-command_5_description = "Decompress and view contents of .kdb(g) file "
-command_5_description_long = """
-
-
-
-
-
-
-
-
-...
-
-
-
-
-
-"""
-command_5_parameters = "Use -H|--header to additionally print header."
-command_5_inputs = "Input may be a v{0} count vector (.kdb) or edge list (.kdbg) file.".format(config.VERSION)
-command_5_usage = "kmerdb view -H <input_1.12.kdb>"
-
-        
-COMMAND_5_BANNER = """
 
 
 
@@ -1145,11 +596,11 @@ COMMAND_5_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_5_name, command_5_description, command_5_description_long, command_5_inputs, command_5_parameters, command_5_usage)
+""".format(command_2_name, command_2_description, command_2_description_long, command_2_inputs, command_2_parameters, command_2_usage)
 
         
 
-COMMAND_5_PARAMS = OrderedDict({
+COMMAND_2_PARAMS = OrderedDict({
     "name": "arguments",
     "type": "array",
     "items": [
@@ -1162,7 +613,7 @@ COMMAND_5_PARAMS = OrderedDict({
 })
 
         
-COMMAND_5_INPUTS = OrderedDict({
+COMMAND_2_INPUTS = OrderedDict({
     "name": "inputs",
     "type": "array",
     "items": [
@@ -1175,7 +626,7 @@ COMMAND_5_INPUTS = OrderedDict({
             ]
 })
 
-COMMAND_5_FEATURES = OrderedDict({
+COMMAND_2_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
@@ -1192,7 +643,7 @@ COMMAND_5_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_5_STEPS = OrderedDict({
+COMMAND_2_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
@@ -1212,16 +663,14 @@ COMMAND_5_STEPS = OrderedDict({
 })
 
 
-
-
-command_6_description = "Show YAML metadata header from .kdb(g) file"
-command_6_description_long = ""
-command_6_parameters = "N/A"
-command_6_inputs = "Input may be a v{0} count vector (.kdb) or edge list (.kdbg) file.".format(config.VERSION)
-command_6_usage = "kmerdb header <input_1.12.kdb>"
+command_3_description = "Show YAML metadata header from .kdb(g) file"
+command_3_description_long = ""
+command_3_parameters = "N/A"
+command_3_inputs = "Input may be a v{0} count vector (.kdb) or edge list (.kdbg) file.".format(config.VERSION)
+command_3_usage = "kmerdb header <input_1.12.kdb>"
 
         
-COMMAND_6_BANNER = """
+COMMAND_3_BANNER = """
 
 
 
@@ -1286,11 +735,11 @@ COMMAND_6_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_6_name, command_6_description, command_6_description_long, command_6_inputs, command_6_parameters, command_6_usage)
+""".format(command_3_name, command_3_description, command_3_description_long, command_3_inputs, command_3_parameters, command_3_usage)
 
         
 
-COMMAND_6_PARAMS = OrderedDict({
+COMMAND_3_PARAMS = OrderedDict({
     "name": "arguments",
     "type": "array",
     "items": [
@@ -1303,7 +752,7 @@ COMMAND_6_PARAMS = OrderedDict({
 })
 
         
-COMMAND_6_INPUTS = OrderedDict({
+COMMAND_3_INPUTS = OrderedDict({
     "name": "inputs",
     "type": "array",
     "items": [
@@ -1316,7 +765,7 @@ COMMAND_6_INPUTS = OrderedDict({
             ]
 })
 
-COMMAND_6_FEATURES = OrderedDict({
+COMMAND_3_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
@@ -1333,7 +782,7 @@ COMMAND_6_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_6_STEPS = OrderedDict({
+COMMAND_3_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
@@ -1353,6 +802,74 @@ COMMAND_6_STEPS = OrderedDict({
 })
 
 
+command_4_description = "Aggregate k-mer count vectors into k-mer count matrix. Output is plain text .tsv"
+command_4_description_long = """
+
+
+
+
+
+
+
+
+...
+
+
+
+
+
+"""
+command_4_parameters = "Use PCA or tSNE for dim. reduction. Use DESeq2 for count vector sample normalization. Use 'pass' to just aggregate count vectors into .tsv"
+command_4_inputs = "Several input files with the same [-k]. Or a k-mer count matrix as .tsv. Use 'STDIN' in place of an input file to read .tsv from STDIN in a Unix pipe. Prints .tsv to stdout."
+command_4_usage = "kmerdb matrix <from|PCA|tSNE|DESeq2> [input1.12.kdb input2.12.kdb ...] [OR] kmerdb matrix DESeq2 <input_count_matrix.tsv> [OR] kmerdb matrix PCA -k 5 STDIN"
+
+        
+COMMAND_4_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb matrix <pass|PCA|tSNE|DESeq2> input1.12.kdb input2.12.kdb ...
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
 
 
 
@@ -1369,11 +886,449 @@ COMMAND_6_STEPS = OrderedDict({
 
 
 
-command_7_description = "K-means clustering with biopython or scikit-learn"
-command_7_description_long = "Produces eblow graph if k is not determined a-priori. Uses matplotlib for graphics. Prints {0} and {1} as primary outputs, in addition to the 'kmeans_elbow_graph.png' which is printed if no k is supplied.".format(config.pca_variance_fig_filepath, config.kmeans_clustering_fig_filepath)
-command_7_parameters = "Use -k to control clustering with k-means. Choice of 'sklearn' or 'biopython' k-means clustering. Choice of distance metrics offered by kcluster"
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_4_name, command_4_description, command_4_description_long, command_4_inputs, command_4_parameters, command_4_usage)
+        
+        
+COMMAND_4_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name" : "function",
+            "type": "parameter",
+            "value" : "dimensionality reduction, DESeq2 normalization (via rpy2), or pass - no-transformation, or (deprecated) k-mer Frequency matrix. [PCA, tSNE, DESeq2, pass, Frequency]",
+        },
+        {
+            "name" : "n",
+            "type":  "int",
+            "value": "dimension choise for scipy PCA or tSNE"
+        },
+        {
+            "name": "perplexity",
+            "type": "int",
+            "value" : "perplexity parameter for scipy tSNE"
+        },
+        {
+            "name": "no-normalized-ints",
+            "type": "flag",
+            "value": "do not round counts to nearest integer when importing from RPy2 from DESeq2 normalization"
+        }
+    ]
+})
+
+
+COMMAND_4_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "kdbfiles",
+            "type": "file(s)",
+            "value": ".kdb count vector files produced from command #1 in the profile <-> k-mer count matrix <-> count distance matrix pipeline"
+        },
+        {
+            "name": "input.tsv",
+            "type": "file",
+            "value": "A table of csv/tsv file counts, possibly for dimensionality reduction."
+        },
+        {
+            "name": "STDIN",
+            "type": "flag",
+            "value": "Read from STDIN, possibly in a unix pipe."
+        }
+        
+            ]
+})
+
+COMMAND_4_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "read/import datasets",
+            "shortname": "read/import multiple count vectors",
+            "description" : "count vectors in columns of csv/tsv input over 'STDIN', .tsv/csv file (with --delimiter option), or multiple .kdb files."
+        }),
+        OrderedDict({
+            "name": "Pandas library .csv sanitation",
+            "shortname": "validate input",
+            "description": "sanitize and structure validation on inputs (TODO: 4/5/24 not done yet. Uses a pandas csv loader on tsv/csv files or 'STDIN' to read a matrix/DataFrame input from a standard input stream. Otherwise collates multiple .kdb count vectors and coerces the input into a NumPy array otherwise failure.)"
+        }),
+        OrderedDict({
+            "name": "transformation on data matrix",
+            "shortname": "transformation on data matrix",
+            "description": "Apply 'transformation' to input matrix. Not a distance calculation, but a restructuring of the data. Options are PCA (+scipy), t-stochastic neighbor embedding(scipy), 'DESeq2' median-of-ratios normalization, or retrieve frequencies for related applications."
+        })
+    ]
+})
+
+COMMAND_4_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "read input file(s) from filesystem into k-mer arrays",
+            "shortname": "read .kdb files into k-mer count arrays",
+            "description": "read multiple .kdb files into k-mer count matrix",
+        }),
+        OrderedDict({
+            "name": "parse .csv into Pandas DataFrame",
+            "shortname": "Pandas .csv import from input file or STDIN",
+            "description": "merge counts of nullomers, unique kmers, and total kmers."
+        }),
+        OrderedDict({
+            "name": "Apply PCA dimensionality reduction with provided dimensionality n",
+            "shortname": "PCA dim reduction",
+            "description": "Uses scipy PCA to apply dimensionality reduction on input matrix"
+        }),
+        OrderedDict({
+            "name": "Apply t-SNE dimensionality reduction with provided dimensionality n",
+            "shortname": "t-SNE dim reduction",
+            "description": "Uses scipy t-SNE to apply dimensionality reduction on input matrix"
+        }),
+        OrderedDict({
+            "name": "Apply DESeq-2 'median-of-ratios' count normalization",
+            "shortname": "DESeq-2 normalize",
+            "description": "Uses rpy2 to call the R server and pass the data matrix for DESeq-2 normalization"
+
+                    }),
+        OrderedDict({
+            "name": "pass unnormalized counts",
+            "shortname": "unnormalized data",
+            "description": "Passes the unnormalized data in Data Frame tsv format to STDOUT/file"
+        })
+
+    ]
+
+})
+
+
+
+command_5_description = "Create distance matrix from input count matrix (.tsv). Output is plain text .tsv"
+command_5_description_long = """
+
+
+
+
+
+
+
+
+...
+
+
+
+
+
+"""
+command_5_parameters = "Choose a distance metric. 23 distances available. 'pearson' 'correlation' and 'spearman' are relevant for k-mer count vector similarity."
+command_5_inputs = "Several input files with the same [-k]. Or a k-mer count matrix as .tsv. Use 'STDIN' in place of an input file to read .tsv from STDIN in a Unix pipe. Prints .tsv to stdout."
+command_5_usage = "kmerdb distance  [input1.12.kdb input2.12.kdb ...] [OR] kmerdb distance correlation <input.tsv> [OR] kmerdb distance spearman STDIN"
+
+        
+COMMAND_5_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb distance pearson [input1.12.kdb input2.12.kdb ...]  OR kmerdb distance pearson <input.tsv> or kmerdb distance pearson STDIN
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_5_name, command_5_description, command_5_description_long, command_5_inputs, command_5_parameters, command_5_usage)
+
+        
+
+COMMAND_5_PARAMS = OrderedDict({
+    "name": "arguments",
+            "type": "array",
+    "items": [
+        {
+            "name" : "distance method",
+            "type": "parameter",
+            "value" : "braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule distances. 'spearman' and 'correlation' distances provided by scipy. 'pearson' is a custom Cython correlation coefficient: ssxy/sqrt(ssxx^2 x ssyy^2) | all others provided by scipy",
+        },
+    ]
+})
+
+        
+COMMAND_5_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "kdbfiles",
+            "type": "file(s)",
+            "value": ".kdb count vector files produced from kmerdb profile"
+        },
+        {
+            "name": "input.tsv",
+            "type": "file",
+            "value": "A table of csv/tsv file counts, possibly for dimensionality reduction."
+        },
+        {
+            "name": "STDIN",
+            "type": "flag",
+            "value": "Read from STDIN, possibly in a unix pipe."
+        }
+        
+            ]
+})
+
+COMMAND_5_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "read/import datasets",
+            "shortname": "read/import multiple count vectors",
+            "description" : "count vectors in columns of csv/tsv input over 'STDIN', .tsv/csv file (with --delimiter option), or multiple .kdb files."
+        }),
+        OrderedDict({
+            "name": "Pandas library .csv sanitation",
+            "shortname": "validate input",
+            "description": "sanitize and structure validation on inputs (TODO: 4/5/24 not done yet. Uses a pandas csv loader on tsv or STDIN input. Otherwise collates multiple .kdb count vectors and coerces the input into a NumPy array otherwise failure.)"
+        }),
+        OrderedDict({
+            "name": "generates distance matrix",
+            "shortname": "generates distance matrix",
+            "description": "Choose 'distance method' to apply to input matrix. Available SciPy distances include 'braycurtis,canberra,chebyshev,cityblock,correlation,cosine,dice,euclidean,hamming,jaccard,jensenshannon,kulsinski,mahalanobis,matching,minkowski,pearson,rogerstanimotorusselrao,seuclidean,sokalmichener,sokalsneath,spearman,sqeuclidean,yule' distances. 'spearman' and 'correlation' distances provided by scipy. 'pearson' is a custom Cython correlation coefficient: ssxy/sqrt(ssxx^2 x ssyy^2) | all others provided by scipy. All distances availalable on -h|--help"
+        })
+    ]
+})
+    
+COMMAND_5_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "read input file(s) from filesystem into k-mer arrays",
+            "shortname": "read .kdb files into k-mer count arrays",
+            "description": "read multiple .kdb files into k-mer count matrix",
+        }),
+        OrderedDict({
+            "name": "parse .csv into Pandas DataFrame",
+            "shortname": "Pandas .csv import from input file or STDIN",
+            "description": "merge counts of nullomers, unique kmers, and total kmers."
+        }),
+        OrderedDict({
+            "name": "calculate distance matrix from input data matrix",
+            "shortname": "distance matrix generation",
+            "description": "Use input data matrix to create a distance matrix, produced by SciPy and a choice of distance method"
+        })
+
+    ]
+    
+})
+
+
+
+command_6_description = "K-means clustering with biopython or scikit-learn"
+command_6_description_long = "Produces eblow graph if k is not determined a-priori. Uses matplotlib for graphics. Prints {0} and {1} as primary outputs, in addition to the 'kmeans_elbow_graph.png' which is printed if no k is supplied.".format(config.pca_variance_fig_filepath, config.kmeans_clustering_fig_filepath)
+command_6_parameters = "Use -k to control clustering with k-means. Choice of 'sklearn' or 'biopython' k-means clustering. Choice of distance metrics offered by kcluster"
+command_6_inputs = "Input is a .tsv file. Use STDIN to read input from standard input".format(config.VERSION)
+command_6_usage = "kmerdb kmeans -k 5 -i <count_or_distance_matrix.tsv> sklearn"
+
+        
+COMMAND_6_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb kmeans -k 5 <count_matrix.tsv> biopython
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_6_name, command_6_description, command_6_description_long, command_6_inputs, command_6_parameters, command_6_usage)
+
+        
+
+COMMAND_6_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name" : "k",
+            "type": "parameter",
+            "value" : "Controls k-means clustering"
+        },
+    ]
+})
+
+        
+COMMAND_6_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "Input data matrix",
+            "type": "file",
+            "value": "Input may be a count matrix or distance/correlation matrix."
+        }
+        
+            ]
+})
+
+COMMAND_6_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Parse input count matrix or distance/correlation matrix",
+            "shortname": "read input data matrix",
+            "description" : "load data into memory from input file"
+        }),
+        OrderedDict({
+            "name": "Use biopython or scikit-learn for k-means clutsering",
+            "shortname": "kmeans clustering",
+            "description": "creates elbow graph if choice of k is ambiguous, and other output graphics from distance matrix"
+        })
+    ]
+})
+    
+COMMAND_6_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Parse .csv file",
+            "shortname": "Loads data into Pandas DataFrame",
+            "description": "Infers datatype from .csv data",
+        }),
+        OrderedDict({
+            "name": "Run k-means clustering",
+            "shortname": "k-means clustering",
+            "description": "Uses biopython or scikit-learn for k-means clustering, and matplotlib for graphics"
+        })
+
+    ]
+
+})
+
+
+
+
+
+command_7_description = "Hierarchical clustering with biopython"
+command_7_description_long = "Uses matplotlib for graphics. Creates {0} and {1} as primary outputs.".format(config.hierarchical_clustering_dendrogram_fig_filepath, config.upgma_tree_phylip)
+command_7_parameters = "-m|--method determines linkage fitting (see --help for details)"
 command_7_inputs = "Input is a .tsv file. Use STDIN to read input from standard input".format(config.VERSION)
-command_7_usage = "kmerdb kmeans -k 5 -i <count_or_distance_matrix.tsv> sklearn"
+command_7_usage = "kmerdb hierarchical -m ward -i <count_or_distance_matrix.tsv>"
 
         
 COMMAND_7_BANNER = """
@@ -1450,9 +1405,9 @@ COMMAND_7_PARAMS = OrderedDict({
     "type": "array",
     "items": [
         {
-            "name" : "k",
+            "name" : "method",
             "type": "parameter",
-            "value" : "Controls k-means clustering"
+            "value" : "Linkage method for hierarchical clustering. Choices are single,complete,average,weighted,centroid,median,ward"
         },
     ]
 })
@@ -1468,7 +1423,7 @@ COMMAND_7_INPUTS = OrderedDict({
             "value": "Input may be a count matrix or distance/correlation matrix."
         }
         
-            ]
+    ]
 })
 
 COMMAND_7_FEATURES = OrderedDict({
@@ -1481,9 +1436,9 @@ COMMAND_7_FEATURES = OrderedDict({
             "description" : "load data into memory from input file"
         }),
         OrderedDict({
-            "name": "Use biopython or scikit-learn for k-means clutsering",
-            "shortname": "kmeans clustering",
-            "description": "creates elbow graph if choice of k is ambiguous, and other output graphics from distance matrix"
+            "name": "Use biopython for hierarchical clutsering",
+            "shortname": "hierarchical clustering",
+            "description": "Uses Bio.Cluster.treecluster for hierarchical clustering. Produces a phylip UPGMA tree."
         })
     ]
 })
@@ -1498,24 +1453,24 @@ COMMAND_7_STEPS = OrderedDict({
             "description": "Infers datatype from .csv data",
         }),
         OrderedDict({
-            "name": "Run k-means clustering",
-            "shortname": "k-means clustering",
-            "description": "Uses biopython or scikit-learn for k-means clustering, and matplotlib for graphics"
+            "name": "Run hierarchical clustering",
+            "shortname": "hierarchical clustering",
+            "description": "Uses biopython hierarchical clustering. Produces a UPGMA tree in Phylip format"
         })
 
     ]
 
 })
 
+"""
 
-
-
-
-command_8_description = "Hierarchical clustering with biopython"
-command_8_description_long = "Uses matplotlib for graphics. Creates {0} and {1} as primary outputs.".format(config.hierarchical_clustering_dendrogram_fig_filepath, config.upgma_tree_phylip)
-command_8_parameters = "-m|--method determines linkage fitting (see --help for details)"
-command_8_inputs = "Input is a .tsv file. Use STDIN to read input from standard input".format(config.VERSION)
-command_8_usage = "kmerdb hierarchical -m ward -i <count_or_distance_matrix.tsv>"
+Command 8 codons
+"""
+command_8_description = "Codon usage table"
+command_8_description_long = "Calculate codon usage counts (or frequencies) for codons in a reference sequence population"
+command_8_parameters = "--as-frequencies changes counts to frequencies within a synonymous amino-acid family of codons, --ignore-noncanonicals omits sequences that do not contain standard CDS definition (non-ATG start codon, non-TAA/TAG/TGA stop codons), --ignore-invalid-cds omits sequences that are considered invalid (length not divisible by 3, otherwise uses --ignore-noncanonicals definition). --dont-ignore-start-codons includes counts from start codons for downstream analysis, --dont-ignore-stop-codons includes counts from stop codons for downstream analysis"
+command_8_inputs = "Input is a .fna fasta file of CDS sequences"
+command_8_usage = "kmerdb codons -vv input.fna"
 
         
 COMMAND_8_BANNER = """
@@ -1551,7 +1506,7 @@ COMMAND_8_BANNER = """
 
 --------------------------
 
-                    kmerdb kmeans -k 5 <count_matrix.tsv> biopython
+                    kmerdb codons <input.fna>
 
                     [-]    inputs : 
 
@@ -1592,10 +1547,35 @@ COMMAND_8_PARAMS = OrderedDict({
     "type": "array",
     "items": [
         {
-            "name" : "method",
+            "name" : "--as-frequencies",
             "type": "parameter",
-            "value" : "Linkage method for hierarchical clustering. Choices are single,complete,average,weighted,centroid,median,ward"
+            "value" : "Output is frequencies of codon usage within an synonymous amino-acid family"
         },
+        {
+            "name": "--ignore-noncanonicals",
+            "type": "parameter",
+            "value": "Ignore (dont throw error) sequences with non-canonical start/stop codons (more permissive)",
+        },
+        {
+            "name": "--ignore-invalid-cds",
+            "type": "parameter",
+            "value": "Ignore (dont throw error) sequences that do not fit the canonical definition of a CDS: length divisible by 3, standard start/stop codons (If you want the program to error out on sequences that are considered invalid then dont use this parameter. Otherwise this parameter will just ignore and omit those sequences in the final table)"
+        },
+        {
+            "name": "--include-start-codons",
+            "type": "parameter",
+            "value": "Include start codon counts in the count/frequency table"
+        },
+        {
+            "name": "--include-stop-codons",
+            "type": "parameter",
+            "value": "Include stop codon counts in the count/frequency table"
+        },
+        {
+            "name": "--output-delimiter",
+            "type": "parameter",
+            "value": "The choice of output delimiter for the codon count/frequency table"
+        }
     ]
 })
 
@@ -1605,9 +1585,9 @@ COMMAND_8_INPUTS = OrderedDict({
     "type": "array",
     "items": [
         {
-            "name": "Input data matrix",
+            "name": "Reference .fna fasta file",
             "type": "file",
-            "value": "Input may be a count matrix or distance/correlation matrix."
+            "value": "Input is a .fna file of CDS sequences."
         }
         
     ]
@@ -1618,14 +1598,24 @@ COMMAND_8_FEATURES = OrderedDict({
     "type": "array",
     "items": [
         OrderedDict({
-            "name": "Parse input count matrix or distance/correlation matrix",
-            "shortname": "read input data matrix",
-            "description" : "load data into memory from input file"
+            "name": "Read fasta input",
+            "shortname": "Parse fasta file",
+            "description" : "Parse CDS sequences from a .fna fasta file"
         }),
         OrderedDict({
-            "name": "Use biopython for hierarchical clutsering",
-            "shortname": "hierarchical clustering",
-            "description": "Uses Bio.Cluster.treecluster for hierarchical clustering. Produces a phylip UPGMA tree."
+            "name": "Calculate codon counts",
+            "shortname": "codon counts",
+            "description": "Calculate counts of codons (3-mers) along the CDS sequence "
+        }),
+        OrderedDict({
+            "name": "Convert to synonymous codon frequencies",
+            "shortname": "synonymous frequencies",
+            "description": "Will calculate the frequencies of a specific codons usage within a synonymous codon family for an amino-acid"
+        }),
+        OrderedDict({
+            "name": "Print .tsv of codon counts/frequencies",
+            "shortname": "Print table of codon counts",
+            "description": "Prints a .tsv table of codon counts or synonymous usage frequencies"
         })
     ]
 })
@@ -1635,14 +1625,221 @@ COMMAND_8_STEPS = OrderedDict({
     "type": "array",
     "items": [
         OrderedDict({
-            "name": "Parse .csv file",
-            "shortname": "Loads data into Pandas DataFrame",
-            "description": "Infers datatype from .csv data",
+            "name": "Parse .fna fasta sequences of CDS",
+            "shortname": "Parse fasta sequences",
+            "description": "Parse each sequence of the .fna file to validate and calculate counts",
         }),
         OrderedDict({
-            "name": "Run hierarchical clustering",
-            "shortname": "hierarchical clustering",
-            "description": "Uses biopython hierarchical clustering. Produces a UPGMA tree in Phylip format"
+            "name": "Validate each CDS",
+            "shortname": "CDS validation",
+            "description": "Checks if length of CDS is divisible by 3, and contains valid/canonical start/stop codons"
+        }),
+        OrderedDict({
+            "name": "Calculate 3-mer/codon counts",
+            "shortname": "count codons",
+            "description": "Make codon counts along each sequence"
+        }),
+        OrderedDict({
+            "name": "Table of codon counts",
+            "shortname": "codon count table",
+            "description": "Print nx64 count/frequency matrix of n sequences and their 64 codon counts"
+        })
+
+    ]
+
+})
+
+"""
+Command 9
+"""
+
+command_9_description = "Codon usage bias"
+command_9_description_long = "Use codon counts ('kmerdb codons') for Chi-Square tests of overrepresentation of specific codons within a synonymous codon family"
+command_9_parameters = "--as-frequencies changes counts to frequencies within a synonymous amino-acid family of codons, --ignore-noncanonicals omits sequences that do not contain standard CDS definition (non-ATG start codon, non-TAA/TAG/TGA stop codons), --ignore-invalid-cds omits sequences that are considered invalid (length not divisible by 3, otherwise uses --ignore-noncanonicals definition). --dont-ignore-start-codons includes counts from start codons for downstream analysis, --dont-ignore-stop-codons includes counts from stop codons for downstream analysis"
+command_9_inputs = "Input is a table of codon counts from a reference population and a .fna fasta file of CDS sequences to compare to the reference family's codon usage"
+command_9_usage = "kmerdb CUB -vv <--sequences input.fna> <codon_usage.tsv>"
+
+        
+COMMAND_9_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb CUB -vv <--sequences input.fna> <codon_usage.tsv>
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_9_name, command_9_description, command_9_description_long, command_9_inputs, command_9_parameters, command_9_usage)
+
+        
+
+COMMAND_9_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name" : "--as-frequencies",
+            "type": "parameter",
+            "value" : "Output is frequencies of codon usage within an synonymous amino-acid family"
+        },
+        {
+            "name": "--ignore-noncanonicals",
+            "type": "parameter",
+            "value": "Ignore (dont throw error) sequences with non-canonical start/stop codons (more permissive)",
+        },
+        {
+            "name": "--ignore-invalid-cds",
+            "type": "parameter",
+            "value": "Ignore (dont throw error) sequences that do not fit the canonical definition of a CDS: length divisible by 3, standard start/stop codons (If you want the program to error out on sequences that are considered invalid then dont use this parameter. Otherwise this parameter will just ignore and omit those sequences in the final table)"
+        },
+        {
+            "name": "--include-start-codons",
+            "type": "parameter",
+            "value": "Include start codon counts in the count/frequency table"
+        },
+        {
+            "name": "--include-stop-codons",
+            "type": "parameter",
+            "value": "Include stop codon counts in the count/frequency table"
+        },
+        {
+            "name": "--output-delimiter",
+            "type": "parameter",
+            "value": "The choice of output delimiter for the codon count/frequency table"
+        }
+    ]
+})
+
+        
+COMMAND_9_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "--sequences",
+            "type": "file",
+            "value": "Input is a .fna file of CDS sequences."
+        },
+        {
+            "name": "input",
+            "type": "file",
+            "value": "'input' is a codon_usage table of counts (not frequencies) from 'kmerdb codons'"
+        }
+        
+    ]
+})
+
+COMMAND_9_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Read fasta input",
+            "shortname": "Parse fasta file",
+            "description" : "Parse CDS sequences from a .fna fasta file"
+        }),
+        OrderedDict({
+            "name": "Read codon usage .tsv table",
+            "shortname": "Read codon count table",
+            "description": "Read codon count table as .tsv from 'kmerdb codons'"
+        }),
+        OrderedDict({
+            "name": "Chi-square test",
+            "shortname": "chi-square test",
+            "description": "Calculate chi-square test statistics across each codon's expected and observed counts, based on the reference family of sequences given by 'kmerdb codons', within a synonymous amino-acid family. Performs 20 (20 different amino-acids) chi-square tests for each statistic. Working on the multiple-hypothesis correction framework."
+        }),
+        OrderedDict({
+            "name": "Print .tsv of chi-square test results",
+            "shortname": "Print table of chi-square results",
+            "description": "Prints a .tsv table of chi-square values and p-values for each of the 20 synonymous usage families"
+        })
+    ]
+})
+    
+COMMAND_9_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Parse the codon count (not frequency) table",
+            "shortname": "parse codon counts",
+            "description": "Parse the codon counts .tsv table from 'kmerdb codons'"
+        }),
+        OrderedDict({
+            "name": "Parse .fna fasta sequences of CDS",
+            "shortname": "Parse fasta sequences",
+            "description": "Parse each sequence of the .fna file to validate and calculate counts",
+        }),
+        OrderedDict({
+            "name": "Validate each CDS",
+            "shortname": "CDS validation",
+            "description": "Checks if length of CDS is divisible by 3, and contains valid/canonical start/stop codons"
+        }),
+        OrderedDict({
+            "name": "Calculate Chi-square test statistics and p-values",
+            "shortname": "chi-square tests",
+            "description": "Calculate 20 different chi-square tests for each sequence (one for each amino acid)"
+        }),
+        OrderedDict({
+            "name": "Print table of chi-square results",
+            "shortname": "print chi-square results",
+            "description": "Print nx20 chi-square result matrix of n sequences and their 20 amino acid results from chi-square"
         })
 
     ]
@@ -1655,6 +1852,72 @@ COMMAND_8_STEPS = OrderedDict({
 
 
 
+"""
+
+Command 10
+"""
+
+
+
+
+
+
+command_10_description = "create a edge list in (block) .gz format from .fasta|.fa or .fastq format."
+command_10_description_long = """
+
+
+   :     4 column output : [ row idx | k-mer id node #1 | k-mer id node #2 | edge weight (adjacency count) ]
+
+   :  make a deBruijn graph, count the number of k-mer adjacencies,  printing the edge list to STDOUT
+
+
+
+
+                  +=============+====================+====================+=================================+
+                  <    row idx  |  k-mer id node #1  |  k-mer id node #2  |  edge weight (adjacency count)  >
+                  |             |                    |                    |                                 |
+                  |             +
+                  |
+                  |
+                  |
+                  |
+                  |
+"""
+        
+command_10_parameters = "uses < -k > for k-mer size, --quiet to reduce runtime, -v, -vv to control logging."
+command_10_inputs = "Input file can .fastq (or .fa).   - gzip.  Output is a weighted edge list in .kdb format (gzipped .csv with YAML header)"
+command_10_usage = "kmerdb graph -k $K --quiet <input_1.fa.gz> [input_2.fq.gz] <output_edge_list_file.12.kdbg>" 
+
+
+COMMAND_10_BANNER = """
+
+
+
+                          [ name ] :         {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+
+                    kmerdb {0} -k 12 input_1.fa [example_2.fastq] output.12.kdbg
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
 
 
 
@@ -1666,19 +1929,436 @@ COMMAND_8_STEPS = OrderedDict({
 
 
 
-
-
-
-
-
-command_9_description = "Create an index file (deprecated)"
-command_9_description_long = ""
-command_9_parameters = "N/A"
-command_9_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_9_usage = "kmerdb index <kmer_count_vector.kdb>"
+""".format(command_10_name, command_10_description, command_10_description_long, command_10_inputs, command_10_parameters, command_10_usage)
 
         
-COMMAND_9_BANNER = """
+
+        
+COMMAND_10_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name"  : "k",
+            "type"  : "int",
+            "value" : "choice of k-mer size"
+        },
+        {
+            "name"  : "quiet",
+            "type"  : "flag",
+            "value" : "Write additional debug level information to stderr?"
+        }
+    ]
+})
+        
+        
+
+COMMAND_10_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name"  : "<.fasta|.fastq>",
+            "type"  : "array",
+            "value" : "gzipped or uncompressed input .fasta or .fastq file(s)"
+        },
+        {
+            "name"  : ".kdbg",
+            "type"  : "file",
+            "value" : "Output edge-list filepath."
+        }
+    ]
+})
+
+
+COMMAND_10_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "k-mer count arrays, linear, produced as file is read through sliding window. (Un)compressed support for .fa/.fq.",
+            "shortname": "parallel faux-OP sliding window k-mer shredding",
+            "description": "Sequential k-mers from the input .fq|.fa files are added to the De Bruijn graph. In the case of secondary+ sequences in the .fa or considering NGS (.fq) data, non-adjacent k-mers are pruned with a warning. Summary statistics for the entire file are given for each file read, + a transparent data structure."
+        }),
+        OrderedDict({
+            "name": "k-mer neighbors assessed and tallied, creates a unsorted edge list, with weights",
+            "shortname": "weighted undirected graph",
+            "description": "an edge list of a De Bruijn graph is generated from all k-mers in the forward direction of .fa/.fq sequences/reads. i.e. only truly neighboring k-mers in the sequence data are added to the tally of the k-mer nodes of the de Bruijn graph and the edges provided by the data."
+        })
+    ]
+})
+
+
+COMMAND_10_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "read input file(s) from filesystem into k-mer arrays",
+            "shortname": "shred inputs into k-mer count arrays",
+            "description": "shred input sequences into k-mer count vector",
+        }),
+        OrderedDict({
+            "name": "merge k-mer arrays and aggregate metadata",
+            "shortname": "merge k-mer count arrays for aggregate metadata (header)",
+            "description": "merge counts of nullomers, unique kmers, and total kmers."
+        }),
+        OrderedDict({
+            "name": "collate the weighted edge lists after reading multiple files. Output data consists of a edge_list, analogous metadata-header as YAML, kmer_counts, and nullomer_ids.",
+            "shortname": "extract undirected weighted graph",
+            "description": "consists of info from a .kdb file and a .kdbg file. The node IDs, the edges, and the number of times the pair was observed from forward sequences in the provided dataset"
+        }),
+        OrderedDict({
+            "name": "print 'table' Final stats and close output file",
+            "shortname": "metrics and shutdown",
+            "description": "print final statistics, typically metadata values, and ensure file is closed."
+        })
+        
+            ]
+})
+        
+
+"""
+
+Command 11
+"""
+
+
+
+
+command_11_description = "Calculate minimizers"
+command_11_description_long = """
+    Calculate minimizers, outputs a binary array to associate with a index array.
+    
+
+
+"""
+command_11_parameters = "Parameter of interest is window size"
+command_11_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_11_usage = "kmerdb minimizers -vv --window-size W --debug input1.12.kdb > input1.12.kdb.kdbi"
+
+
+        
+COMMAND_11_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+                    kmerdb minimizers --window-size W input1.12.kdb > input1.12.kdb.kdbi
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_11_name, command_11_description, command_11_description_long, command_11_inputs, command_11_parameters, command_11_usage)
+
+        
+
+COMMAND_11_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "Reference .kdb file to create minimizers from",
+            "type": "file",
+            "value": "The k-mer count profile to calculate minimizers."
+        }
+    ]
+})
+
+        
+COMMAND_11_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "",
+            "type": "file",
+            "value": "File to decompose the k-mer profile into its parts."
+        }
+        
+    ]
+})
+
+COMMAND_11_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "linear regression for ",
+            "shortname": "",
+            "description" : ""
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(Deprecated)"
+        })
+    ]
+})
+    
+COMMAND_11_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "",
+            "shortname": "",
+            "description": "(uhhhh...)",
+        }),
+        OrderedDict({
+            "name": "",
+            "shortname": "Shuffle k-mer counts",
+            "description": "(Deprecated)"
+        })
+
+    ]
+
+})
+
+
+
+command_12_description = "Sequence alignment"
+command_12_description_long = """
+        Perform Smith-Waterman alignment on a reference database using seed regions (minimizers) determined from the reference .fasta sequence and the associated .kdb file.
+    
+
+
+"""
+command_12_parameters = "Parameters of note are match score, mismatch score, gap open/extend penalties"
+command_12_inputs = "Input is a v{0} .kdbi minimizer index file and two fasta files, a query and a reference".format(config.VERSION)
+command_12_usage = "kmerdb alignment -vv --debug query.fasta reference.fasta input1.8.kdbi"
+
+
+        
+COMMAND_12_BANNER = """
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+
+
+        kmerdb alignment query.fasta reference.fasta input1.8.kdbi
+
+
+
+
+
+                        [  n a m e    ]         :  -   {0}
+
+                   description : {1}
+
+{2}
+
+
+
+
+--------------------------
+
+
+
+                    [-]    inputs : 
+
+                           {3}
+
+                    [-]    parameters : 
+
+                           {4}
+
+
+
+                    [-]    [ usage ]  :  {5}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[--------------------------------------------------------------------------------------]
+""".format(command_12_name, command_12_description, command_12_description_long, command_12_inputs, command_12_parameters, command_12_usage)
+
+        
+
+COMMAND_12_PARAMS = OrderedDict({
+    "name": "arguments",
+    "type": "array",
+    "items": [
+        {
+            "name": "Window size",
+            "type": "int",
+            "value": "The window-size to use to count minimizers with."
+        }
+    ]
+})
+
+        
+COMMAND_12_INPUTS = OrderedDict({
+    "name": "inputs",
+    "type": "array",
+    "items": [
+        {
+            "name": "The reference file's .kdbi minimizer index file.",
+            "type": "file",
+            "value": "The reference k-mer minimizers."
+        },
+        {
+            "name": "Reference fasta file.",
+            "type": "file",
+            "value": "The reference fasta file to perform alignment against."
+        },
+        {
+            "name": "Query fasta file.",
+            "type": "file",
+            "value": "The query fasta file to calculate minimizers and perform alignment with."
+        }
+
+    ]
+})
+
+                                
+
+COMMAND_12_FEATURES = OrderedDict({
+    "name": "features",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Parse reference .fna fasta sequence file ",
+            "shortname": "Parse references",
+            "description" : "Load .fna reference fasta sequences"
+        }),
+        OrderedDict({
+            "name": "Parse query .fna fasta sequence file ",
+            "shortname": "Parse queries",
+            "description" : "Load .fna query fasta sequences"
+        }),
+        OrderedDict({
+            "name": "Parse reference minimizers .kdbi file",
+            "shortname": "Parse minimizers",
+            "description": "Parse .kdbi minimizer index file for reference sequences"
+        }),
+        OrderedDict({
+            "name": "Perform Smith-Waterman alignment on queries against references",
+            "shortname": "Smith-Waterman alignment",
+            "description": "Use minimizers as possible seed regions to match queries against references and extend alignment using Smith-Waterman"
+        })
+    ]
+})
+    
+COMMAND_12_STEPS = OrderedDict({
+    "name": "steps",
+    "type": "array",
+    "items": [
+        OrderedDict({
+            "name": "Load queries and references",
+            "shortname": "load fasta files",
+            "description": "Read the .fna query/reference fasta sequences",
+        }),
+        OrderedDict({
+            "name": "Load the minimizer index",
+            "shortname": "load .kdbi minimizers",
+            "description": "Read the .kdbi minimizer index file for seed regions"
+        }),
+        OrderedDict({
+            "name": "Calculate seed matches of each query against references",
+            "shortname": "Seed matches",
+            "description": "Seed possible alignment matches using the matches of .kdbi minimizers of references sequences with seed regions on the query for Smith-Waterman extension"
+        }),
+        OrderedDict({
+            "name": "Perform SW alignment",
+            "shortname": "Smith-Waterman alignment",
+            "description": "Perform full alignment/extension from seeded matches of query sequences against the reference sequences."
+        })
+
+    ]
+
+})
+
+
+
+
+command_13_description = "Create an index file (deprecated)"
+command_13_description_long = ""
+command_13_parameters = "N/A"
+command_13_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_13_usage = "kmerdb index <kmer_count_vector.kdb>"
+
+        
+COMMAND_13_BANNER = """
 
 
 
@@ -1743,11 +2423,11 @@ COMMAND_9_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_9_name, command_9_description, command_9_description_long, command_9_inputs, command_9_parameters, command_9_usage)
+""".format(command_13_name, command_13_description, command_13_description_long, command_13_inputs, command_13_parameters, command_13_usage)
 
         
 
-COMMAND_9_PARAMS = OrderedDict({
+COMMAND_13_PARAMS = OrderedDict({
     "name": "arguments",
     "type": "array",
     "items": [
@@ -1755,7 +2435,7 @@ COMMAND_9_PARAMS = OrderedDict({
 })
 
         
-COMMAND_9_INPUTS = OrderedDict({
+COMMAND_13_INPUTS = OrderedDict({
     "name": "inputs",
     "type": "array",
     "items": [
@@ -1768,7 +2448,7 @@ COMMAND_9_INPUTS = OrderedDict({
             ]
 })
 
-COMMAND_9_FEATURES = OrderedDict({
+COMMAND_13_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
@@ -1785,7 +2465,7 @@ COMMAND_9_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_9_STEPS = OrderedDict({
+COMMAND_13_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
@@ -1807,14 +2487,14 @@ COMMAND_9_STEPS = OrderedDict({
 
         
 
-command_10_description = "Shuffle k-mer count vector (Deprecated)"
-command_10_description_long = ""
-command_10_parameters = "N/A"
-command_10_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_10_usage = "kmerdb shuf <kmer_count_vector.kdb>"
+command_14_description = "Shuffle k-mer count vector (Deprecated)"
+command_14_description_long = ""
+command_14_parameters = "N/A"
+command_14_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
+command_14_usage = "kmerdb shuf <kmer_count_vector.kdb>"
 
         
-COMMAND_10_BANNER = """
+COMMAND_14_BANNER = """
 
 
 
@@ -1879,11 +2559,11 @@ COMMAND_10_BANNER = """
 
 
 [--------------------------------------------------------------------------------------]
-""".format(command_10_name, command_10_description, command_10_description_long, command_10_inputs, command_10_parameters, command_10_usage)
+""".format(command_14_name, command_14_description, command_14_description_long, command_14_inputs, command_14_parameters, command_14_usage)
 
         
 
-COMMAND_10_PARAMS = OrderedDict({
+COMMAND_14_PARAMS = OrderedDict({
     "name": "arguments",
     "type": "array",
     "items": [
@@ -1891,7 +2571,7 @@ COMMAND_10_PARAMS = OrderedDict({
 })
 
         
-COMMAND_10_INPUTS = OrderedDict({
+COMMAND_14_INPUTS = OrderedDict({
     "name": "inputs",
     "type": "array",
     "items": [
@@ -1904,7 +2584,7 @@ COMMAND_10_INPUTS = OrderedDict({
     ]
 })
 
-COMMAND_10_FEATURES = OrderedDict({
+COMMAND_14_FEATURES = OrderedDict({
     "name": "features",
     "type": "array",
     "items": [
@@ -1921,7 +2601,7 @@ COMMAND_10_FEATURES = OrderedDict({
     ]
 })
     
-COMMAND_10_STEPS = OrderedDict({
+COMMAND_14_STEPS = OrderedDict({
     "name": "steps",
     "type": "array",
     "items": [
@@ -1940,466 +2620,6 @@ COMMAND_10_STEPS = OrderedDict({
 
 })
 
-
-
-
-
-command_11_description = "Calculate minimizers"
-command_11_description_long = """
-    Calculate minimizers, outputs a binary array to associate with a index array.
-    
-
-
-"""
-command_11_parameters = "Parameter of interest is window size"
-command_11_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_11_usage = "kmerdb minimizers -vv --debug input1.12.kdb > input1.12.minimizers.kdbi"
-
-
-        
-COMMAND_11_BANNER = """
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-
-
-
-
-
-
-
-
-                        [  n a m e    ]         :  -   {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-                    kmerdb minimizers input1.12.kdb input1.12.minimizers.kdbi
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-""".format(command_11_name, command_11_description, command_11_description_long, command_11_inputs, command_11_parameters, command_11_usage)
-
-        
-
-COMMAND_11_PARAMS = OrderedDict({
-    "name": "arguments",
-    "type": "array",
-    "items": [
-        {
-            "name": "K-mer database file.",
-            "type": "file",
-            "value": "The k-mer count proifle to calculate minimizers."
-        }
-    ]
-})
-
-        
-COMMAND_11_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name": "Input count matrix (.tsv)",
-            "type": "file",
-            "value": "File to decompose the k-mer profile into its parts."
-        }
-        
-    ]
-})
-
-COMMAND_11_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "linear regression for ",
-            "shortname": "",
-            "description" : ""
-        }),
-        OrderedDict({
-            "name": "",
-            "shortname": "",
-            "description": "(Deprecated)"
-        })
-    ]
-})
-    
-COMMAND_11_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "",
-            "shortname": "",
-            "description": "(uhhhh...)",
-        }),
-        OrderedDict({
-            "name": "",
-            "shortname": "Shuffle k-mer counts",
-            "description": "(Deprecated)"
-        })
-
-    ]
-
-})
-
-command_12_description = "Calculate minimizers"
-command_12_description_long = """
-    Calculate minimizers, outputs a binary array to associate with a index array.
-    
-
-
-"""
-command_12_parameters = "Parameter of interest is window size"
-command_12_inputs = "Input is a v{0} .kdb count vector file".format(config.VERSION)
-command_12_usage = "kmerdb minimizers -vv --debug input1.12.kdb > input1.12.minimizers.kdbi"
-
-
-        
-COMMAND_12_BANNER = """
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-
-
-
-
-
-
-
-
-                        [  n a m e    ]         :  -   {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-                    kmerdb minimizers input1.12.kdb input1.12.minimizers.kdbi
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-""".format(command_12_name, command_12_description, command_12_description_long, command_12_inputs, command_12_parameters, command_12_usage)
-
-        
-
-COMMAND_12_PARAMS = OrderedDict({
-    "name": "arguments",
-    "type": "array",
-    "items": [
-        {
-            "name": "K-mer database file.",
-            "type": "file",
-            "value": "The k-mer count proifle to calculate minimizers."
-        }
-    ]
-})
-
-        
-COMMAND_12_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name": "Input count matrix (.tsv)",
-            "type": "file",
-            "value": "File to decompose the k-mer profile into its parts."
-        }
-        
-    ]
-})
-
-COMMAND_12_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "linear regression for ",
-            "shortname": "",
-            "description" : ""
-        }),
-        OrderedDict({
-            "name": "",
-            "shortname": "",
-            "description": "(Deprecated)"
-        })
-    ]
-})
-    
-COMMAND_12_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "",
-            "shortname": "",
-            "description": "(uhhhh...)",
-        }),
-        OrderedDict({
-            "name": "",
-            "shortname": "Shuffle k-mer counts",
-            "description": "(Deprecated)"
-        })
-
-    ]
-
-})
-
-
-
-
-command_13_description = "Sequence alignment"
-command_13_description_long = """
-        Perform Smith-Waterman alignment on a reference database using seed regions (minimizers) determined from the reference .fasta sequence and the associated .kdb file.
-    
-
-
-"""
-command_13_parameters = "Parameter of interest is window size"
-command_13_inputs = "Input is a v{0} .kdb count vector file and two fasta files, a query and a reference".format(config.VERSION)
-command_13_usage = "kmerdb alignment -vv --debug query.fasta reference.fasta input1.8.kdb"
-
-
-        
-COMMAND_13_BANNER = """
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-
-
-        kmerdb alignment -vv --debug query.fasta reference.fasta input1.8.kdb
-
-
-
-
-
-                        [  n a m e    ]         :  -   {0}
-
-                   description : {1}
-
-{2}
-
-
-
-
---------------------------
-
-
-
-                    [-]    inputs : 
-
-                           {3}
-
-                    [-]    parameters : 
-
-                           {4}
-
-
-
-                    [-]    [ usage ]  :  {5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[--------------------------------------------------------------------------------------]
-""".format(command_13_name, command_13_description, command_13_description_long, command_13_inputs, command_13_parameters, command_13_usage)
-
-        
-
-COMMAND_13_PARAMS = OrderedDict({
-    "name": "arguments",
-    "type": "array",
-    "items": [
-        {
-            "name": "Window size",
-            "type": "int",
-            "value": "The window-size to use to count minimizers with."
-        }
-    ]
-})
-
-        
-COMMAND_13_INPUTS = OrderedDict({
-    "name": "inputs",
-    "type": "array",
-    "items": [
-        {
-            "name": "K-mer database file.",
-            "type": "file",
-            "value": "The k-mer count proifle to calculate minimizers."
-        },
-        {
-            "name": "Reference fasta file.",
-            "type": "file",
-            "value": "The reference fasta file to calculate minimizers and perform alignment against."
-        },
-        {
-            "name": "Query fasta file.",
-            "type": "file",
-            "value": "The query fasta file to calculate minimizers and perform alignment with."
-        }
-
-    ]
-})
-
-                                
-
-COMMAND_13_FEATURES = OrderedDict({
-    "name": "features",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "calculate minimizers from the reference and query .fasta sequences ",
-            "shortname": "calculate minimizers",
-            "description" : "Use a sliding window to calculate minimizers with"
-        }),
-        OrderedDict({
-            "name": "",
-            "shortname": "",
-            "description": "(Deprecated)"
-        })
-    ]
-})
-    
-COMMAND_13_STEPS = OrderedDict({
-    "name": "steps",
-    "type": "array",
-    "items": [
-        OrderedDict({
-            "name": "Calculate minimizers from reference .fasta and .kdb file",
-            "shortname": "",
-            "description": "",
-        }),
-        OrderedDict({
-            "name": "Generate .kdb file from query .fasta",
-            "shortname": "Shuffle k-mer counts",
-            "description": "(Deprecated)"
-        }),
-        OrderedDict({
-            "name": "Calculate minimizers from query .fasta",
-            "shortname": "Shuffle k-mer counts",
-            "description": "(Deprecated)"
-        }),
-        OrderedDict({
-            "name": "Perform SW alignment",
-            "shortname": "Smith-Waterman alignment",
-            "description": "(Deprecated)"
-        })
-
-    ]
-
-})
 
 
 
