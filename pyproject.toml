@@ -27,8 +27,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmerdb"
-version = "0.8.19"
-description = "Yet another correction to the 'yet another correction to just a k-mer counter...'"
+version = "0.8.20"
+description = "Yet another k-mer counter for Genomics, Metagenomics, and Phylogenomics applications..."
 readme = "README.md"
 authors = [{name="Matt Ralston <mralston.development@gmail.com>", email="mralston.development@gmail.com"}]
 license = { file = "LICENSE.txt" }

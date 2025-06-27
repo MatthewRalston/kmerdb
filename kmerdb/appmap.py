@@ -83,7 +83,7 @@ kmerdb distance pearson count_matrix.tsv
 # Pipeline form
 # -----------------------------
 
-kmerdb matrix pass ... | kmerdb distance pearson STDIN > pearson_correlation_matrix.tsv
+kmerdb matrix from ... | kmerdb distance pearson STDIN > pearson_correlation_matrix.tsv
 
 # -----------------------------
 # Okay, how about PCA, t-SNE?

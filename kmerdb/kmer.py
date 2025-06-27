@@ -580,7 +580,7 @@ def kmer_to_id(s, is_aa:bool=False):
     if is_aa is True and s.find("X") != -1:
         return None # Explicitly return None if an unknown amino acid is found
     elif is_aa is False and s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
-        #logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
+        logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None
 
     # print("Is sequence NA? {0}".format(is_sequence_na(str(s))))
