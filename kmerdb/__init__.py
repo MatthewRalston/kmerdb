@@ -239,27 +239,41 @@ def get_codon_table(arguments):
     with open(arguments.fasta, 'r') as fasta:
         reader = SeqIO.parse(fasta, "fasta")
         for s in reader:
+            seqlen = len(s.seq)
             if not kmer.is_sequence_na(s):
                 raise ValueError("codons expects untranslated nucleotide sequences")
-            elif not codons.is_sequence_cds(s, ignore_noncanonicals=arguments.ignore_noncanonicals, ignore_invalid_cds=arguments.ignore_invalid_cds):
-                #logger.log_it("codons expects a valid untranslated nucleotide sequence. see 'kmerdb.log' for details...", "WARNING")
-                logger.log_it("The sequence '{0}' was not a valid CDS. It contained a non-standard start-codon, stop-codon, or its length was not divisible by 3\n\n\n".format(s.id), "WARNING")
-                # if arguments.ignore_invalid_cds is True:
-                #     #logger.log_it("Ignore invalid CDS? {0}".format(arguments.ignore_invalid_cds), "WARNING")
-                #     pass
-                # else:
-                #     raise ValueError("codons expects an untranslated CDS (coding sequence) as input.")
-            codon_ids, codon_counts, codon_frequencies_wrt_length, codon_synonymous_frequencies = codons.codon_frequency_table(str(s.seq), str(s.id), ignore_invalid_cds=arguments.ignore_invalid_cds, include_stop_codons=arguments.include_stop_codons, include_start_codons=arguments.include_start_codons)
-            #print(codon_ids, codon_counts, codon_frequencies)
-            if codon_ids is None: # The sequence was determine as invalid and 'ignore_invalid_cds' was True chosen by the user. If false, an error would be raised.
+            elif not codons.is_sequence_cds(s, include_noncanonicals=arguments.include_noncanonicals):
+                logger.log_it("The sequence '{0}' was not a valid CDS. It contained a non-standard start-codon, stop-codon, or its length ({1}) was not divisible by 3\n\n\n".format(s.id, len(s.seq)), "WARNING")
+                if seqlen % 3 != 0:
+                    msg = "Sequence '{0}' has a length {1} that is not evenly divisible into length-3 codons".format(s.id, seqlen)
+                    if arguments.ignore_invalid_cds is True:
+                        logger.warn(msg)
+                        continue
+                    else:
+                        logger.error(msg)
+                        raise ValueError(msg)
+                elif arguments.include_noncanonicals is True:
+                    pass
+                else:
+                    msg = "Refusing to proceed due to non-canonical sequence '{0}' which has a non-canonical start or stop codon. Use --include-noncanonicals to proceed otherwise.".format(s.id)
+                    raise ValueError(msg)
+            """
+            Get list of codons in the order seen in the sequence
+            """
+            cdns, is_non_canonical = codons.get_codons_in_order(str(s.seq), seq_id=str(s.id))
+            """
+            Get codon counts according to 3-mer ids. Returns 64-length np.ndarray
+            """
+            #codon_counts = codons.count_codons(cdns, include_start_codons=arguments.include_start_codons, include_stop_codons=arguments.include_stop_codons)
+
+            codon_ids, codon_counts, codon_frequencies_wrt_length, codon_synonymous_frequencies = codons.codon_frequency_table(str(s.seq), str(s.id), include_stop_codons=arguments.include_stop_codons, include_start_codons=arguments.include_start_codons)
+            
+            if codon_ids is None: 
                 continue # Skip a loop
             elif num_valid == 0:
                 cdn_ids = codon_ids
-                    #cdn_ids = np.array(codon_ids, dtype="uint32")
             if arguments.as_frequencies is True:
                 data[s.id] = codon_synonymous_frequencies
-                #cdn_freqs = np.array(codon_frequencies, dtype="float32")
-                #cdn_table.append(cdn_freqs)
             elif arguments.no_stop_codons_in_table is True:
                 temp = []
                 for i, c in enumerate(cdn_ids):
@@ -273,30 +287,15 @@ def get_codon_table(arguments):
                 #cdn_table.append(cdn_cnts)
             num_valid += 1
             total_num += 1
-    # if len(seq_ids) != len(cdn_tbl):
-    #     logger.warning("There were {0} valid CDS sequence in the file '{1}'. Total sequences: {2}. Expected number of sequence ids {num_valid} did not match the count of ids in the array".format(num_valid, total_num, len(seq_ids)))
-    #     raise ValueError("Mismatch between the number of ids and the number of entries in the codon table...")
-    df = pd.DataFrame(data)
 
+    df = pd.DataFrame(data)
+    # print(df.shape)
+    # sys.exit(1)
     df = df.transpose()
     if arguments.no_stop_codons_in_table is True:
         cdns = [kmer.id_to_kmer(c, 3) for c in cdn_ids if c not in codons.STOP_CODONS]
     else:
         cdns = [kmer.id_to_kmer(c, 3) for c in cdn_ids]    # i = 0
-    # print("Start/stop codon counts:")
-    # for row in df.itertuples(index=True):
-    #     # print(row)
-    #     # print(row[0])
-    #     seqid = row.Index
-    #     atg_cnt = row._15
-    #     example_stop_codon_taa_cnt = row._49
-    #     print("{0}\t{1}\t{2}".format(seqid, atg_cnt, example_stop_codon_taa_cnt))
-    #     if i > 5:
-    #         raise RuntimeError("Counted example start/stop codons")
-    #     i+=1
-
-    
-
     df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=True, header=cdns)
 
 
@@ -365,7 +364,14 @@ def codon_usage_bias(arguments):
         """
         Use the codon frequency table to get observed codon counts as before
         """
-        codon_ids, observed_counts, observed_frequencies_wrt_length, observed_frequencies_in_family = codons.codon_frequency_table(seq, seqid, ignore_invalid_cds=arguments.ignore_invalid_cds, include_stop_codons=arguments.include_stop_codons, include_start_codons=arguments.include_start_codons)
+        try:
+            codon_ids, observed_counts, observed_frequencies_wrt_length, observed_frequencies_in_family = codons.codon_frequency_table(seq, seqid, include_stop_codons=arguments.include_stop_codons, include_start_codons=arguments.include_start_codons)
+        except ValueError as e:
+            if arguments.ignore_invalid_cds is True:
+                logger.log_it("Sequence '{0}' had one or more criterion making it an invalid CDS (typically its length ({1}) was not divisible by three)".format(seqid, len(seq)), "WARNING")
+                pass
+            else:
+                raise e
         if codon_ids is not None and observed_counts is not None and observed_frequencies_wrt_length is not None and observed_frequencies_in_family is not None:
             """
             Compare observed codon counts/frequencies vs expected counts/frequencies
@@ -388,7 +394,7 @@ def codon_usage_bias(arguments):
                     obs.append(observed_frequencies[i])
                     exp.append(expected_frequencies[i])
             if 0.0 in exp or 0 in exp:
-                logger.log_it("Sequence '{0}' had one or more 0 counts. Cannot produce a valid chi-square test...".format(seqid))
+                logger.log_it("Sequence '{0}' had one or more 0 counts. Cannot produce a valid chi-square test...".format(seqid), "WARNING")
                 continue
             else:
                 chisq, pval = chisquare(obs, f_exp=exp, ddof=61 - 1, sum_check=False) # Number of codons minus number of amino acids - 1
@@ -402,9 +408,10 @@ def codon_usage_bias(arguments):
             pass
 
     
-    #print(final)
+    # print(final)
+    # sys.exit(1)
     final_df = pd.DataFrame(final, index=seqids)
-    final_df.columns = ["sequenceid", "chisq", "pval"]
+    final_df.columns = ["chisq", "pval"]
 
 
     bonferroni_good = (final_df.shape[1] - 1)
@@ -2814,13 +2821,13 @@ def cli():
     alignment_parser.set_defaults(func=get_alignments)
 
     codon_table_parser = subparsers.add_parser("codons", help="Create a codon frequency table from .faa input")
-    codon_table_parser.add_argument("fasta", type=str, help="An amino-acid sequence fasta file")
+    codon_table_parser.add_argument("fasta", type=str, help="A nucleic-acid CDS sequence fasta file")
     codon_table_parser.add_argument("--as-frequencies", action="store_true", default=False, help="Use frequencies instead of codon counts, per CDS")
-    codon_table_parser.add_argument("--ignore-noncanonicals", action="store_true", default=False, help="Ignore (dont throw error) non-canonical start/stop codons")
-    codon_table_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore (dont throw error) invalid CDS sequences (length divisible by 3, valid start/stop codons)")
-    codon_table_parser.add_argument("--include-stop-codons", action="store_true", default=False, help="Include stop-codon counts in table")
-    codon_table_parser.add_argument("--include-start-codons", action="store_true", default=False, help="Include start-codon count in table")
-    codon_table_parser.add_argument("--no-stop-codons-in-table", action="store_true", default=False, help="Do not include stop codons in table : n x 61 matrix")
+    codon_table_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore (warn only) invalid CDS sequences")
+    codon_table_parser.add_argument("--include-noncanonicals", action="store_true", default=False, help="Include non-canonical sequences (unusual start/stop codons) in the table")
+    codon_table_parser.add_argument("--include-stop-codons", action="store_true", default=False, help="count stop-codons")
+    codon_table_parser.add_argument("--include-start-codons", action="store_true", default=False, help="count start-codon (e.g. -1 to all counts in M residue column)")
+    codon_table_parser.add_argument("--no-stop-codons-in-table", action="store_true", default=False, help="Omit stop codon count columns in the final table : n x 61 matrix")
     codon_table_parser.add_argument("--output-delimiter", type=str, default="\t", help="The output delimiter of the final csv/tsv to write. (DEFAULT: \\t)")
     codon_table_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     codon_table_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
@@ -2828,13 +2835,13 @@ def cli():
     codon_table_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     codon_table_parser.set_defaults(func=get_codon_table)
     
-    codon_usage_bias_parser = subparsers.add_parser("CUB", help="Calculate codon usage bias by chi-square goodness of fit for each codon")
+    codon_usage_bias_parser = subparsers.add_parser("CUB", help="Calculate codon usage bias by using scipy.stats.chisquare chi-square goodness-of-fit test for each sequence against the 'reference' sequences")
     codon_usage_bias_parser.add_argument("input", type=str, help="The codon counts (not frequencies) table produced by 'kmerdb codons'.")
-    codon_usage_bias_parser.add_argument("--sequences", type=str, help="The amino-acid fasta file of sequences to test for codon usage bias", required=True)
+    codon_usage_bias_parser.add_argument("--sequences", type=str, help="The nucleic-acid fasta file of CDS sequences to test for codon usage bias against the 'model' or 'reference' input", required=True)
     codon_usage_bias_parser.add_argument("--delimiter", type=str, default="\t", help="The delimiter for the codon count/frequency table (Default '\\t')")
     codon_usage_bias_parser.add_argument("--output-delimiter", type=str, default="\t", help="The delimiter for the ChiSq/pval .tsv tables (Default '\\t')")
-    codon_usage_bias_parser.add_argument("--ignore-noncanonicals", action="store_true", default=False, help="Ignore non-canonical start/stop codons")
-    codon_usage_bias_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore invalid CDS sequences (length divisible by 3, valid start/stop codons")
+    codon_usage_bias_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore (warn only) invalid CDS sequences")
+    codon_usage_bias_parser.add_argument("--include-noncanonicals", action="store_true", default=False, help="Ignore non-canonical start/stop codons")
     codon_usage_bias_parser.add_argument("--include-stop-codons", action="store_true", default=False, help="Include stop-codon counts in calculations")
     codon_usage_bias_parser.add_argument("--include-start-codons", action="store_true", default=False, help="Include start-codon counts in calculations")
     codon_usage_bias_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
