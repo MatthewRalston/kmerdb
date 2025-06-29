@@ -3094,7 +3094,7 @@ def cli():
 
 
     from kmerdb import config
-    logger = kdbLogger.Loggah(logfile=args.log_file or None, level=args.verbose)
+    logger = kdbLogger.AppLogger(logfile=args.log_file or None, level=args.verbose)
         
 
     from kmerdb import appmap
