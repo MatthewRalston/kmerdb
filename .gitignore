@@ -11,3 +11,6 @@ examples/example_report
 test/data
 pypi_token.foo
 docs
+kmerdb.egg-info
+kmerdb.log
+build
