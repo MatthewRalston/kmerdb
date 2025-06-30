@@ -432,66 +432,21 @@ def get_minimizers(arguments):
     N = None
     kmer_ids = None
     fasta_seqs = []
-    coordmap = None
+
     
-    assert type(arguments.kdb) is str, "kdb_in must be a str"
-    kdb_sfx = os.path.splitext(arguments.kdb)[-1]
-    fa_sfx = os.path.splitext(arguments.fasta)[-1]
-    
-    if kdb_sfx != ".kdb": # A filepath with invalid suffix
-        raise IOError("Input .kdb filepath '{0}' does not end in '.kdb'".format(arguments.kdb))
-    elif not os.path.exists(arguments.kdb):
-        raise IOError("Input .kdb filepath '{0}' does not exist on the filesystem".format(arguments.kdb))
-    elif fa_sfx != ".fa" and fa_sfx != ".fna" and fa_sfx != ".fasta":
-        raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
+    output_index_file = str(arguments.kdb).strip(".kdb") + ".kdbi.1"
     
 
     # coordmap = [(fasta_id_str, i:L, kmer_id, is_minimizer), ...]
     # kmer_ids length : input
     # is_minimizer length : m = L/window_size hashmap of sequence coords and is_minimizer bool
-    # coordmap 4-tuple (fasta_id_str, i:floor(m), kmer_id)
-    k, kmer_ids, fasta_ids, is_minimizer, coordmap, coord_obj_array = minimizer.minimizers_from_fasta_and_kdb(arguments.fasta, arguments.kdb, arguments.window_size)
+    # coordmap 4-tuple (fasta_id_str, i:floor(m), kmer_id, is_min)
+
+    mins_coordmap, k = minimizer.make_minimizers(arguments.fasta, arguments.kdb, arguments.window_size)
+    sys.stderr.write("\n\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file))
+    minimizer.print_minimizer_kdbi(mins_coordmap, output_index_file, dump_all=True) # Hardcoding true for now.
     
-    output_index_file = "{0}.{1}.kdbi.1".format(str(arguments.kdb).strip(".kdb"), k)
-    logger.log_it("\n\nPrinting results of minimizers to '{0}'\n\n".format(output_index_file), "INFO")
 
-    m = num_minimizers = len(is_minimizer)
-
-
-
-    """
-    Writes the fourtuple to a plain-text index-file (.kdbi.1)
-
-    (fasta_id_str, 1:num_possible_minimizers, kmer_id, is_minimizer_bool)
-    
-    if --include-unselected-minimizers (-a) is provided, will write all L=N-k+1 possible minimizer selections from input sequences
-    """
-    with open(output_index_file, "w") as ofile:
-        # if arguments.include_unselected_minimizers:
-        #     for seq in is_minimizer.keys():
-
-        #         """
-        #         FIXME
-        #         """
-        #         for i in range(len(is_minimizer[seq])):
-        #             """
-        #             fasta_id_str, coord, kmer_id_at_coord, is_minimizer
-        #             """
-        #             ofile.write("\t".join((fasta_ids[i], i, coordmap[i][2], is_minimizer[i], )))
-        # else:
-        
-        # for minimizer_sequence_coordinate, i in enumerate(range(len(coordmap))):
-
-        #     ofile.write("\t".join((fasta_ids[i], minimizer_sequence_coordinate, coordmap[i][2], True)) + "\n")
-
-
-        for i, ktuple in enumerate(coord_obj_array):
-            ofile.write("\t".join(list(map(str, ktuple))) + "\n")
-            if not arguments.quiet:
-                print(ktuple)
-
-        
-        
     logger.log_it("Wrote minimizers to .kdbi.1 index file '{0}'...".format(output_index_file), "INFO")
 
             
@@ -515,26 +470,19 @@ def get_alignments(arguments):
     reference_minimizers = []
     query_minimizers = []
 
-    reference_fasta_seqs = []
-    query_fasta_seqs = []
-
-    reference_fasta_ids = []
-    query_fasta_ids = []
+    reference_fastas = []
+    query_fastas = []
 
     kmer_ids = None
     k = None
     
     query_fasta_sfx = os.path.splitext(arguments.query)[-1]
-    #reference_kdb_sfx = os.path.splitext(arguments.kdb)[-1]
-    #reference_kdbi_sfx = ".".join(os.path.splitext(arguments.kdbi)[-2:])
+    reference_kdb_sfx = os.path.splitext(arguments.kdb)[-1]
+    reference_kdbi_sfx = ".".join(os.path.splitext(arguments.kdbi)[-2:])
     reference_fasta_sfx = os.path.splitext(arguments.reference)[-1]
     reference_kdb_sfx = os.path.splitext(arguments.reference_kdb)[-1]
 
     # Create as temporary file, hold minimizer array in memory
-
-
-
-            
     if reference_fasta_sfx != ".fasta" and reference_fasta_sfx != ".fna" and reference_fasta_sfx != ".fa": # A filepath with invalid suffix
         raise IOError("Viewable fasta filepath does not end in '.fasta'/'.fna.'.fa'")
     elif not os.path.exists(arguments.reference):
@@ -544,55 +492,45 @@ def get_alignments(arguments):
     elif not os.path.exists(arguments.query):
         raise IOError("Viewable .fasta filepath '{0}' does not exist on the filesystem".format(arguments.query))
     elif reference_kdb_sfx != ".kdb":
-        raise IOError("Viewable .kdb filepath does not end in '.kdb'")
-    elif not os.path.exists(arguments.reference_kdb):
-        raise IOError("Viewable .kdb filepath '{0}' does not exist on the filesystem".format(arguments.reference_kdb_sfx))
-
+        raise IOError("Reference .kdb filepath does not end in '.kdb'")
+    elif not os.path.exists(arguments.reference_kdb) or not os.access(arguments.reference_kdb, os.R_OK):
+        raise IOError("Reference .kdb filepath '{0}' does not exist on the filesystem".format(arguments.reference_kdb))
+    elif reference_kdbi_sfx != ".kdbi":
+        raise IOError("Reference minimizers index (.kdbi) file does not end in '.kdb'")
+    elif not os.path.exists(arguments.reference_kdbi) or not os.access(arguments.reference_kdbi, os.R_OK):
+        raise IOError("Reference minimizers index (.kdbi) file does not exist on the filesystem")
 
     if str(arguments.reference).endswith(".fasta.gz") or str(arguments.reference).endswith(".fna.gz") or str(arguments.reference).endswith(".fa.gz"):
         with gzip.open(arguments.reference, mode="r") as ifile:
-            for record in SeqIO.parse(ifile, "fasta"):
-                reference_fasta_seqs.append(str(record.seq))
-                reference_fasta_ids.append(str(record.id))
+            reference_fastas = minimizer.read_fasta_sequences(ifile)
     else:
         with open(arguments.reference, mode="r") as ifile:
-            for record in SeqIO.parse(ifile, "fasta"):
-                reference_fasta_seqs.append(str(record.seq))
-                reference_fasta_ids.append(str(record.id))
+            reference_fastas = minimizer.read_fasta_sequences(ifile)
+    logger.info("Reference fasta sequences loaded...")
+
     if str(arguments.query).endswith(".fasta.gz") or str(arguments.query).endswith(".fna.gz") or str(arguments.query).endswith(".fa.gz"):
         with gzip.open(arguments.query, mode="r") as ifile:
-            for record in SeqIO.parse(ifile, "fasta"):
-                query_fasta_seqs.append(str(record.seq))
-                query_fasta_ids.append(str(record.id))
+            query_fastas = minimizer.read_fasta_sequences(ifile)
     else:
         with open(arguments.query, mode="r") as ifile:
-            for record in SeqIO.parse(ifile, "fasta"):
-                query_fasta_seqs.append(str(record.seq))
-                query_fasta_ids.append(str(record.id))
+            query_fastas = minimizer.read_fasta_sequences(ifile)
 
-                
-
-
+    logger.info("Query fasta sequences loaded...")
 
     # Make Query kdb
-
-
     # Calculate minimizers
+    
+    with fileutil.open(arguments.reference_kdb, mode='r', slurp=True) as kdb_in:
+        metadata = kdb_in.metadata
 
-     
-    if reference_kdb_sfx == ".kdb":
-        with fileutil.open(arguments.reference_kdb, mode='r', slurp=True) as kdb_in:
-            metadata = kdb_in.metadata
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
+        N = 4**metadata["k"]
+        k = metadata["k"]
+        if metadata["version"] != config.VERSION:
+            logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
+        logger.log_it("Reading from file...", "INFO")
 
-            
-            kmer_ids_dtype = metadata["kmer_ids_dtype"]
-            N = 4**metadata["k"]
-            k = metadata["k"]
-            if metadata["version"] != config.VERSION:
-                logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
-            logger.log_it("Reading from file...", "INFO")
-
-            kmer_ids = kdb_in.kmer_ids
+        kmer_ids = kdb_in.kmer_ids
 
     
     newargs = copy.deepcopy(arguments)
@@ -601,7 +539,6 @@ def get_alignments(arguments):
     newargs.minK = None
     newargs.maxK = None
 
-    
     #newargs.output_name = ".".join(os.path.splitext(str(arguments.query))[:-1])
     
     newargs.output_name = "temporary_kdb_file"
@@ -619,11 +556,15 @@ def get_alignments(arguments):
 
     query_kdb_filepath = "{0}.{1}.kdb".format(newargs.output_name, k)
 
+
+
+    
     if not os.path.exists(query_kdb_filepath):
-        OSError("Could not locate temporary kdb filepath '{0}' on filesystem".format(query_kdb_filepath))
+        raise IOError("Could not locate temporary kdb filepath '{0}' on filesystem".format(query_kdb_filepath))
     else:
         logger.log_it("Completed generating .kdb file '{0}' from query fasta file '{1}'.".format(query_kdb_filepath, newargs.query), "INFO")
-
+    sys.exit(1)
+    
     kmer_ids, reference_fasta_ids, reference_fasta_coords, reference_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.reference, arguments.reference_kdb, arguments.window_size)    
     kmer_ids, query_fasta_ids, query_fasta_coords, query_minimizers = minimizer.minimizers_from_fasta_and_kdb(arguments.query, query_kdb_filepath, arguments.window_size)
 
@@ -2792,7 +2733,7 @@ def cli():
     #minimizer_parser.add_argument("-k", type=int, help="Choice of k for minimizer-selection", required=True)
     minimizer_parser.add_argument("-w", "--window-size",  type=int, help="Choice of window size (in base-pairs) to select minimizers with", required=True)
     
-    minimizer_parser.add_argument("-a", "--include-unselected-minimizers", action="store_true", default=False, help="Include minimizer positions that were not selected as minimizers (length: (N-k+1)/window_size)")
+    #minimizer_parser.add_argument("-a", "--include-unselected-minimizers", action="store_true", default=False, help="Include minimizer positions that were not selected as minimizers (length: (N-k+1)/window_size)", )
     minimizer_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     minimizer_parser.add_argument("--quiet", action="store_true", default=False, help="Do not produce additional stdout")
     minimizer_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")

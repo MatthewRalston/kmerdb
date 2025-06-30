@@ -6,6 +6,14 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+
+* 6/27/25 | Gene Ontology RefSeq CDS selection and codons refactoring
+Working on a method to retrieve organism RefSeq annotations by GO term via NCBI EUtils. Currently not working for several bacterial genomes.
+This method also seems to be not useful for UniProt because many bacterial proteins are not appropriately included in the UniProt DB scope.
+
+Also refactoring the codons.py submodule because of usability issues and some incorrect output observed in the command line regarding include/exclude of start/stop codons.
+Reinvestigating through refactoring. Will make sure that codons runs correctly before revisiting the outcomes from the chisquare test in CUB due to the challenges in extracting RefSeq IDs matching the Gene Ontology terms.
+
 * 6/21/25 | [0.8.19] CUB added, still in progress
 
 I found several things that *didnt* work. First, when codon frequencies are equal to 1 (i.e. when observed codon counts for an amino acid for one codon are divided by the expected and this equals 1), the chisquare test returns NaN
