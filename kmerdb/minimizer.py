@@ -16,27 +16,19 @@
 '''
 import sys
 import os
-
+import gzip
 import math
+import logging
 
-
-#import yaml
-#from collections import OrderedDict
-
-
-
+logger = logging.getLogger(__file__)
 
 import numpy as np
 
 from kmerdb import kmer, config, util
 
-#from kmerdb import logger as kdbLogger
-#global logger = 
 
 
-
-
-def select_lexicographical_minimizers(seq, seq_id, k, window_size, kmer_ids):
+def select_lexicographical_minimizers(seq, seq_id, k, window_size):
     """
     Select k-mers based on lexicographical minimizers and return a binary array indicating selected k-mers.
     
@@ -53,152 +45,158 @@ def select_lexicographical_minimizers(seq, seq_id, k, window_size, kmer_ids):
     :type kmer_ids: list
 
     :returns: Binary array where 1 indicates selected k-mer, 0 otherwise
-    :rtype: int, np.array
+    :rtype: int, np.array, np.array
     """
-
+    N = 4**k
+    if type(seq) is not str:
+        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers() expects a str as its first positional argument")
+    elif type(seq_id) is not str:
+        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers() expects a str as its second positional argument")
+    elif type(k) is not int:
+        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers() expects an int as its third positional argument")
+    elif type(window_size) is not int:
+        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers() expects an int as its fourth positional argument")
     
-    
-    N = len(kmer_ids)
-    if not type(seq) is str:
-        raise TypeError("kmerdb.minimizer.select_lexicographical_minimizers expects a str as its first positional argument")        
     if len(seq) < k:
         raise ValueError("Sequence length was less than k")
-    
     sequence_length = len(seq)
     
     is_minimizer = np.zeros(sequence_length, dtype="uint32")
-
     L = N - k + 1
 
-
     coords = []
-
     for i in range(L): # Number of minimizers = floor(sequence_length/window_size)
         if i % window_size == 0:
             is_min = 1
             is_minimizer[i] = 1
-            is_min = 1
         else:
             is_min = 0
             is_minimizer[i] = 0
-            
-                
+        # 
         subseq = seq[i:i+k]
+        if len(subseq) != k:
+            raise ValueError("WHOOPS")
         kmer_id = kmer.kmer_to_id(subseq)
 
         coords.append((seq_id, i, kmer_id, is_min))
-    
-    # coords is [(seq_id, i:L, kmer_id, is_minimizer), ...]            
-    return math.floor(L / window_size), is_minimizer, coords # coords is a list of kmer start positions in the input fasta sequence, referencing the kmer_id of the k-mer at the minimizer position, is_minimizer has dimension L = N-k+1, and the number of minimizers selected as first positional return, is_minimizer array as second positional return, and coordinate array with kmer_id values and 1:L/window_size number of elements pointing to the kmer_ids associated with the threetuple of (fasta_id, fasta_coord, kmer_id)
+    """
+    # coords is [(seq_id, i:L, kmer_id, is_minimizer), ...]
+    """
+    return coords # 4-tuple of (seq_id:str, i:int, kmer_id:int, is_min:bool/int)
+    #return math.floor(L / window_size), is_minimizer, coords # coords is a list of kmer start positions in the input fasta sequence, referencing the kmer_id of the k-mer at the minimizer position, is_minimizer has dimension L = N-k+1, and the number of minimizers selected as first positional return, is_minimizer array as second positional return, and coordinate array with kmer_id values and 1:L/window_size number of elements pointing to the kmer_ids associated with the threetuple of (fasta_id, fasta_coord, kmer_id)
 
 
-
-    # len(coord.subtract.keys)
-
-def read_sequences_from_fastafile(fasta_file):
+def read_fasta_sequences(fasta_fh):
     """
     Parse sequence identifiers and sequences into two arrays.
+
+    
     """
-    fasta_seqs = []
-    fasta_ids = []
+    fastas = []
     from Bio import SeqIO
-    with open(fasta_file, mode="r") as ifile:
-        for record in SeqIO.parse(ifile, "fasta"):
-            fasta_seqs.append(str(record.seq))
-            fasta_ids.append(str(record.id))
-    return fasta_seqs, fasta_ids
+    try:
+        for record in SeqIO.parse(fasta_fh, "fasta"):
+            fastas.append({
+                "seq": str(record.seq),
+                "id": str(record.id)
+            })
+    except Exception as e:
+        logger.error("kmerdb.minimizer.read_sequences_from_fastafile() encountered an error while reading this file and needs to exit")
+        raise e
+    finally:
+        fasta_fh.close()
+    return fastas
 
 
-def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, window_size, seqs:list=None, ids:list=None):
-
+#def get_minimizers_from_kdbfile_and_input_fastafile(kdbfile:str, fasta_file:str, window_size, seqs:list=None, ids:list=None):
+def read_minimizers(kdbfile:str, fasta_file:str, window_size):
 
     from kmerdb import fileutil
-    if seqs is None or ids is None:
-        fasta_seqs, fasta_ids = read_sequences_from_fastafile(fasta_file)
-    elif not all(type(fasta_id) is str for fasta_id, i in ids):
-        raise TypeError("fasta_ids list is not a list of fasta sequence ids")
-    elif not all(type(fasta_seq) is str for fasta_seq, j in seqs):
-        raise ValueError("error no sequences")
-    else:
-        # Unimplemented
-        fasta_seqs = seqs
-        fasta_ids = ids
 
+    if type(kdbfile) is not str:
+        raise TypeError("kmerdb.minimizer.read_minimizers() expects a str as its first positional argument")
+    elif type(fasta_file) is not str:
+        raise TypeError("kmerdb.minimizer.read_minimizers() expects a str as its second positional argument")
+    elif type(window_size) is not int:
+        raise TypeError("kmerdb.minimizer.read_minimizers() expects an int as its third positional argument")
+    
+    if not os.path.exists(kdbfile) or not os.access(kdbfile, os.R_OK):
+        raise IOError("kmerdb.minimizer.read_minimizers() could not read '{0}' from the filesystem".format(kdbfile))
+    elif not os.path.exists(fasta_file) or not os.access(fasta_file, os.R_OK):
+        raise IOError("kmerdb.minimizer.read_minimizers() could not read '{0}' from the filesystem".format(fasta_file))
+    
+    if seqs is None or ids is None:
+        if fasta_file.endswith(".gz"):
+            with gzip.open(fasta_file, mode='r') as ifile:
+                fastas = read_fasta_sequences(fasta_file)
+        else:
+            with open(fasta_file, mode='r') as ifile:
+                fastas = read_fasta_sequences(fasta_file)
+                
     coord_map = []
     coord_obj_array = []
     is_min = {}
-        
-    if fasta_file is None or type(fasta_file) is not str:
-        raise TypeError("")
-    elif type(kdbfile) is not str or not os.path.exists(kdbfile):
-        raise ValueError("kmerdb.minimizer.get_minimizers_from_kdbfile_and_input_fastafile .kdb path does not exist on filesystem")
-    else:
-        with fileutil.open(kdbfile, mode='r', slurp=True) as kdb_in:
-            metadata = kdb_in.metadata
 
-            k = metadata["k"]
-            kmer_ids_dtype = metadata["kmer_ids_dtype"]
-            N = 4**metadata["k"]
-            if metadata["version"] != config.VERSION:
-                sys.stderr.write("KDB version is out of date, may be incompatible with current KDBReader class\n")
-            kmer_ids = kdb_in.kmer_ids
+    raise RuntimeError("WOOPS")
+    
+    with fileutil.open(kdbfile, mode='r', slurp=True) as kdb_in:
+        metadata = kdb_in.metadata
 
+        k = metadata["k"]
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
+        N = 4**metadata["k"]
+        if metadata["version"] != config.VERSION:
+            sys.stderr.write("KDB version is out of date, may be incompatible with current KDBReader class\n")
+        kmer_ids = kdb_in.kmer_ids
+        for i, seq_id in enumerate(fasta_ids):
+            seq = fasta_seqs[i] 
+            # is minimizer is a boolean array 0 or 1
+            # coords is a numpy 32 array of kmer_ids
+            sed_id = fasta_ids[i]
+            coords = select_lexicographical_minimizers(seq, seq_id, metadata['k'], window_size, kmer_ids)
 
-            
-            for i, seq_id in enumerate(fasta_ids):
-                seq = fasta_seqs[i] 
-                # print(seq)
-                # print(seq_id)
-                # print(i)
+            raise RuntimeError("This needs fixing too...")
+            """
+            # coords is [(seq_id, i:L, kmer_id, is_minimizer), ...]
+            """
 
-                # sys.exit(1)
-                
-                # is minimizer is a boolean array 0 or 1
-                # coords is a numpy 32 array of kmer_ids
-                sed_id = fasta_ids[i]
-                seqlen, is_minimizer, coords = select_lexicographical_minimizers(seq, seq_id, metadata['k'], window_size, kmer_ids)
+            #is_min = [c[3] for c in coords]
 
-                is_min[seq_id] = is_minimizer
-                """
-                Fixme! coordmap should be primarily indexed on coordinate
-                """
-                coord_map = [[] for _ in range(seqlen)]
-                #coord_map[kmer_ids[i]] = [] # coordmap becomes hashmap structure with kmer_id, fasta_seq_id1, start_coord1 , fasta_seq_id2, start_coord2
+            is_min[seq_id] = is_minimizer
+            """
+            Fixme! coordmap should be primarily indexed on coordinate
+            """
+            coord_map = [[] for _ in range(seqlen)]
+            #coord_map[kmer_ids[i]] = [] # coordmap becomes hashmap structure with kmer_id, fasta_seq_id1, start_coord1 , fasta_seq_id2, start_coord2
 
                 
-                for j in range(seqlen):
-                    subseq = seq[j:j+k]
-                    kmer_id = kmer.kmer_to_id(subseq)
-                    coord_map.append({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j, "kmer_id": kmer_id, "is_minimizer": is_minimizer[j]}) # Is_min should be the jth sequence element as a k-mer, and whether or not the jth k-mer is used as a minimizer
+            for j in range(seqlen):
+                subseq = seq[j:j+k]
+                kmer_id = kmer.kmer_to_id(subseq)
+                coord_map.append({"fasta_id": fasta_ids[i], "sequence_length": seqlen, "coord": j, "kmer_id": kmer_id, "is_minimizer": is_minimizer[j]}) # Is_min should be the jth sequence element as a k-mer, and whether or not the jth k-mer is used as a minimizer
 
 
-                    # fasta_id[i] where i is number of queries, len, the coord, and the is_minimizer bool
+                # fasta_id[i] where i is number of queries, len, the coord, and the is_minimizer bool
 
 
-                    coord_obj_array.append((fasta_ids[i], seqlen, j, kmer_id, is_minimizer[j]))
-                    # As hashmapped structure
-                    #coord_obj_array[fasta_ids[i]].push((fasta_ids[i], seqlen, j, is_minimizer[j]))
+                coord_obj_array.append((fasta_ids[i], seqlen, j, kmer_id, is_minimizer[j]))
+                # As hashmapped structure
+                #coord_obj_array[fasta_ids[i]].push((fasta_ids[i], seqlen, j, is_minimizer[j]))
                 
                     
-        return k, kmer_ids, fasta_ids, is_min, coord_map, coord_obj_array # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
+    return k, kmer_ids, fasta_ids, is_min, coord_map, coord_obj_array # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids is an array of inputs sequence ids, coordmap is a list of hashmaps
 
 
 def print_coordmap(coordinate_mapping):
     """
     A hash of hashes, 2D associative array, not implemented further.
 
-
-    
-    
     """
-
-
-    for fasta_id, sequence_length, basepair, is_min in coordinate_mapping:
+    for fasta_id, i, kmer_id, is_min in coordinate_mapping:
         assert type(fasta_id) is str, "FASTA ID was not a sequence id string"
-        assert type(sequence_length) is int, "Sequence length input was not a number"
-        assert type(basepair) is int, " - error no coordinate \_( |>\">| )_/ ... ( ...wtf?)"
+        assert type(i) is int, "Sequence coordinate was not a number"
+        assert type(kmer_id) is int, " - error no coordinate \_( |>\">| )_/ ... ( ...wtf?)"
         assert type(is_min) is int, "should be typed numeric 1s and 0s"
-        
         print("\t".join((fasta_id, sequence, basepair, is_min)))
     return
 
@@ -207,84 +205,118 @@ def print_coordmap(coordinate_mapping):
 
 
 
-def minimizers_from_fasta_and_kdb(fasta_file, kdb_file, window_size):
-    from Bio import SeqIO
-    import numpy as np
-    from kmerdb import fileutil, config, util, minimizer
-    import json
+def make_minimizers(fasta_file:str, kdb_file:str, window_size:int):
+    """
+    :param fasta_file:
+    :type str:
+    :param kdb_file:
+    :type int:
+    :param window_size:
+    :type int:
+    :returns: (coordmap, k) # coordmap is a dictionary keyed on sequence id, whose value is list of 4-tuples of (seq_id, coordinate, kmer_id, is_min:bool)
+    """
+
+    from kmerdb import fileutil, config, util
+
     metadata = None
     N = None
-    kmer_ids = None
-    fasta_seqs = []
-    fasta_ids = []
+
+    coordmap = {}
     mins = {}
 
-    fa_sfx = os.path.splitext(fasta_file)[-1]
+    fasta_sfx = os.path.splitext(fasta_file)[-1]
     kdb_sfx = os.path.splitext(kdb_file)[-1]
 
-    
-    if kdb_sfx != ".kdb" and kdb_sfx != ".kdbg": # A filepath with invalid suffix
-        raise IOError("Input .kdb filepath '{0}' does not end in '.kdb'".format(kdb_file))
-    elif not os.path.exists(kdb_file):
-        raise IOError("Input .kdb filepath '{0}' does not exist on the filesystem".format(kdb_file))
-    elif fa_sfx != ".fa" and fa_sfx != ".fna" and fa_sfx != ".fasta":
-        raise IOError("Input .fasta filepath '{0}' does not exist on the filesystem".format(arguments.fasta))
+    if type(fasta_file) is not str:
+        raise TypeError("kmerdb.minimizer.make_minimizers() expects a str as its first positional argument")
+    elif type(kdb_file) is not str:
+        raise TypeError("kmerdb.minimizer.make_minimizers() expects a str as its second positional argument")
 
-    fasta_ids, fasta_seqs = read_sequences_from_fastafile(fasta_file)
+    if fasta_sfx == ".gz" and (fasta_file.endswith(".fasta.gz") or fasta_file.endswith(".fna.gz") or fasta_file.endswith(".fa.gz")):
+        pass
+    elif fasta_sfx != ".fasta" and fasta_sfx != ".fna" and fasta_sfx != ".fa": 
+        raise IOError("Reference .fasta filepath does not end in '.fasta'/'.fna.'.fa'")
+    elif not os.path.exists(fasta_file) or not os.access(fasta_file, os.R_OK):
+        raise IOError("Reference .fasta filepath '{0}' does not exist on the filesystem".format(fasta_file))
+    elif kdb_sfx != ".kdb":
+        raise IOError("Reference .kdb filepath does not end in '.kdb'")
+    elif not os.path.exists(kdb_file) or not os.access(kdb_file, os.R_OK):
+        raise IOError("Reference .kdb filepath '{0}' does not exist on the filesystem".format(kdb_file))
 
-    
-            
-
+    if fasta_file.endswith(".gz"):
+        logger.info("Reading .gz compressed fasta file '{0}'...".format(fasta_file))
+        with gzip.open(fasta_file, mode='r') as ifile:
+            fastas = read_fasta_sequences(ifile)
+    else:
+        logger.info("Reading fasta file '{0}'...".format(fasta_file))
+        with open(fasta_file, mode='r') as ifile:
+            fastas = read_fasta_sequences(ifile)
     """
     Fixme
-    """ 
+    """
+    logger.info("Reading .kdb file '{0}'...".format(kdb_file))
+    with fileutil.open(kdb_file, mode='r', slurp=True) as kdb_in:
+        metadata = kdb_in.metadata
 
-            
-    k, kmer_ids, _, is_minimizer, coordmap, coord_obj_array = get_minimizers_from_kdbfile_and_input_fastafile(kdb_file, fasta_file, window_size)
+        k = metadata["k"]
+        kmer_ids_dtype = metadata["kmer_ids_dtype"]
+        N = 4**metadata["k"]
+        if metadata["version"] != config.VERSION:
+            sys.stderr.write("KDB version is out of date, may be incompatible with current KDBReader class\n")
+        kmer_ids = kdb_in.kmer_ids
+        for s in fastas:
+            seq = s["seq"]
+            seq_id = s["id"]
+            logger.debug("Collecting lexicographical minimizers for sequence '{0}'...".format(seq_id))
+            coords = select_lexicographical_minimizers(seq, seq_id, metadata['k'], window_size)
+            coordmap[seq_id] = coords
+    logger.info("Completed loading minimizers from .kdb file '{0}'...".format(kdb_file))
 
-    return k, kmer_ids, fasta_ids, is_minimizer, coordmap, coord_obj_array # kmer_ids are kmer actg ids, as read from the kdb file, fasta_ids are a hashmap of inputs sequence ids, coordmap is a list of coordinate-as-index based minimizer locations. coordmap = [{"fasta_id": ..., "seqlen": n, }, ...] 
+    return coordmap, k
+
 
 
 
     
-def read_minimizer_kdbi_index_file(kdbi1):
+def read_minimizer_kdbi(kdbi_file):
     """
     Read a minimizer file into memory
     """
-
+    kdbi_sfx = os.path.splitext(kdbi_file)[-1]
+    
     if kdbi_sfx != ".kdbi.1": # A filepath with invalid suffix
-        raise IOError("Input .kdb index filepath '{0}' does not end in '.kdb'".format(arguments.kdbi1))
+        raise IOError("Input .kdb index filepath '{0}' does not end in '.kdbi.1'".format(kdbi_file))
 
     minimizers = []
     with open(kdbi1, 'r') as minimizer_index_file:
-        for l in minimizer_index_file:
+        for line in minimizer_index_file.readlines():
+            line = lin.split("\t")
 
-            line = l.strip("\n").split("\t")
-
-            assert len(line) == 2, "Index file corrupted. Use 'kmerdb minimizer' to regenerate the index file."
-            kmer_id, is_minimizer = line
-            
-            if is_minimizer == 1:
-                minimizers.append(kmer_id)
+            assert len(line) == 4, "Index file corrupted. Use 'kmerdb minimizers' to regenerate the index file."
+            seq_id, i, kmer_id, is_min = line
+            minimizers.append( (seq_id, i, kmer_id, is_min) )
     return minimizers
 
-def print_minimizer_kdbi_index_file(mins, kmer_ids, filename):
+def print_minimizer_kdbi(coordmap, filename, dump_all:bool=False):
     """
     Print a minimizer array to a .kdbi.1 index file
     """
-
-    if type(mins) is not list:
-        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file epects its first positional argument to be a list")
-    elif type(kmer_ids) is not list:
-        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file epects its second positional argument to be a list")
-    elif len(mins) != len(kmer_ids):
-        raise ValueError("kmerdb.minimizer.print_minmimizer_kdbi_index_file expects the number of minimizers should match the number of potential kmers")
+    if type(coordmap) is not dict:
+        raise TypeError("kmerdb.minimizer.print_minimizer_kdbi() expects its first positional argument to be a list")
+    elif not all((type(c) is tuple and type(c[0]) is str and type(c[1]) is int and type(c[2]) is int and type(c[3]) is int) for seq_id, coords in coordmap.items() for c in coords):
+        raise ValueError("kmerdb.minimizer.print_minimizer_kdbi() expects its first positional argument to be a coordinate-mapping of minimizers")
     elif type(filename) is not str:
-        raise TypeError("kmerdb.minimizer.print_minmimizer_kdbi_index_file expects the third positional argument to be a str")
+        raise TypeError("kmerdb.minimizer.print_minimizer_kdbi() expects its second positional argument to be a str")
+    elif type(dump_all) is not bool:
+        raise TypeError("kmerdb.minimizer.print_minimizer_kdbi() expects the keyword argument 'dump_all' to be a bool")
+
     
     with open(filename, 'w') as ofile:
-        for kmer, i in enumerate(kmer_ids):
-            ofile.write("{0}\t{1}\n".format(kmer, mins[i]))
+        for seq_id, coords in coordmap.items():
+            for c in coords:
+                if c[-1] == 0 and dump_all is False:
+                    continue
+                ofile.write("\t".join(list(map(str, c))) + "\n")
 
     return filename
             
