@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.21" # 6/29/25 
+VERSION="0.8.22" # 7/5/25 
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -49,9 +49,6 @@ graph_schema = {
         "unique_kmers": {"type": "number"},
         "total_nullomers": {"type": "number"},
         "sorted": {"type": "boolean"},
-        "n1_dtype": {"type": "string"},
-        "n2_dtype": {"type": "string"},
-        "weights_dtype": {"type": "string"},
         "tags": {
             "type": "array",
             "items": {"type": "string"}            
@@ -97,16 +94,8 @@ kdb_metadata_schema = {
         "total_kmers": {"type": "number"},
         "unique_kmers": {"type": "number"},
         "unique_nullomers": {"type": "number"},
-        "kmer_coverage": {"type": "number"},
-        "kmer_coverage_histogram_dtype": {"type": "string"},
         "total_nullomers": {"type": "number"},
-        "metadata": {"type": "boolean"},
         "sorted": {"type": "boolean"},
-        "profile_dtype": {"type": "string"},
-        "kmer_ids_dtype": {"type": "string"},
-        "count_dtypes": {"type": "string"},
-        "frequencies_dtype": {"type": "string"},
-        "dtype": {"type": "string"},
         "tags": {
             "type": "array",
             "items": {"type": "string"}
@@ -130,9 +119,12 @@ kdb_metadata_schema = {
                     "total_reads": {"type": "number"},
                     "total_kmers": {"type": "number"},
                     "unique_kmers": {"type": "number"},
-                    "nullomers": {"type": "number"}
+                    "nullomers": {"type": "number"},
+                    "min_read_length": {"type": "number"},
+                    "max_read_length": {"type": "number"},
+                    "avg_read_length": {"type": "number"}
                 },
-                "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers"]
+                "required": ["filename", "sha256", "md5", "total_reads", "total_kmers", "unique_kmers", "nullomers", "min_read_length", "max_read_length", "avg_read_length"]
             }
         },
         "comments": {
@@ -140,7 +132,7 @@ kdb_metadata_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files", "kmer_ids_dtype", "profile_dtype", "frequencies_dtype", "count_dtype", "kmer_coverage", "kmer_coverage_histogram_dtype"]
+    "required": ["version", "metadata_blocks", "total_kmers", "unique_kmers", "unique_nullomers", "k", "tags", "files"]
 }
 
 

@@ -14,3 +14,6 @@ docs
 kmerdb.egg-info
 kmerdb.log
 build
+dist
+plos_template_old
+kmerdb/*.c

@@ -21,6 +21,7 @@ import sys
 import os
 import gzip
 import tempfile
+import hashlib
 import yaml, json
 import re
 from collections import deque, OrderedDict
@@ -31,6 +32,22 @@ from kmerdb import config
 
 findall_float = re.compile(r"[-+]?(?:\d*\.\d+|\d+)")
 
+def checksum(filepath:str):
+    """Generates md5 and sha256 checksums of a file
+    :returns: (md5, sha256)
+    :rtype: tuple
+    """
+    if type(filepath) is not str:
+        raise TypeError("kmerdb.util.checksum() expects a str as its argument")
+    elif not os.path.exists(filepath):
+        raise IOError("kmerdb.parse.SeqParser.__checksum could not find '{}' on the filesystem".format(filepath))
+    hash_md5 = hashlib.md5()
+    hash_sha256 = hashlib.sha256()
+    with open(filepath, 'rb') as ifile:
+        for chunk in iter(lambda: ifile.read(4096), b""):
+            hash_md5.update(chunk)
+            hash_sha256.update(chunk)
+    return (hash_md5.hexdigest(), hash_sha256.hexdigest())
 
 
 def represent_yaml_from_collections_dot_OrderedDict(dumper, data):
@@ -99,6 +116,22 @@ def get_histo(counts):
     return hist
 
 
+
+def is_fasta(fname:str):
+    if type(fname) is not str:
+        raise TypeError("kmerdb.util.is_fasta() expects a str argument")
+    if fname.endswith(".fna") or fname.endswith(".fna.gz") or fname.endswith(".fa.gz") or fname.endswith(".fa") or fname.endswith(".fasta") or fname.endswith(".fasta.gz"):
+        return True
+    else:
+        return False
+
+def is_fastq(fname:str):
+    if type(fname) is not str:
+        raise TypeError("kmerdb.util.is_fasta() expects a str argument")
+    elif fname.endswith(".fastq") or fname.endswith(".fastq.gz") or fname.endswith(".fq.gz") or fname.endswith(".fq"):
+        return True
+    else:
+        return False
 
     
 def is_all_fasta(filenames):

@@ -552,8 +552,8 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
         #     print("SUCCESS. This k-mer, current k-mer : {0}|{1} has 8 neighbors. {2} . None should be self".format(k_id, current_kmer, just_eight_edges))
         #     #print(all_edges_in_kspace)
         #     sys.exit(1)
-        if _loggable:
-            logger.log_it("adjacency space completed...", "INFO")
+        # if _loggable:
+        #     logger.log_it("adjacency space completed...", "INFO")
         pass
 
         
@@ -761,31 +761,6 @@ def make_graph(kmer_ids:list, k:int=None, quiet:bool=True, logger=None):
 
 
 
-def create_graph(nodes:list, edge_tuples:list, gpu:bool=False):
-
-    import networkx as nx
-
-    if nodes is None or type(nodes) is not list or not all(type(n) is not int for n in nodes):
-        raise TypeError("kmerdb.graph.create_graph expects the first argument to be a list of ints")
-    elif edge_tuples is None or type(edge_tuples) is not list or not all(len(e) != 3 for e in edge_tuples) or not all((type(e[0]) is int and type(e[1]) is int) for e in edge_tuples):
-        raise TypeError("kmerdb.graph.create_graph expects the second argument to be a list of tuples of length 2")
-    elif gpu is None or type(gpu) is not bool:
-        raise TypeError("kmerdb.graph.create_graph expects the keyword argument gpu to be a bool")
-
-
-    """
-    Now we make the networkx graph
-    """
-    G = nx.Graph()
-
-    G.add_nodes_from(nodes)
-    
-        
-    G.add_edges_from(edge_tuples)
-
-
-    
-
     
 
 def w_lexer():
@@ -871,13 +846,12 @@ def wrongsort_lexer(g, asc:bool=False):
 
 
 
+
+        
+
 class KDBGReader(bgzf.BgzfReader):
     """
     A class to read .kdbg files.
-
-
-
-
     1 args
 
     8 keyword args
