@@ -1883,7 +1883,6 @@ def make_graph(arguments):
     theoretical_kmers_number = 4**arguments.k # Dimensionality of k-mer profile
 
 
-
     
     logger.log_it("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))), "INFO")
 
@@ -2114,10 +2113,10 @@ def make_graph(arguments):
             tupley = (i, node1, node2, w)
             tupley_dl = np.array(tupley, dtype="uint64")
             if arguments.quiet is False:
-                print("\t".join(list(tupley_dl)))
+                print("\t".join(list(map(str, tupley_dl.tolist()))))
                 #print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
             # i, node1, node2, weight
-            kdbg_out.write("{0}\n".format("\t".join(list(tupley_dl))))
+            kdbg_out.write("{0}\n".format("\t".join(list(map(str, tupley_dl.tolist())))))
             #kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
     finally:
         kdbg_out._write_block(kdbg_out._buffer)
@@ -2172,16 +2171,10 @@ def profile(arguments):
     :param arguments: argparse Namespace
     :type arguments:
     """
-
     import copy
     
     logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
     logger.log_it(str(arguments), "DEBUG")
-
-    # The number of specified processors should be available
-    logger.log_it("Validating processor count for parallelization...", "DEBUG")
-    if arguments.parallel <= 0 or arguments.parallel > cpu_count()+1:
-        raise argparse.ArgumentError("-p, --parallel must be a valid processor count.")
 
     ## 6/11/24 removed because reasons
     # The extension should be .kdb because I said so.
@@ -2190,8 +2183,6 @@ def profile(arguments):
     #     raise IOError("Destination .kdb filepath does not end in '.kdb'")
     samples = []
 
-
-    
     if len(arguments.input) == 1:
         logger.log_it("Input filename is '{0}'".format(arguments.input[0]), "INFO")
         if ".fastq" in arguments.input[0] or ".fq" in arguments.input[0] or ".fastq.gz" in arguments.input[0] or ".fq.gz" in arguments.input[0]:
@@ -2212,17 +2203,10 @@ def profile(arguments):
                         raise ValueError("Couldn't open sample file '{0}' for reading".format(sample))
             arguments.input = samples
         else:
-
             raise ValueError("Could not determine file type of input")        
     else:
         raise ValueError("Could not determine POSIX access mode for one or more input files.")
-
-
-
     new_args = copy.deepcopy(arguments)
-
-
-    
     if arguments.k is None:
         if arguments.minK is None or arguments.maxK is None:
             raise ValueError("In multi-k mode, arguments --minK and --maxK are required.")
@@ -2231,30 +2215,22 @@ def profile(arguments):
         else:
             logger.log_it("Doing things...", "INFO")
             for k in range(arguments.minK, arguments.maxK+1):
-
                 new_args.k = k
-                #raise RuntimeError("Multi-k mode")
                 _profile(new_args)
-                #_profile(arguments) # FIXME
-                pass
     elif arguments.k is not None:
         logger.log_it("Running in single-k mode", "INFO")
-
-        #raise RuntimeError("single-k mode")
         _profile(new_args)
 
-    
+    sys.stderr.write(config.DONE)
     return 
 
 
-
-
-def _profile(arguments):
+def _profile(args):
     from multiprocessing import Pool
     import json
     import time
     import numpy as np
-    from kmerdb import parse, fileutil, kmer, util
+    from kmerdb import config, fileutil, kmer, lexer, parse, util
     from kmerdb.config import VERSION
 
     global logger
@@ -2264,224 +2240,74 @@ def _profile(arguments):
 
     step = 0
     feature = 0
-    
+
     file_metadata = []
-    total_kmers = 4**arguments.k # Dimensionality of k-mer profile
+    total_kmers = 4**args.k # Dimensionality of k-mer profile
     N = total_kmers
     theoretical_kmers_number = N
-
-    logger.log_it("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(arguments.input))), "INFO")
+    counts = np.zeros(N, dtype="uint64")
     nullomers = set()
-    # Initialize arrays
     
-    # kmerdb.parse.Parseable
-
-    infile = parse.Parseable(arguments, logger=logger) #
-
+    logger.log_it("Parsing {0} sequence files to generate a composite k-mer profile...".format(len(list(args.input))), "INFO")
     feature += 1
     step += 1
 
-    
-    logger.log_it("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.input)), arguments.parallel), "INFO")
-    
-    logger.log_it("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable", "DEBUG")
-    
-    logger.log_it("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI", "DEBUG")
-
-    """
-    This is .fa/.fq parsing. It is delegated to the parse.Parseable class for argument intake, which then refers to the module-level method
-    'parsefile', not to be confused with parse.Parseable.parsefile, which simply executes the parsefile function on behalf of the wrapper class
-    'Parseable' such that the function may be used with 'multiprocessing.Pool'
-    """
-
-    
-    
-    if arguments.parallel > 1:
-        with Pool(processes=arguments.parallel) as pool:
-            data = pool.map(infile.parsefile, arguments.input)
-    else:
-        data = list(map(infile.parsefile, arguments.input))
-
-
-
-                       
-        
-    # the actual 'data' is now a list of 4-tuples
-    # Each 4-tuple represents a single file
-    # (counts, header_dictionary<dict>, nullomers<list>, list)
-
-    # Construct a final_counts array for the composite profile across all inputs
-
-
-
-    
-
-    
+    for sequence_file in args.input:
+        counts_, file_metadata_, _ = parse.parsefile(sequence_file, args.k, replace_with_none=args.no_ambiguous)
+        counts = counts + counts_
+        file_metadata.append(file_metadata_)
     step += 1
-    counts = np.zeros(N, dtype="uint64")
+
     # Complete collating of counts across files
     # This technically uses 1 more arrray than necessary 'final_counts' but its okay
-    logger.log_it("Summing counts from individual fasta/fastq files into a composite profile...", "INFO")
-    
 
-    for d in data:
-        counts = counts + d[0]
-        file_metadata.append(d[1])
-
-        
-    if np.sum(counts) == 0:
-        raise ValueError("Each element of the array of k-mer counts was 0. Sum of counts == 0. Likely an internal error. Exiting.")
-
-
-    
-    assert np.sum(counts) > 0, "cowardly refusing to print Array of all 0's. More likely an internal error."
-        
-        
-        
     sys.stderr.write("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n")
-    # unique_kmers = int(np.count_nonzero(counts))
-    # #total_nullomers = total_kmers - unique_kmers
-
-    # nullomer_ids = list(map(lambda n: n[2], data))
-    # all_observed_kmers = int(np.sum(list(map(lambda h: h['total_kmers'], file_metadata))))
-
-
-
-    
-    """
-    3/20/24
-    *Massive* nullomer and count validation regression.
-    """
-
-    """
-    Summary statistics and metadata structure
-    """
     step +=1
     feature += 1
     
-    # nullomer_ids = []
-    # #counts = []
-    # file_metadata = []
-    # for d in data:
-    #     nullomer_ids.extend(d[2])
-    #     counts.extend(d[0])
-    #     file_metadata.append(d[1])
-
-    #     # Extract the *new* logs from parse.parsefile
-    #     newlogs = d[3]
-    #     for line in newlogs:
-    #         try:
-    #             logger.logs.index(line)
-    #         except ValueError as e:
-    #             logger.logs.append(line)
-
-    
     all_observed_kmers = int(np.sum(counts))
     unique_kmers = int(np.count_nonzero(counts))
-    
     unique_nullomers = theoretical_kmers_number - unique_kmers
     #unique_nullomers = len(set(nullomer_ids))
 
-    from kmerdb import lexer
-
-
-    
-    no_singletons = []
-    hist = util.get_histo(list(counts))
-
-    #print(hist)
-
-    
-    if arguments.show_hist is True:
-        sys.stderr.write("Full histogram:\n")
-        sys.stderr.write("[{0}]".format(", ".join(list(map(lambda x: str(x), hist)))))
-
-
-    i, cov = lexer.max(hist)
-    kmer_coverage = cov
+    # from kmerdb import lexer
+    # no_singletons = []
+    # hist = util.get_histo(list(counts))
+    # if arguments.show_hist is True:
+    #     sys.stderr.write("Full histogram:\n")
+    #     sys.stderr.write("[{0}]".format(", ".join(list(map(lambda x: str(x), hist)))))
+    # i, cov = lexer.max(hist)
+    # kmer_coverage = cov
     
     logger.log_it("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number), "DEBUG")
     logger.log_it("Length of count array: {0}".format(counts.size), "DEBUG")
     logger.log_it("Number of non-zeroes: {0}".format(unique_kmers), "DEBUG")
     logger.log_it("Number of nullomers: {0}".format(unique_nullomers), "DEBUG")
     
-    # Key assertion
-
-    """
-    7/15/24 Okay so the assertions are working fine, but something else is getting garbled and the counts are coming out all zero. 
-    """
-    
     assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
-    #logger.info("created a k-mer composite in memory")
-    
-
-    # nullomer_ids = []
-
-    # for ns in file_metadata:
-    #     nullomer_ids.extend(ns["nullomer_array"])
-    
-    # unique_nullomers = len(set(nullomer_ids))
-    # # 
-    # unique_kmers = int(np.sum(list(map(lambda h: h["unique_kmers"], file_metadata))))
-
-    # assert unique_kmers + unique_nullomers == N, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, N, unique_kmers + unique_nullomers)
-    
-    # all_observed_kmers = int(np.sum(counts))
-
     logger.log_it("Initial counting process complete, creating BGZF format file (.kdb)...", "INFO")
-    
-    logger.log_it("Formatting master metadata dictionary...", "INFO")
-    
-
-
+    logger.log_it("Formatting main metadata dictionary...", "INFO")
     
     metadata=OrderedDict({
         "version": VERSION,
         "metadata_blocks": 1,
-        "k": arguments.k,
-        "total_kmers": all_observed_kmers,
+        "k": args.k,
+        "total_kmers": int(all_observed_kmers),
         "unique_kmers": unique_kmers,
         "unique_nullomers": unique_nullomers,
-        "metadata": False,
-        "sorted": arguments.sorted,
-        "kmer_coverage": kmer_coverage,
-        "kmer_ids_dtype": "uint64",
-        "profile_dtype": "uint64",
-        "kmer_coverage_histogram_dtype": "uint64",
-        "count_dtype": "uint64",
-        "frequencies_dtype": "float64",
+        "sorted": args.sorted,
         "tags": [],
         "files": file_metadata
     })
 
-    """
-    Validate Python datatypes listed in metadata header by calling the dtype function of the module of the NumPy 1.21.2
-    """
-    try:
-        np.dtype(metadata["kmer_ids_dtype"])
-        np.dtype(metadata["profile_dtype"])
-        np.dtype(metadata["count_dtype"])
-        np.dtype(metadata["frequencies_dtype"])
-    except TypeError as e:
-        logger.log_it(e.__str__(), "ERROR")
-
-        raise TypeError("Incorrect dtype.")
-
-    logger.log_it("Initializing Numpy array of {0} uint zeroes for the final composite profile...".format(total_kmers), "DEBUG")
     
-    kmer_ids = np.array(range(N), dtype=metadata["kmer_ids_dtype"])
-    profile = np.array(range(N), dtype=metadata["profile_dtype"])
-    counts = np.array(counts, dtype=metadata["count_dtype"])
-    hist_ = list(hist)
-    hist = np.array(hist, dtype=metadata["kmer_coverage_histogram_dtype"])
+    kmer_ids = np.array(range(N), dtype="uint64")
+    profile = np.array(range(N), dtype="uint64")
+    counts = np.array(counts, dtype="uint64")
+    # hist_ = list(hist)
+    # hist = np.array(hist, dtype=metadata["kmer_coverage_histogram_dtype"])
 
     frequencies = np.divide(counts, metadata["total_kmers"])
-
-
-    
-
-
-    logger.log_it("Initialization of profile completed, using approximately {0} bytes for profile".format(counts.nbytes), "INFO")
     
     yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
@@ -2489,14 +2315,8 @@ def _profile(arguments):
     
     step += 1
 
-    """
-    Print histogram as 0-100, with the 0's and 1's reinserted to specification of histogram
-    """
-
-
-
     # Output takes the form --output-name + '.' + $k + '.kdb'
-    output_filepath = "{0}.{1}.kdb".format(arguments.output_name, arguments.k)
+    output_filepath = "{0}.{1}.kdb".format(args.output_name, args.k)
 
     logger.log_it("Collapsing the k-mer counts across the various input files into the .kdb file '{0}'".format(output_filepath), "INFO")    
     kdb_out = fileutil.open(output_filepath, 'wb', metadata=metadata)
@@ -2504,71 +2324,33 @@ def _profile(arguments):
     try:
         sys.stderr.write("\n\nWriting outputs to {0}...\n\n".format(output_filepath))
 
-
-        # Numpy indexing is trash
-        #kmer_ids = np.zeros(total_kmers, dtype=metadata["kmer_ids_dtype"])
-        #profile = np.zeros(total_kmers, dtype=metadata["profile_dtype"])
-        #counts = np.zeros(total_kmers, dtype=metadata["count_dtype"])
-        #frequencies = np.zeros(total_kmers, dtype=metadata["frequencies_dtype"])
-
-
-
-        sys.stderr.write("Full histogram :\n{0}\n".format(list(map(lambda x: int(x), hist))))
-
-        if arguments.quiet is not True and arguments.show_hist is True:
-            print(hist_[0:100])
-            print("Here's the (mini-) histogram you asked for!")
-
-
-
-        
-        i, m = lexer.max(hist)
-
-        if arguments.quiet is not True:
-            print("idx i: {0}, current maximum: {1}".format(i, m))
-        sys.stderr.write("idx i: {0}, current maximum: {1}".format(i, m))
-
-
-        #print(hist_)
-        #sys.stderr.write("mini_hist: {0}".format(hist_))
-        #kdb_out.write(list(hist)[0:100])
-        #time.sleep(240)
-
-        if arguments.sorted:
-
+        if args.sorted:
             kmer_ids_sorted_by_count = np.lexsort(kmer_ids)
             reverse_kmer_ids_sorted_by_count = list(kmer_ids_sorted_by_count)
             reverse_kmer_ids_sorted_by_count.reverse()
-
             
             logger.log_it("K-mer id sort example: {0}".format(reverse_kmer_ids_sorted_by_count[:30]), "INFO")
-
-            
             for i, idx in enumerate(reverse_kmer_ids_sorted_by_count):
 
                 kmer_id = int(kmer_ids[idx])
-                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                seq = kmer.id_to_kmer(kmer_id, args.k)
                 
                 logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, kmer_ids[idx], counts[idx], frequencies[idx]), "INFO")
-
-                
                 c[idx] = counts[idx]
                 f[idx] = frequencies[idx]
-                if arguments.quiet is not True:
+                if args.quiet is not True:
                     print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
                 kdb_out.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(i, kmer_id, c, f))
         else:
             for i, idx in enumerate(kmer_ids):
 
-
                 kmer_id = int(kmer_ids[idx])
-                seq = kmer.id_to_kmer(kmer_id, arguments.k)
+                seq = kmer.id_to_kmer(kmer_id, args.k)
                 c = counts[idx]
                 f = frequencies[idx]
-
                 logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f), "INFO")
                 
-                if arguments.quiet is not True:
+                if args.quiet is not True:
                     print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
                 kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, c, f))
                 
@@ -2580,24 +2362,22 @@ def _profile(arguments):
         kdb_out._handle.flush()
         kdb_out._handle.close()
 
+        _, kmer_cov = lexer.max(util.get_histo(list(counts)))
         """
-        Done around n birfday
-        3/20/24        
-
+        7/5/25
+        Reworked profile, _profile, and parse.parsefile, parse.parse_sequence_file, and kmer.py submodule
         Final statistics to stderr
         """
         sys.stderr.write("\n\n\nFinal stats:\n\n\n")
         sys.stderr.write("Total k-mers processed: {0}\n".format(all_observed_kmers))
         sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
-        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
-        sys.stderr.write("Estimated genome size: N/A\n".format(all_observed_kmers/kmer_coverage))
-        sys.stderr.write("K-mer coverage:  {0}\n".format(kmer_coverage))
-        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        sys.stderr.write("Unique {0}-mer count:     {1}\n".format(args.k, unique_kmers))
+        #sys.stderr.write("Estimated genome size: {0}\n".format(all_observed_kmers/kmer_cov))
+        #sys.stderr.write("K-mer coverage:  {0}\n".format(kmer_cov))
+        sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(args.k, theoretical_kmers_number))
         sys.stderr.write("="*30 + "\n")
         sys.stderr.write("\nDone\n")
 
-
-    
         
 
 
@@ -2674,22 +2454,12 @@ def cli():
     profile_parser.add_argument("--minK", type=int, help="Minimum k for output k-mer profiles")
     profile_parser.add_argument("--maxK", type=int, help="Maximum k for output k-mer profiles")
     profile_parser.add_argument("-o", "--output-name", type=str, required=True, help="File name pattern for outputs. e.g.: example with underscores and dashes input_samplename_1 => input_samplename_1.11.kdb, input_samplename_1.12.kdb")
-
-
-    profile_parser.add_argument("-p", "--parallel", type=int, default=1, help="Shred k-mers from reads in parallel")    
-    # profile_parser.add_argument("--batch-size", type=int, default=100000, help="Number of updates to issue per batch to PostgreSQL while counting")
-    # profile_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
-    #profile_parser.add_argument("-n", type=int, default=1000, help="Number of k-mer metadata records to keep in memory at once before transactions are submitted, this is a space limitation parameter after the initial block of reads is parsed. And during on-disk database generation")
-    profile_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
-    profile_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
-    #profile_parser.add_argument("--keep-db", action="store_true", help=argparse.SUPPRESS)
-    #profile_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
-    
-    #profile_parser.add_argument("--all-metadata", action="store_true", default=False, help="Include read-level k-mer metadata in the .kdb")
-    profile_parser.add_argument("--show-hist", action="store_true", default=False, help="Print the histogram of counts to stderr.")
+    profile_parser.add_argument("--no-ambiguous", action="store_true", help="Do not include non-standard IUPAC residues as doublets/triplets. Omit ambiguous k-mers entirely")
     profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
     profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     profile_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
+    profile_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
+    profile_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
     #profile_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
     # Seqfile todo
 

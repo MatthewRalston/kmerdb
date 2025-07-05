@@ -6,6 +6,17 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+* 6/28/25 | Alignment algorithm
+I'm revisiting the minimizers and alignment algorithm. Doing some tidying on the topic of alignment and minimizers by virtue of first revisiting the 'minimizer.py'  module.
+It's pretty cluttered. I'm disappointed kind of. But the minimizers functionality should be easy to fix, and the alignment should be a low hanging fruit afterwards.
+
+I'd like to read the vsearch paper a little bit more. My current plant is to essentially load the compacted minimizers index into memory at once. I may or may not include data during the read method where the is_min column is 0.
+Essentially just read the sequence id, coordinate on the sequence, the kmer_id, and the is_min value. This will be done for both the temporary .kdbi index on the queries (also on a temporary .kdb file I assume). I don't need to build intelligence in here yet about asssuming there is some kind of .kdb file just lying around with the same basename.
+
+And then that's it. I'm cutting down the size of the minimizers module.
+
+
+
 
 * 6/27/25 | Gene Ontology RefSeq CDS selection and codons refactoring
 Working on a method to retrieve organism RefSeq annotations by GO term via NCBI EUtils. Currently not working for several bacterial genomes.
@@ -13,6 +24,10 @@ This method also seems to be not useful for UniProt because many bacterial prote
 
 Also refactoring the codons.py submodule because of usability issues and some incorrect output observed in the command line regarding include/exclude of start/stop codons.
 Reinvestigating through refactoring. Will make sure that codons runs correctly before revisiting the outcomes from the chisquare test in CUB due to the challenges in extracting RefSeq IDs matching the Gene Ontology terms.
+
+After putting some work into this, I've found that the Blazegraph SPARQL endpoint isn't returning results from the query I've been running.
+I need an alternate method to access Gene Ontology terms, and I've settled on using AmiGO to get Gene Ontology terms associating with genes.
+
 
 * 6/21/25 | [0.8.19] CUB added, still in progress
 
