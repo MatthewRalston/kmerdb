@@ -16,8 +16,10 @@
 '''
 import os
 import sys
-from itertools import chain, repeat
+import copy
 import random
+from itertools import chain, repeat
+
 import logging
 
 from Bio import SeqIO
@@ -195,6 +197,30 @@ def is_sequence_aa(s:str):
     else:
         raise ValueError("Unable to determine IUPAC nature of the following sequence\n{0}".format(s))
 
+def left_neighbors(kmer:str):
+    if type(kmer) is not str:
+        raise TypeError("kmerdb.kmer.left_neighbors() expected a str as its argument")
+    last_char_removed = kmer[:-1]
+    return list(map(lambda c: kmer_to_id(c + last_char_removed), binaryToLetterNA))
+
+def right_neighbors(kmer:str):
+    if type(kmer) is not str:
+        raise TypeError("kmerdb.kmer.right_neighbors() expected a str as its argument")
+    first_char_removed = kmer[1:]
+    return list(map(lambda c: kmer_to_id(first_char_removed + c), binaryToLetterNA))
+
+def is_right_neighbor(kmer:str, right_neighbor):
+    return kmer[1:] == right_neighbor[:-1]
+
+def is_left_neighbor(kmer:str, left_neighbor):
+    return left_neighbor[1:] == kmer[:-1]
+
+def are_neighbors(kmer1:str, kmer2:str):
+    if type(kmer1) is not str:
+        raise TypeError("kmerdb.kmer.are_neighbors() expected a str as its first positional argument")
+    elif type(kmer2) is not str:
+        raise TypeError("kmerdb.kmer.are_neighbors() expected a str as its second positional argument")
+    return is_right_neighbor(kmer1, kmer2) or is_left_neighbor(kmer1, kmer2)
     
 
 def kmer_to_id(s, is_aa:bool=False):
@@ -327,7 +353,6 @@ def id_to_kmer(id, k, is_aa:bool=False):
     return ''.join(kmer)
 
 
-
 def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
     """
     3/11/24 revived. given a k-mer of length k, give its neighbors. This is so ugly.
@@ -355,20 +380,14 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
     elif len(kmer) != k:
         raise ValueError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
     else:
-        import copy
-        letters1 = copy.deepcopy(binaryToLetterNA)
-        letters2 = copy.deepcopy(letters1)
-    
-        firstCharRemoved = kmer[1:]
-        lastCharRemoved  = kmer[:-1]
-        right_neighbors = list(map(lambda c: firstCharRemoved + c, letters1)) # Form the up neighbors
-        left_neighbors = list(map(lambda c: c + lastCharRemoved, letters2))  # Form the down neighbors
+        left_neighbor_kmers = left_neighbors(kmer)
+        right_neighbor_kmers = right_neighbors(kmer)
         """
         # TYPE 1: [first char removed ... + ... c  : ['A', "c", "g", "T"]]
         # TYPE 2: [["A", "C", "G", "T"] : c + last char removed  ]
         """
-        right_neighbor_ids = list(map(kmer_to_id, right_neighbors))
-        left_neighbor_ids = list(map(kmer_to_id, left_neighbors))
+        right_neighbor_ids = list(map(kmer_to_id, right_neighbor_kmers))
+        left_neighbor_ids = list(map(kmer_to_id, left_neighbor_kmers))
 #         logger.debug(""" flower garden - joan G. Stark fir sur. fleicitaciones
 #                                     wWWWw
 #    vVVVv (___) wWWWw  wWWWw  (___)  vVVVv

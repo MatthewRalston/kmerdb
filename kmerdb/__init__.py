@@ -1503,11 +1503,10 @@ def header(arguments):
     if sfx == ".kdb":
         kdb = fileutil.open(arguments.kdb, mode='r', sort=False, slurp=False)
         metadata = kdb.metadata
-            
         kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
         if metadata["version"] != config.VERSION:
-            logger.log_it(".kdb version is out of date, may be incompatible with current KDBReader class", "WARNING")
+            logger.log_it(".kdb file version is out of date, may be incompatible with current kmerdb.fileutil.KDBReader class", "WARNING")
 
         assert kdb.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
         assert kdb.counts.size == N, "view | read counts size did not match N from the header metadata"
@@ -1516,10 +1515,8 @@ def header(arguments):
     elif sfx == ".kdbg":
         kdb = graph.open(arguments.kdb, mode='r', slurp=False)
         if kdb.metadata["version"] != config.VERSION:
-            logger.log_it(".kdb file version is out of date, may be incompatible with current fileutil.KDBReader class", "WARNING")
+            logger.log_it(".kdbg file version is out of date, may be incompatible with current kmerdb.graph.KDBGReader class", "WARNING")
 
-
-            
         N = 4**kdb.metadata["k"]
         metadata = kdb.metadata
 
@@ -1530,7 +1527,7 @@ def header(arguments):
         print(dict(kdb.metadata))
     else:
         yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
-        print(yaml.dump(metadata))
+        print(yaml.dump(metadata, sort_keys=False))
         print(config.header_delimiter)
             
 def view(arguments):
@@ -1856,7 +1853,7 @@ def make_graph(arguments):
 
 
     import jsonschema
-    
+
     import numpy as np
     
     from kmerdb import kmer, util, graph
@@ -1880,71 +1877,48 @@ def make_graph(arguments):
         raise IOError("Destination .kdbg filepath does not end in '.kdbg'")
 
     file_metadata = []
-    theoretical_kmers_number = 4**arguments.k # Dimensionality of k-mer profile
+    N = 4**arguments.k
+    theoretical_kmers_number = N
+    
+    logger.log_it("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.input))), "INFO")
 
+    counts = np.zeros(N, dtype="uint64")
+    
+    file_metadata = []
+    pairs = []
+    
+    for f in arguments.input:
+        pairs_, f_metadata, counts_ = graph.make_coo_graph(f, arguments.k, quiet=arguments.quiet)
+        pairs += pairs_
+        counts = counts + counts_
+        file_metadata.append(f_metadata)
+
+    total_num_reads = sum(list(map(lambda fm: fm["num_reads"], file_metadata)))
+    total_kmers = int(np.sum(list(map(lambda fm: fm["total_kmers"], file_metadata))))
 
     
-    logger.log_it("Parsing {0} sequence files to generate a k-mer adjacency list...".format(len(list(arguments.seqfile))), "INFO")
+    sys.stderr.write("""\n\n\n
+    {0}\n\n
+    Generated {1} records of edge relationships:\n\n
+    neighbors from  {2} total k-mers along {3} seqs/reads\n\n\n{0}""".format("="*60, len(pairs), total_kmers, total_num_reads))
+    """
+    These are pairs of k-mers... edges in the 1st order graph
+    and nodes in the k+1 mer graph.
+    The goal is to write all the nodes of the k+1 mer graph to disk
+    """
 
+    """
+    #################################################
+    Step 1. Completed
+    #################################################
+    """
     
-    infile = graph.Parseable(arguments, logger=logger) # NOTE: Uses the kmerdb.graph module
-
-
     feature = 1
     step = 1
 
-    
-    logger.log_it("Processing {0} fasta/fastq files across {1} processors...".format(len(list(arguments.seqfile)), arguments.parallel), "INFO")
-    
-    logger.log_it("Parallel (if specified) mapping the kmerdb.parse.parsefile() method to the seqfile iterable", "DEBUG")
-    
-    logger.log_it("In other words, running the kmerdb.parse.parsefile() method on each file specified via the CLI", "DEBUG")
-    
-    if arguments.parallel > 1:
-        with Pool(processes=arguments.parallel) as pool:
-            # data files_metadata
-            data = pool.map(infile.parsefile, arguments.seqfile) # Returns a list of k-mer ids
-    else:
-            # data files_metadata
-            data = list(map(infile.parsefile, arguments.seqfile))
-
-
-
-    """
-    ######################################
-    Step 1. Completed
-    ######################################
-    """
-
-
-
-    step = 2
-
-
-            
-    """
-    Summary statistics and metadata structure
-    """
-
-    nullomer_ids = []
-    counts = []
-    for d in data:
-        nullomer_ids.extend(d[3])
-        counts.extend(d[2])
-        file_metadata.append(d[1])
-    N = 4**arguments.k
-
-    
-    all_observed_kmers = int(np.sum(counts))
-        
-    unique_nullomers = len(set(nullomer_ids))
-    
+    all_observed_kmers = sum(list(map(lambda fm: fm["total_kmers"], file_metadata)))
     unique_kmers = int(np.count_nonzero(counts))
-    
-    # Key assertion
-    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
-    #logger.info("created a k-mer composite in memory")
-
+    unique_nullomers = N - unique_kmers
     
     metadata=OrderedDict({
         "version": VERSION,
@@ -1954,124 +1928,29 @@ def make_graph(arguments):
         "unique_kmers": unique_kmers,
         "unique_nullomers": unique_nullomers,
         "sorted": arguments.sorted,
-        "n1_dtype": "uint64",
-        "n2_dtype": "uint64",
-        "weights_dtype": "uint64",
         "tags": [],
         "files": file_metadata
     })
 
     
     logger.log_it("Validating aggregated metadata structure for .kdbg header...", "INFO")
-
-    try:
-        np.dtype(metadata["n1_dtype"])
-        np.dtype(metadata["n2_dtype"])
-        np.dtype(metadata["weights_dtype"])
-    except TypeError as e:
-        logger.log_it(metadata, "ERROR")
-        
-        logger.log_it(e.__str__(), "ERROR")
-        
-        logger.log_it("kmerdb encountered a type error and needs to exit", "ERROR")
-        
-        raise TypeError("Incorrect dtype detected in metadata structure. Internal error.")
-    
     try:
         jsonschema.validate(instance=metadata, schema=config.graph_schema)
     except jsonschema.ValidationError as e:
         logger.log_it(e.__str__(), "ERROR")
-
-        
         logger.log_it("kmerdb.graph.KDBGReader couldn't validate the header/metadata YAML", "ERROR")
-
-        
         raise e
-
-    logger.log_it("Validation complete.", "DEBUG")
-    
-    logger.log_it("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n", "INFO")
-
-
-
-    """
-    ACCUMULATE ALL EDGE WEIGHTS ACROSS ALL FILES
-    """
-    """
-    task 1: initialize the final edge datastructure, a hashmap, keyed on a pair of k-mer ids, and containing only an integer weight
-    """
-
-
-
-
-
-    step = 3
-
-
-
-    
-    # Initialize empty data structures
-    all_edges_in_kspace = {}
-    n1 = []
-    n2 = []
-    weights = []
-    # Loop over the input files and initialize the dictionary on the valid pairs, setting them to 0.
-    for d in data:
-        edges, h, counts, nullomers = d
-        pair_ids = edges.keys()
-        for p in pair_ids:
-            all_edges_in_kspace[p] = 0
-    """
-    task 2: Accumulate all edge weights across all files
-    """
-    for d in data:
-        edges, h, counts, nullomers = d
-        pair_ids = edges.keys()
-        
-        for p in pair_ids:
-            try:
-                all_edges_in_kspace[p] += edges[p]
-            except KeyError as e:
-                logger.log_it("Unknown edge detected, evaded prepopulation. Internal error.", "ERROR")
-                raise e
-    """
-    task 3: Add edges (2 k-mer ids) and weight to lists for conversion to NumPy array.
-    """
-    for e in all_edges_in_kspace.keys():
-        n1.append(e[0])
-        n2.append(e[1])
-        weights.append(all_edges_in_kspace[e])
-
 
     """
     #################################################
     Step 2. Completed
     #################################################
     """
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    """
-    N would be the number of edges, pairs of nodes, and weights.
-    """
-    N = len(n1)
     
-    logger.log_it("Initializing Numpy arrays of {0} uint for the edges and corresponding weight...".format(N), "DEBUG")
-    n1 = np.array(n1, dtype=metadata["n1_dtype"])
-    n2 = np.array(n2, dtype=metadata["n2_dtype"])
-    weights = np.array(weights, dtype=metadata["weights_dtype"])
-    logger.log_it("Initialization of profile completed, using approximately {0} bytes per array".format(n1.nbytes), "INFO")
+    logger.log_it("Validation complete.", "DEBUG")
+    logger.log_it("\n\n\tCompleted summation and metadata aggregation across all inputs...\n\n", "INFO")
+    step = 3
+
 
     """
     Write the YAML metadata header to the .kdbg file
@@ -2080,44 +1959,21 @@ def make_graph(arguments):
     sys.stderr.write(yaml.dump(metadata, sort_keys=False))
 
     sys.stderr.write("\n\n\n")
-    
-    logger.log_it("Wrote metadata header to .kdbg...", "INFO")
-    
-
-    
-    """
-    Cause pandas isn't edge-y enough.
-    """
-    # Convert the list of numpy arrays (the uint64 3-tuple of the edge) to pandas dataframe
-    #df = pd.DataFrame(twoD_weighted_edge_list)
-    #df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=False)
-
-
-    """
-    Write the dataset (weighted edge list) to a file with '.kdbg' as its suffix.
-    """
-
 
     feature = 2
-    step = 4
     
-    kdbg_out = graph.open(arguments.kdbg, mode='wb', metadata=metadata)
-    
+    kdbg_out = graph.open(arguments.kdbg, mode='w', metadata=metadata)
+    logger.log_it("Wrote metadata header to .kdbg...", "INFO")    
     try:
         sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
-        for i, node1 in enumerate(n1):
-            
-            node2 = n2[i]
-            w = weights[i]
-
-            tupley = (i, node1, node2, w)
-            tupley_dl = np.array(tupley, dtype="uint64")
+        for i in range(len(pairs)):
+            k1, k2 = pairs[i]
+            tupley = (i, k1, k2)
+            line = "\t".join(list(map(str, tupley)))
             if arguments.quiet is False:
-                print("\t".join(list(map(str, tupley_dl.tolist()))))
-                #print("{0}\t{1}\t{2}\t{3}".format(i, node1, node2, w))
-            # i, node1, node2, weight
-            kdbg_out.write("{0}\n".format("\t".join(list(map(str, tupley_dl.tolist())))))
-            #kdbg_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, node1, node2, w))
+                print(line)
+            kdbg_out.write(line + "\n")
+
     finally:
         kdbg_out._write_block(kdbg_out._buffer)
         kdbg_out._handle.flush()
@@ -2139,12 +1995,10 @@ def make_graph(arguments):
         sys.stderr.write("="*30 + "\n")
         sys.stderr.write(".kdbg stats:\n")
         sys.stderr.write("-"*30 + "\n")
-        sys.stderr.write("Edges in file:  {0}\n".format(N))
-        sys.stderr.write("Non-zero weights: {0}\n".format(int(np.count_nonzero(weights))))
-        sys.stderr.write("Sum of node degrees in file: {0}".format(2*N))
+        sys.stderr.write("Edges in file:  {0}\n".format(len(pairs)))
         sys.stderr.write("\nDone\n")
 
-    logger.log_it("Done printing weighted edge list to .kdbg", "INFO")
+    logger.log_it("Done printing weighted edge list to {0} .kdbg".format(arguments.kdbg), "INFO")
 
     sys.stderr.write(config.DONE)
 
@@ -2476,17 +2330,14 @@ def cli():
 
     graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
 
-    graph_parser.add_argument("-p", "--parallel", type=int, default=1, help="Parallel file reading only.")
     graph_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
     graph_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
-    #graph_parser.add_argument("-b", "--fastq-block-size", type=int, default=100000, help="Number of reads to load in memory at once for processing")
-    #graph_parser.add_argument("--both-strands", action="store_true", default=False, help="Retain k-mers from the forward strand of the fast(a|q) file only")
+
     graph_parser.add_argument("--quiet", action="store_true", default=False, help="Do not list all edges and neighboring relationships to stderr")
     graph_parser.add_argument("--sorted", action="store_true", default=False, help=argparse.SUPPRESS)
     graph_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
-    #graph_parser.add_argument("--sparse", action="store_true", default=False, help="Whether or not to store the profile as sparse")
 
-    graph_parser.add_argument("seqfile", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
+    graph_parser.add_argument("input", nargs="+", type=str, metavar="<.fasta|.fastq>", help="Fasta or fastq files")
     graph_parser.add_argument("kdbg", type=str, help=".kdbg file")
     graph_parser.set_defaults(func=make_graph)
 

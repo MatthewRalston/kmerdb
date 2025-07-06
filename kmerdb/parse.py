@@ -134,7 +134,8 @@ def parsefile(filepath:str, k:int, replace_with_none:bool=True):
                 counts[kmer_id] += 1
         if replace_with_none is False:
             for kmer_id in bonus_kmer_ids:
-                counts[kmer_id] += 1
+                if kmer_id is not None:
+                    counts[kmer_id] += 1
         seq_lengths.append(seqlen)
         total_kmers += len(kmer_ids) + len(bonus_kmer_ids)
 

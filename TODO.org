@@ -6,6 +6,88 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+
+* 7/5/24  | kmer.py smell
+Wow... I just took a look at how bad kmer.py looks right now. There are a good number of comments, but I believe the code is considerably ugly at the moment.
+I understand some of it is just legacy and smells now. But the kmer.Kmer.shred() and kmer.Kmer.shred_for_graph methods are under considerable amount of redundancy and smell at the time.
+
+I suggest a rewrite. It's a nice module and it's a shame that it's so well documented but poorly tasteful.
+
+In some regards, the Kmer class isn't even that well suited for parallelization. I kind of wish I could rewrite everything.
+
+First I should rewrite the kmer module. The kmer_to_id and id_to_kmer functions are fine. I need to rewrite shred to have a simpler interface and not be part of this stupid Kmer class I had to make to facilitate multiprocessing.
+
+Parallelism is not the priority here. I need to get rid of the bloated kmer.py module and seqparser modules pretty much entirely.
+
+The parse.py module is mostly okay. A little distasteful but mostly okay at the moment. kmer.py really needs the rewrite.
+
+kmerdb.parse.parsefile()L152 could use a rewrite along with the related functionality in kmer.py. Ideally the kmer.shred functionality should just produce a list of kmer_ids rather than a list of dictionaries AT ALL.
+
+Problem encountered in kmer.py rewrite: If a non-standard IUPAC character is detected in the sequence, the kmer_ids array that comes out of shred will not have length equal to N-k+1.
+
+Proposed solution? Return both a randomly selected kmer from the doublet/tripled expanded by the non-standard (not ATCG) 
+
+Second problem encounterd in kmer.py rewrite: If a N character is detected then we cannot/don't include that kmer_id (as it is None) in the kmer_ids
+
+Proposed solution: Include None in the kmer_ids array as a placeholder. This is also an option when replacing doublets/triplets in the shred function when keyword arg 'replace_with_none' is True.
+
+1pm : Refactored parse.py and kmer.py. Still need to work on graph.py/graphlib. Took maybe 2 hours. Reworking _profile to 
+
+
+* 7/4/24  | Assembly algorithm
+I'm kind of thinking that the assembly algorithm would be much more fun to do than the alignment algorithm and gives me a chance to showcase more in-depth abilities with coding and problem solving.
+So prior to this I had been thinking about PyDot/GraphViz and networkx as components of a potential assembly algorithm.
+
+I think first pass, I should implement a BFS linear-algebra strategy to compute the powers of the adjacency matrix product of interest to modulate the frontier vector. According to Anthropic's Claude Sonnet 4:
+
+- Start with an initial binary vector v_{0} representing your source nodes.
+- Each BFS level corresponds to multiplying by the adjacency matrix: v_{1} = A*v_{0},   v_{2} = A*v_{1} ... etc.
+- The non-zero entries in the corresponding v_{k} indicate which nodes are reachable in k steps.
+
+The algorithm can have significantly different traversal strategies depending on the choice of k. One study (can't remember, may be the one that follows or at least referenced in it) found that small k often leads to better results with so-called 'irregular' graphs. That have node-degree distributions that are considered more complex.
+Basically, irregular graphs have a few highly connected nodes which make searching from these nodes more complex and time consuming on steps with choice k that are large.
+
+Again, from Claude Sonnet 4:
+
+This matrix perspective reveals that BFS is essentially computing powers of the adjacency matrix A^{k} to find all nodes reachable within k steps.
+
+** TurboBFS and COO/CSC format based multiplication on GPU
+
+The authors Artiles and Saeed of the paper of interest refer to a 'TurboBFS' algorithm for BFS that can/is implemented on the GPU.
+The core component of the innovation outline in the paper is the use of certain data structures for minimal memory footprint that can easily be ported to VRAM on the GPU.
+
+They have a GitHub repo at https://github.com/pcdslab/TurboBFS that contains C/C++ and CUDA components for a command-line implementation of the TurboBFS search strategy (which is top-down)
+and the memory efficient data structures known as Compressed Sparse Column (Yale) and Coordinate format (row, col, val) for a sparse graph and multiplication functions that work on these data structures.
+
+Quite simply, they exclude matrix elements that have values of 0, and store the sparse matrix in a simpler vector with length = # non-zero matrix elements.
+
+More interestingly, they have multiplication functions that work on these representations. I'm assuming that's in their C and CUDA code.
+
+
+As such they may take steps through undirected graphs to produce the 'frontier' vector as the start points lead to the resolution of the BFS when the frontier becomes nulled/zeroed.
+
+NOTE: The authors in this paper mention on p4. that their implementation omits the 'value' column of the COO(C) format completely to save memory. If the adjacency matrix A of the graph is binary, then only the row-indices and column indices are needed to create the multiplication with the frontier vector f_{k}
+
+
+
+
+** Steps towards implementation
+- 1. Change the edge-list output to a true tkmer_id -> neighbors such that there are tot_kmers = N-k+1 (nodes) in the output and 8 *tot_kmer edges
+- 2. SIMPLE PyDot/networkx export compatability with the 'kmerdb graph' function. (work on ammending the graph format specification at a later point)
+- 3. Work on Eulerian path on k-mer pairs, instead of the nodes being a k-mer the node is a kmer-to-kmer relationship, the edges of the original problem. Now the Eulerian walk is possible (ty to charlesreid1.github.io)
+- 4. The Eulerian path algorithm may involve some BFS. Let's work on a naive implementation around networkx before the linear algebra is needed.
+- 5. Convert NetworkX into an adjacency matrix
+- 6. Implement a dummy COO or CSC class with conversion utilities to-from networkx for export to PyDot
+- 7. Change this into a cuSPARSE representation
+- 8. Create a BFS search method using numpy matrix multiply
+- 9. Verify BFS search strategy on simple sequence for modest k
+- 10. Implement a TurboBFS strategy on the COO/CSC data structures and cuSPARSE
+- 11. Turn this into CUDA/cuSPARSE instructions. Might need Rust support?
+
+
+
+
+
 * 6/28/25 | Alignment algorithm
 I'm revisiting the minimizers and alignment algorithm. Doing some tidying on the topic of alignment and minimizers by virtue of first revisiting the 'minimizer.py'  module.
 It's pretty cluttered. I'm disappointed kind of. But the minimizers functionality should be easy to fix, and the alignment should be a low hanging fruit afterwards.
@@ -14,8 +96,6 @@ I'd like to read the vsearch paper a little bit more. My current plant is to ess
 Essentially just read the sequence id, coordinate on the sequence, the kmer_id, and the is_min value. This will be done for both the temporary .kdbi index on the queries (also on a temporary .kdb file I assume). I don't need to build intelligence in here yet about asssuming there is some kind of .kdb file just lying around with the same basename.
 
 And then that's it. I'm cutting down the size of the minimizers module.
-
-
 
 
 * 6/27/25 | Gene Ontology RefSeq CDS selection and codons refactoring
