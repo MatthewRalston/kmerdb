@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.8.22" # 7/5/25 
+VERSION="0.9.0" # 7/5/25 
 REQUIRES_PYTHON="3.7.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
@@ -82,7 +82,7 @@ graph_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers", "n1_dtype", "n2_dtype", "weights_dtype"]
+    "required": ["version", "metadata_blocks", "k", "tags", "files", "total_kmers", "unique_kmers", "unique_nullomers"]
 }
 
 kdb_metadata_schema = {

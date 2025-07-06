@@ -31,8 +31,11 @@ Second problem encounterd in kmer.py rewrite: If a N character is detected then 
 
 Proposed solution: Include None in the kmer_ids array as a placeholder. This is also an option when replacing doublets/triplets in the shred function when keyword arg 'replace_with_none' is True.
 
-1pm : Refactored parse.py and kmer.py. Still need to work on graph.py/graphlib. Took maybe 2 hours. Reworking _profile to 
+1pm : Refactored parse.py and kmer.py. Still need to work on graph.py/graphlib. Took maybe 2 hours. Reworking _profile to be cleaner and removed the 'dtype' arguments. It's a flat file. Doesn't need this metadata.
 
+12pm : Refactored the graph.py into a new file. Produces an edge list of 2-tuples of (i, kmer_id, neighbor_id) where i is the id of the k-mer amongst all k-mers in the accumulated data
+
+kmer_id is the current_kmer, and neighbor_id is a kmer_id. 
 
 * 7/4/24  | Assembly algorithm
 I'm kind of thinking that the assembly algorithm would be much more fun to do than the alignment algorithm and gives me a chance to showcase more in-depth abilities with coding and problem solving.
