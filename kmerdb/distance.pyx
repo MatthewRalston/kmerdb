@@ -26,7 +26,7 @@ import numpy as np
 import multiprocessing as mp
 cimport numpy as cnp
 cimport cython
-
+    
 import sys
 #from numba import jit
 #import functools
@@ -96,11 +96,16 @@ cpdef long lr(int[:] a,  int[:] ea):
 
     
 def pearson_correlation(a, b, total_kmers, sharedr):
+
+    #a = np.array(a, dtype="uint64")
+    #b = np.array(b, dtype="uint64")
+    
     r = correlation(a, b, total_kmers)
     sharedr.value = r
 
 #cpdef double correlation(cnp.uint64_t[:] a, cnp.uint64_t[:] b, int total_kmers):
-cpdef double correlation(long[:] a, long[:] b, int total_kmers):
+#cpdef double correlation(long[:] a, long[:] b, int total_kmers):
+cpdef double correlation(unsigned long[:] a, unsigned long[:] b, int total_kmers):
 
     cdef int i
     cdef long double ssxx = 0

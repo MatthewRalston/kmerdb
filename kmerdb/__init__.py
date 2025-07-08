@@ -617,65 +617,29 @@ def distances(arguments):
     n = len(arguments.input)
 
     if len(arguments.input) > 1:
-
-        feature = 1
-        step = 1
-
-        
-        file_reader = fileutil.FileReader()
-        files = list(map(lambda f: fileutil.open(f, 'r', slurp=False), arguments.input))
-        
-        logger.log_it("Files: {0}".format(files), "DEBUG")
-
-        
         if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
             raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
-        dtypes = [x.metadata["kmer_ids_dtype"] for x in files]
-        suggested_dtype = dtypes[0]
-
-
-        logger.log_it(", ".join(dtypes), "ERROR")
-        logger.log_it("Suggested dtype: {0}".format(suggested_dtype), "ERROR")
-
-        logger.log_it("\n\n\n\n{0}\n\n\n\n".format(suggested_dtype), "INFO")
-
-        
-        ks = [kdbrdr.k for kdbrdr in files]
+        feature = 1
+        step = 1
+        ks = []
+        files = []
+        for f in arguments.input:
+            with fileutil.open(f, mode='r', slurp=False) as reader:
+                ks.append(reader.k)
+        logger.log_it("Files: {0}".format(files), "DEBUG")
         suggested_k = ks[0]
         if not all(kdbrdr.k == suggested_k for kdbrdr in files):
             logger.log_it("Files: {0}".format(files), "ERROR")
-
             logger.log_it("Choices of k: {0}".format(ks), "ERROR")
             logger.log_it("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(suggested_k), "ERROR")
-
-            
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-
-
-        
         logger.log_it("Files: {0}".format(files), "DEBUG")
 
         
-        if not all(kdbrdr.dtype == suggested_dtype for kdbrdr in files):
-            raise TypeError("One or more files did not have dtype = {0}".format(suggested_dtype))
-        if arguments.parallel > 1:
-            with Pool(processes=arguments.parallel) as pool:
-                files = pool.map(file_reader.load_file, arguments.input)
-        else:
-            files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
+        files = list(map(lambda f: fileutil.open(f, 'r', slurp=True), arguments.input))
 
-
-        data = [kdbrdr.slurp() for kdbrdr in files]
-
-
-
-        
-        logger.log_it("Suggested dtype {0}".format(suggested_dtype), "ERROR")
-        
-        profiles = np.array(data, dtype=suggested_dtype)
-
-        #profiles = np.transpose(profiles)
-
+        data = [kdbreader.counts for kdbreader in files]
+        profiles = np.array(data, dtype="uint64")
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
@@ -695,12 +659,14 @@ def distances(arguments):
         
         #columns = list(df.columns) # I hate this language, it's hateful.
         n = len(columns)
+        
+        df = pd.DataFrame(np.transpose(profiles))
+        df.columns = columns
+        print(df.head)
     elif len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin"):
 
         feature = 2
         step = 2
-
-
         
         logger.log_it("Reading input as tsv/csv from STDIN", "INFO")
         try:
@@ -713,20 +679,13 @@ def distances(arguments):
         profiles = np.array(df)
         #profiles = np.transpose(np.array(df))
         columns = list(df.columns)
-
-
-
-        # profiles.shape = [row number, column number]
-        #
-        
         assert profiles.shape[1] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
         n = len(columns)
-
+        df.columns = columns
     elif len(arguments.input) == 1 and (os.path.splitext(arguments.input[0])[-1] == ".tsv" or os.path.splitext(arguments.input[0])[-1] == ".csv"):
 
         feature = 2
         step = 2
-        
         try:
             df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
         except pd.errors.EmptyDataError as e:
@@ -736,18 +695,18 @@ def distances(arguments):
             logger.log_it(e.__str__(), "ERROR")
             logger.log_it("Input file not found", "ERROR")
             raise e
-        #profiles = np.transpose(np.array(df))
         profiles = np.array(df)
-        columns = list(df.columns) # I'm sorry I ever made this line. Please forgive me.
+        columns = list(df.columns) # I'm sorry I ever made this line. Please forgive me
         # This is just gratuitous code and language. I'm really really not sure what I want to express here.
         #assert profiles.shape[0] == len(columns), "distance | Number of columns of dataframe did not match the number of rows of the profile"
         n = len(columns)
+        df.columns = columns
     elif len(arguments.input) == 1 and os.path.splitext(arguments.input[0])[-1] == ".kdb":
         logger.log_it("Not sure why you'd want a singular distance.", "ERROR")
-        logger.log_it("kdb distance requires more than one .kdb file as positional inputs", "ERROR")
+        logger.log_it("'kmerdb distance' requires more than one .kdb file as positional inputs", "ERROR")
         sys.exit(1)
     else:
-        logger.log_it("bin/kdb.distances() received {0} arguments as input, which were not supported.".format(len(arguments.input)), "ERROR")
+        logger.log_it("kmerdb distance received {0} arguments as input, which were not supported.".format(len(arguments.input)), "ERROR")
         sys.exit(1)
 
 
@@ -887,71 +846,31 @@ def get_matrix(arguments):
     
     if len(arguments.input) > 1:
 
-        
-        files = list(map(lambda f: fileutil.open(f, 'r', slurp=False, logger=logger), arguments.input))
-
-        if arguments.k is None:
-            arguments.k = files[0].k
-        if not all(os.path.splitext(kdb)[-1] == ".kdb" for kdb in arguments.input):
-            raise IOError("One or more parseable .kdb filepaths did not end in '.kdb'")
-        ks = [kdbrdr.k for kdbrdr in files]
+        ks = []
+        for f in arguments.input:
+            with fileutil.open(f, mode='r', slurp=False) as kdbreader:
+                ks.append(kdbreader.k)
         suggested_k = ks[0]
+
         if not all(k == suggested_k for k in ks):
             logger.log_it("Files: {0}".format(files), "ERROR")
-            
             logger.log_it("Choices of k: {0}".format(ks), "ERROR")
-
             logger.log_it("By default the inferred value of k is used when k is not specified at the command line, which was {0}".format(arguments.k), "ERROR")
-
             logger.log_it("Default choice of k, since not specified at the CLI is {0}".format(arguments.k), "ERROR")
-
             logger.log_it("Proceeding with k set to {0}".format(suggested_k), "ERROR")
-
             
             raise TypeError("One or more files did not have k set to be equal to {0}".format(arguments.k))
-        dtypes = [kdbrdr.metadata["count_dtype"] for kdbrdr in files]
-        suggested_dtype = dtypes[0]
-        if not all(kdbrdr.count_dtype == suggested_dtype for kdbrdr in files):
-            raise TypeError("One of more files did not have dtype = {0}".format(suggested_dtype))
-
-        if arguments.parallel > 1:
-            infile = fileutil.FileReader(arguments, logger=logger)
-            
-            with Pool(processes=arguments.parallel) as pool:
-                try:
-
-
-                    
-                    files = pool.map(infile.parsefile, arguments.input)
-                    
-                except StopIteration as e:
-                    logger.log_it("Files: {)}".format(", ".join(arguments.input)), "ERROR")
-                    raise e
-        else:
-            files = []
-
-            for f in arguments.input:
-                logger.log_it("Reading input from '{0}'...Please be patient...".format(f), "INFO")
-
-                fh = fileutil.open(f, 'r', slurp=True, logger=logger) # no metadata on matrix command
-                files.append(fh)
-
-
-        data = [kdbrdr.counts for kdbrdr in files]
-                     
-        pure_data = np.array(data, dtype=suggested_dtype)
-        profiles = np.transpose(pure_data)
+        files = [fileutil.open(f, 'r', slurp=True) for f in arguments.input]
+        profiles = np.array([r.counts for r in files], dtype="uint64")
+        profiles = np.transpose(profiles)
         # The following does *not* transpose a matrix defined as n x N=4**k
         # n is the number of independent files/samples, (fasta/fastq=>kdb) being assessed
         # N=4**k is the dimensionality of the vector, sparse or not, that makes up the perceived profile, the descriptors is the column dimension.
-
         # The names for the columns are taken as the basenamed filepath, with all extensions (substrings beginning with '.') stripped.
         logger.log_it("============================================================", "INFO")
         logger.log_it("Converting arrays of k-mer counts into a pandas DataFrame...", "INFO")
         logger.log_it("============================================================", "INFO")
         
-
-
         if arguments.column_names is None:
             columns = list(map(lambda kdbrdr: os.path.basename(kdbrdr._filepath).split(".")[0], files))
         else:
@@ -978,20 +897,9 @@ def get_matrix(arguments):
             
             raise RuntimeError("Raw profile shape (a NumPy array) doesn't match expected dimensions")
         df = pd.DataFrame(profiles, columns=columns)
-        is_uint32 = False
-        is_uint64 = False
-        is_float32 = False
-        is_float64 = False
-        is_uint32 = all([x.dtype.name == 'uint32' for x in profiles])
-        is_uint64 = all([x.dtype.name == 'uint64' for x in profiles])
-        is_float32 = all([x.dtype.name == 'float32' for x in profiles])
-        is_float64 = all([x.dtype.name == 'float64' for x in profiles])
-
     elif len(arguments.input) == 0 or (len(arguments.input) == 1 and (arguments.input[0] == "STDIN" or arguments.input[0] == "/dev/stdin")):
-
         feature = 1
         step = 1
-        
         logger.log_it("Reading input as tsv/csv from STDIN", "INFO")
         try:
             df = pd.read_csv(sys.stdin, sep=arguments.delimiter)
@@ -1006,7 +914,6 @@ def get_matrix(arguments):
         feature = 1
         step = 1
         
-        
         logger.log_it("Reading input file as tsv/csv...", "INFO")
         try:
             df = pd.read_csv(arguments.input[0], sep=arguments.delimiter)
@@ -1015,26 +922,17 @@ def get_matrix(arguments):
 
 
             logger.log_it("Pandas error on DataFrame reading. Perhaps a null dataset being read?", "ERROR")
-
-            
             raise e
         columns = list(df.columns)
     else:
         logger.log_it(arguments, "ERROR")
-
         logger.log_it(str(arguments.input), "ERROR")
-
-
-        
         raise ArgumentError("kmerdb matrix received {0} arguments as input, and this is not supported.".format(len(arguments.input)))
 
     final_df = None
     if arguments.method == "DESeq2":
-        
         feature = 2
         step = 4
-
-        
         # if arguments.normalize_with == "ecopy":
         #     import ecopy as ep
         #     logger.info("Normalizing the DataFrame for sample size with ecopy...")
@@ -1074,54 +972,23 @@ def get_matrix(arguments):
             normalized = pd.DataFrame(normalized, columns=columns)
             
             logger.log_it("Normalized matrix shape: {0}".format(normalized.shape), "INFO")
-
-
-            #     if arguments.method == "Unnormalized":
-            #         cf = r['descdist'](r_dataframe, discrete=True)
-            #     else:
-            #         cf = r['descdist'](r_dataframe, discrete=False)
         except PackageNotInstalledError as e:
             logger.log_it(e.__str__(), "ERROR")
-
             logger.log_it("One or more R packages were not installed. Please see the install documentation about installing the associated R packages", "ERROR")
-
             logger.log_it("Use -vv for suggested installation instructions.", "ERROR")
-
-            
             raise e
-
-        #normalized.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
-
-        # logger.error("False ending of Normalized")
-        # logger.debug("final_df should be set as normalized")
-        # sys.exit(1)
         final_df = normalized
     elif arguments.method == "from":
-
         feature = 2
         step = 4
-        
-        #df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = df
     elif arguments.method == "Frequency":
-
         feature = 2
         step = 4
-        
-        
         final_df = df # 4/5/24 - frequencies are given in the standard format
-        #k = suggested_metadata['k']
-        #total_kmers = suggested_metadata["total_kmers"]
-        #final_df = df.div(total_kmers)
     elif arguments.method == "PCA":
-
-
-
         feature = 2
         step = 2
-
-
-        
         # This method is actually dimensionality reduction via SVD, and this process is used during principal components analysis.
         # We generate the elbow graph in this step if the required dimensionality parameter '-n' is not supplied.
         # In this case we assume they have not provided the parameter because they'd like to use the so-called 'auto-detection'
@@ -1133,57 +1000,33 @@ def get_matrix(arguments):
         #################################
         # PCA dimensionality reduction
         #################################
-    
         logger.log_it("Performing preliminary dimensionality reduction to the MLE", "INFO")
-
-
-        
         pca = PCA()#n_components="mle", svd_solver='auto')
         pca.fit(np.transpose(df)) # PCA of the normalized matrix or its transpose?
         # We want the number of k-mers, the number of features reduced, so we transpose the original matrix
-
-
         plt.plot(range(1, len(pca.explained_variance_ratio_)+1), pca.explained_variance_ratio_.cumsum(), marker='o', linestyle="--")
         plt.title("Explained variance by components")
         plt.xlabel("Number of components")
         plt.ylabel("Cumulative explained variance")
         plt.savefig(config.pca_variance_fig_filepath)
-
         if arguments.n is not None:
             logger.log_it("Using selected PCA dimensionality to reduce the transpose matrix/DataFrame again for use in 'kdb kmeans'", "INFO")
             pca = PCA(n_components=arguments.n)
             pca.fit(np.transpose(df))
             sys.stderr.write("\n\n\n")
             sys.stderr.write("-"*30+ "\n")
-            
             sys.stderr.write("Explained variances: {0}\n".format(pca.explained_variance_ratio_))
             sys.stderr.write("Log-likelihoods: {0}\n".format(pca.score_samples(np.transpose(df))))
             sys.stderr.write("Log-likelihood of all samples: {0}\n".format(pca.score(np.transpose(df))))
             sys.stderr.write("MLE estimate of components for dimensionality reduction produced this shape: {0}\n".format(pca.components_.shape))
-
             score_matrix = pca.transform(np.transpose(df))
             score_df = pd.DataFrame(np.transpose(score_matrix), columns=columns)
-
-            #score_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
             final_df = score_df
         else:
             logger.log_it("You must look at '{0}' to decide on the choice of '-n' for specify when generating the dimensionally reduced matrix for clustering function".format(config.pca_variance_fig_filepath), "WARNING")
-
-
-            
-        #logger.debug("Components:\n{0}".format(pca.components_))
-        # The shape for my first run was 10x11 and I have 11 samples. So I decided to not transpose this matrix to simply add it to a DataFrame and rename the samples.
-        #df = pd.DataFrame(pca.components_, columns=list(map(lambda kdbrdr: os.path.splitext(os.path.basename(kdbrdr._filepath))[0], files)))
     elif arguments.method == "tSNE":
-
-
         feature = 2
         step = 3
-
-
-
-
-        
         '''
         In t-SNE, perplexity or k is defined as 2^S, where S is the Shannon entropy of the conditional probability distribution.
         '''
@@ -1191,9 +1034,7 @@ def get_matrix(arguments):
             raise TypeError("'kdb matrix tSNE' requires a keyword argument '-n' equal to the number of components of the subspace for tSNE to project the data into. A choice of 2 is recommended")
         tsne = TSNE(n_components=arguments.n, perplexity=arguments.perplexity).fit_transform(np.transpose(df))
         tsne_df = pd.DataFrame(np.transpose(tsne), columns=columns)
-        #tsne_df.to_csv(sys.stdout, sep=arguments.delimiter, index=arguments.with_index)
         final_df = tsne_df
-
     ## FIXME: CUSTOM SORTING. WILL NOT COMMIT TO GIT REPO
     #suffixes = [(int(x.split("_")[1]), i) for i, x in enumerate(column_names)] # A list of a 2-tuple of the correct sort order and the index
     #suffixes.sort(key=lambda x: x[0])
@@ -1204,10 +1045,6 @@ def get_matrix(arguments):
 
     
     logger.log_it("Done printing {0} matrix to STDOUT".format(arguments.method), "INFO")
-
-    #logger.info("Beginning distribution analysis in R...")
-    #logger.warn("Not implemented in Python...")
-    
     sys.stderr.write(config.DONE)
 
 
@@ -1503,7 +1340,6 @@ def header(arguments):
     if sfx == ".kdb":
         kdb = fileutil.open(arguments.kdb, mode='r', sort=False, slurp=False)
         metadata = kdb.metadata
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
         if metadata["version"] != config.VERSION:
             logger.log_it(".kdb file version is out of date, may be incompatible with current kmerdb.fileutil.KDBReader class", "WARNING")
@@ -1516,13 +1352,10 @@ def header(arguments):
         kdb = graph.open(arguments.kdb, mode='r', slurp=False)
         if kdb.metadata["version"] != config.VERSION:
             logger.log_it(".kdbg file version is out of date, may be incompatible with current kmerdb.graph.KDBGReader class", "WARNING")
-
         N = 4**kdb.metadata["k"]
         metadata = kdb.metadata
-
     else:
         raise ValueError("Input to 'kmerdb header' is a .kdb or .kdbg (gzipped .tsv) file of a count vector or a graph. Requires YAML metadata header.Try creating a k-mer count profile with 'kmerdb profile' or edge list with 'kmerdb graph'")
-
     if arguments.json:
         print(dict(kdb.metadata))
     else:
@@ -1585,9 +1418,6 @@ def view(arguments):
     if sfx == ".kdb":
         with fileutil.open(arguments.kdb_in, mode='r', sort=arguments.re_sort, slurp=True) as kdb_in:
             metadata = kdb_in.metadata
-
-            
-            kmer_ids_dtype = metadata["kmer_ids_dtype"]
             N = 4**metadata["k"]
             if metadata["version"] != config.VERSION:
                 logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
@@ -1597,8 +1427,6 @@ def view(arguments):
                     print(yaml.dump(metadata, sort_keys=False))
                     print(config.header_delimiter)
             logger.log_it("Reading from file...", "INFO")
-
-            
             
             try:
                 if not arguments.un_sort and arguments.re_sort and metadata["sorted"] is True:
@@ -1609,74 +1437,58 @@ def view(arguments):
                         logger.log_it("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.", "DEBUG")
                         
                         logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]), "DEBUG")
-
-
                         print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
                 else:
                     for i, idx in enumerate(kdb_in.kmer_ids):
                         kmer_id = kdb_in.kmer_ids[idx]
                         logger.log_it("The row in the file should follow this order:", "DEBUG")
-                        
                         logger.log_it("The first is an implicit row-index. The second is a k-mer id, then the counts and frequencies.", "DEBUG")
-                        
                         logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]), "DEBUG")
-
-                        
                         try:
                             if arguments.un_sort is True:
                                 assert kmer_id == idx, "view | kmer_id {0} didn't match the expected k-mer id.".format(idx, kmer_id)
                                 assert i == kmer_id, "view | kmer_id {0} didn't match the implicit index {1}".format(idx, i)
                             else:
-                                #logger.debug("Not sorting, so skipping assertion about profile (col1, column 2)")
                                 pass
                         except AssertionError as e:
                             logger.log_it(e.__str__(), "WARNING")
-                            
                             logger.log_it("K-mer id {0} will be printed in the {1} row".format(idx, i), "WARNING")
-                            
-                        #raise e
                         logger.log_it("{0} line:".format(i), "DEBUG")
-                        
                         logger.log_it("=== = = = ======= =  =  =  =  =  = |", "INFO")
-
                         if arguments.un_sort is True:
                             if arguments.no_singletons is True:
                                 if kdb_in.counts[idx] > 2:
-                                    
                                     print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
                             else:
                                 print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))                                
                         else:
                             if arguments.no_singletons is True:
                                 if kdb_in.counts[idx] > 2:
-                                    
                                     print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
                             else:
                                 print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[idx], kdb_in.frequencies[idx]))
-                        #print("{0}\t{1}\t{2}\t{3}".format(i, idx, kdb_in.counts[kmer_id], kdb_in.frequencies[kmer_id]))
+                """
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
                 # I need to demonstrate a capacity for graph based learning.
                 # (:-|X) The dread pirate roberts got me.
                 # :)
+                """
             except BrokenPipeError as e:
                 logger.log_it(e.__str__(), "ERROR")
                 raise e
         if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
             logger.log_it("Can't write .kdb to stdout! We need to use a Bio.bgzf filehandle.", "ERROR")
             raise IOError("Can't write .kdb to stdout! We need to use a Bio.bgzf filehandle.")
-
         elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
             raise ValueError("Cannot write a file to an argument that isn't a string")
         elif arguments.kdb_out is not None and (os.path.exists(arguments.kdb_out) or not os.path.exists(arguments.kdb_out)):
             if os.path.exists(arguments.kdb_out):
                 logger.log_it("Overwriting '{0}'...".format(arguments.kdb_out), "WARNING")
-
             logger.log_it("Creating '{0}'...".format(arguments.kdb_out), "DEBUG")
-            
             if arguments.kdb_out is not None:
-                with fileutil.open(arguments.kdb_in, 'r', dtype=suggested_dtype, sort=arguments.sorted, slurp=True) as kdb_in:
+                with fileutil.open(arguments.kdb_in, 'r', sort=arguments.sorted, slurp=True) as kdb_in:
                     assert kdb_in.kmer_ids.size == N, "view | read kmer_ids size did not match N from the header metadata"
                     assert kdb_in.counts.size == N, "view | read counts size did not match N from the header metadata"
                     assert kdb_in.frequencies.size == N, "view | read frequencies size did not match N from the header metadata"
@@ -1688,7 +1500,6 @@ def view(arguments):
                                 kmer_metadata = kmer.neighbors(seq, arguments.k)
                                 logger.log_it("The first is the actual row id. This is the recorded row-id in the file. This should always be sequential. Next is the k-mer id. ", "DEBUG")
                                 kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, kdb_in.counts[kmer_id],  kdb_in.frequencies[kmer_id], kmer_metadata))
-                    
                         except StopIteration as e:
                             logger.log_it(e.__str__(), "ERROR")
                             raise e
@@ -1700,49 +1511,34 @@ def view(arguments):
     elif sfx == ".kdbg":
         kdbg_in = graph.open(arguments.kdb_in, mode='r', slurp=True)
         metadata = kdbg_in.metadata
-
-        
-
-        n1_dtype      = metadata["n1_dtype"]
-        n2_dtype      = metadata["n2_dtype"]
-        weights_dtype = metadata["weights_dtype"]
-
-            
         if metadata["version"] != config.VERSION:
             logger.log_it("KDB version is out of date, may be incompatible with current KDBReader class", "WARNING")
-            
         if arguments.kdb_out is None or (arguments.kdb_out == "/dev/stdout" or arguments.kdb_out == "STDOUT"): # Write to stdout, uncompressed
             if arguments.header:
                 yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
                 print(yaml.dump(metadata, sort_keys=False))
                 print(config.header_delimiter)
         logger.log_it("Reading from file...", "INFO")
-        
         logger.log_it("I cut off the json-formatted unstructured column for the main view.", "DEBUG")
         
-
         for i in range(len(kdbg_in.n1)):
             n1 = kdbg_in.n1[i]
             n2 = kdbg_in.n2[i]
             w  = kdbg_in.weights[i]
             logger.log_it("The row in the file should follow this order:", "DEBUG")
-            
             logger.log_it("The first is an implicit row-index. The second and third are k-mer ids, then edge weight", "DEBUG")
-            
             logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w), "DEBUG")
-            
             logger.log_it("{0} line:".format(i), "DEBUG")
-
             logger.log_it("=== = = = ======= =  =  =  =  =  = |", "DEBUG")
-
-            
             print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+            """
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
                 # Is it a Cypher query and creation node set?
                 # I need to demonstrate a capacity for graph based learning.
                 # (:-|X) The dread pirate roberts got me.
                 # :)
+            """
         if arguments.kdb_out is not None and arguments.compress: # Can't yet write compressed to stdout
             logger.log_it("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.", "ERROR")
             raise IOError("Can't write kdb to stdout! We need to use a Bio.bgzf filehandle.")
@@ -1750,20 +1546,14 @@ def view(arguments):
         elif arguments.kdb_out is not None and type(arguments.kdb_out) is not str:
             raise ValueError("Cannot write a file to an argument that isn't a string")
         elif arguments.kdb_out is not None and os.path.exists(arguments.kdb_out):
-            
             logger.log_it("Overwriting '{0}'...".format(arguments.kdb_out), "WARNING")
-
-            
         elif arguments.kdb_out is not None and not os.path.exists(arguments.kdb_out):
-            
             logger.log_it("Creating '{0}'...".format(arguments.kdb_out), "DEBUG")
-            
             if arguments.kdb_out is not None:
                 with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
                     try:
                         for i in range(len(kdbg.n1)):
                             kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg_in.n1[i], kdbg_in.n2[i],  kdbg_in.w[i]))
-                    
                     except StopIteration as e:
                         logger.log_it(e.__str__(), "ERROR")
                         raise e
