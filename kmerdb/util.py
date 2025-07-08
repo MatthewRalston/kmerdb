@@ -29,7 +29,7 @@ import numpy as np
 
 from kmerdb import config
 
-
+is_integer = re.compile("^[-+]?[0-9]+$")
 findall_float = re.compile(r"[-+]?(?:\d*\.\d+|\d+)")
 
 def checksum(filepath:str):

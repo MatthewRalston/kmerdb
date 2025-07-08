@@ -6,8 +6,18 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
+Objectives
 
-* 7/5/24  | kmer.py smell
+
+* Dates
+** 7/7/24
+** 7/6/25  | 0.9.0
+After a little bit of time working on things, I've acceptance tested the kmerdb graph and profile commands from this refactor. The refactoring was mostly housekeeping in the modules graph.py, kmer.py, and parse.py.
+
+The end result is a modified graph format, which represents the edges of the original de Bruijn graph. It uses greedy neighbor joining to reduce the numbers of edges present in the primary de Bruijn graph, and consequently the number of nodes in the secondary graph, considering the k+1 mers (or kmer-to-kmer adjacencies) as nodes.
+
+I'm happy with the result, and I still need
+** 7/5/24  | kmer.py smell
 Wow... I just took a look at how bad kmer.py looks right now. There are a good number of comments, but I believe the code is considerably ugly at the moment.
 I understand some of it is just legacy and smells now. But the kmer.Kmer.shred() and kmer.Kmer.shred_for_graph methods are under considerable amount of redundancy and smell at the time.
 
@@ -35,9 +45,11 @@ Proposed solution: Include None in the kmer_ids array as a placeholder. This is 
 
 12pm : Refactored the graph.py into a new file. Produces an edge list of 2-tuples of (i, kmer_id, neighbor_id) where i is the id of the k-mer amongst all k-mers in the accumulated data
 
-kmer_id is the current_kmer, and neighbor_id is a kmer_id. 
+kmer_id is the current_kmer, and neighbor_id is a kmer_id.
 
-* 7/4/24  | Assembly algorithm
+
+
+** 7/4/24  | Assembly algorithm
 I'm kind of thinking that the assembly algorithm would be much more fun to do than the alignment algorithm and gives me a chance to showcase more in-depth abilities with coding and problem solving.
 So prior to this I had been thinking about PyDot/GraphViz and networkx as components of a potential assembly algorithm.
 
@@ -54,7 +66,7 @@ Again, from Claude Sonnet 4:
 
 This matrix perspective reveals that BFS is essentially computing powers of the adjacency matrix A^{k} to find all nodes reachable within k steps.
 
-** TurboBFS and COO/CSC format based multiplication on GPU
+*** TurboBFS and COO/CSC format based multiplication on GPU
 
 The authors Artiles and Saeed of the paper of interest refer to a 'TurboBFS' algorithm for BFS that can/is implemented on the GPU.
 The core component of the innovation outline in the paper is the use of certain data structures for minimal memory footprint that can easily be ported to VRAM on the GPU.
@@ -74,7 +86,7 @@ NOTE: The authors in this paper mention on p4. that their implementation omits t
 
 
 
-** Steps towards implementation
+*** Steps towards implementation
 - 1. Change the edge-list output to a true tkmer_id -> neighbors such that there are tot_kmers = N-k+1 (nodes) in the output and 8 *tot_kmer edges
 - 2. SIMPLE PyDot/networkx export compatability with the 'kmerdb graph' function. (work on ammending the graph format specification at a later point)
 - 3. Work on Eulerian path on k-mer pairs, instead of the nodes being a k-mer the node is a kmer-to-kmer relationship, the edges of the original problem. Now the Eulerian walk is possible (ty to charlesreid1.github.io)
@@ -91,7 +103,7 @@ NOTE: The authors in this paper mention on p4. that their implementation omits t
 
 
 
-* 6/28/25 | Alignment algorithm
+** 6/28/25 | Alignment algorithm
 I'm revisiting the minimizers and alignment algorithm. Doing some tidying on the topic of alignment and minimizers by virtue of first revisiting the 'minimizer.py'  module.
 It's pretty cluttered. I'm disappointed kind of. But the minimizers functionality should be easy to fix, and the alignment should be a low hanging fruit afterwards.
 
@@ -101,7 +113,7 @@ Essentially just read the sequence id, coordinate on the sequence, the kmer_id, 
 And then that's it. I'm cutting down the size of the minimizers module.
 
 
-* 6/27/25 | Gene Ontology RefSeq CDS selection and codons refactoring
+** 6/27/25 | Gene Ontology RefSeq CDS selection and codons refactoring
 Working on a method to retrieve organism RefSeq annotations by GO term via NCBI EUtils. Currently not working for several bacterial genomes.
 This method also seems to be not useful for UniProt because many bacterial proteins are not appropriately included in the UniProt DB scope.
 
@@ -112,13 +124,13 @@ After putting some work into this, I've found that the Blazegraph SPARQL endpoin
 I need an alternate method to access Gene Ontology terms, and I've settled on using AmiGO to get Gene Ontology terms associating with genes.
 
 
-* 6/21/25 | [0.8.19] CUB added, still in progress
+** 6/21/25 | [0.8.19] CUB added, still in progress
 
 I found several things that *didnt* work. First, when codon frequencies are equal to 1 (i.e. when observed codon counts for an amino acid for one codon are divided by the expected and this equals 1), the chisquare test returns NaN
 I also added some options to include/exclude start/stop codon counts in the table, or to totally refuse stop codon counts from the table, and then parse and remedy that same table if the stop codon counts are excluded.
 This is still giving inf and NaN results from the chisquare, or at times is just doing 0.0. All results of chisquare so far have been unfruitful.
 
-* 6/14/25 | [0.8.17] codons added. kmer, parse module fixed
+** 6/14/25 | [0.8.17] codons added. kmer, parse module fixed
 Released on PyPI as 0.8.17
 Fixed kmer.py module kmer_to_id and id_to_kmer functions, added is_aa amino acid conversions
 parse.py module: correct min/max sequence/read lengths added to header. Was putting placeholder 50,0 min max sequence lengths before.

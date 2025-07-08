@@ -20,33 +20,29 @@
 import io
 import sys
 import os
+import logging
 import gzip
 import tempfile
-import yaml, json
+import json
 from collections import deque, OrderedDict
 import psutil
-import numpy as np
-import math
-import re
-
-#import pdb
-
+#import re
 from builtins import open as _open
 
+import yaml
+
+import numpy as np
 import jsonschema
 from Bio import SeqIO, bgzf
-
-#sys.path.append('..')
 
 from kmerdb import util, config, appmap
 
 # Logging configuration
-global logger
-logger = None
+logger = logging.getLogger(__file__)
 
-is_integer = re.compile("^[-+]?[0-9]+$")
 
-def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False, with_index:bool=False, logger=None):
+
+def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False, with_index:bool=False):
     """
     Opens a file for reading or writing. Valid modes are 'xrwbt'. 'metadata=' is needed when writing/creating.
     Returns a lazy-loading KDBReader object or a KDBWriter object.
@@ -105,9 +101,9 @@ def open(filepath, mode="r", metadata=None, sort:bool=False, slurp:bool=False, w
         raise ValueError("must have exactly one or read/write")
 
     if "r" in mode.lower():
-        return KDBReader(filename=filepath, mode=mode, sort=sort, slurp=slurp, with_index=with_index, logger=logger)
+        return KDBReader(filename=filepath, mode=mode, sort=sort, slurp=slurp, with_index=with_index)
     elif "w" in mode.lower() or "x" in mode.lower():
-        return KDBWriter(metadata, filename=filepath, mode=mode, logger=logger)
+        return KDBWriter(metadata, filename=filepath, mode=mode)
     else:
         raise ValueError("Bad mode %r" % mode)
 
@@ -124,14 +120,11 @@ class KDBReader(bgzf.BgzfReader):
     :ivar fileobj: io.IOBase
     :ivar mode: str
     :ivar max_cache: int
-    :ivar column_dtype: NumPy uint datatype
-    :ivar count_dtypes: Numpy uint datatype
-    :ivar frequencies_dtype: NumPy float datatype
     :ivar sort: bool
     :ivar slurp: bool
     :ivar with_index: bool
     """
-    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, column_dtype:str="uint64", count_dtype:str="uint64", frequencies_dtype:str="float64", sort:bool=False, slurp:bool=False, with_index:bool=False, logger=None):
+    def __init__(self, filename:str=None, fileobj:io.IOBase=None, mode:str="r", max_cache:int=100, sort:bool=False, slurp:bool=False, with_index:bool=False):
         if fileobj is not None and not isinstance(fileobj, io.IOBase):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'fileobj' to be a file object")
         elif filename is not None and type(filename) is not str:
@@ -145,21 +138,10 @@ class KDBReader(bgzf.BgzfReader):
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'max_cache' to be a int")
         elif mode is None or type(mode) is not str:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'mode' to be a str")
-        elif column_dtype is None or type(column_dtype) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'column_dtype' to be a str")
-        elif count_dtype is None or type(count_dtype) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'count_dtype' to be a str")
-        elif frequencies_dtype is None or type(frequencies_dtype) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'frequencies_dtype' to be a str")
         elif slurp is None or type(slurp) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'slurp' to be a bool")
         elif with_index is None or type(with_index) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'with_index' to be a bool")
-        # elif logger is None:
-        #     raise TypeError("kmerdb.fileutil.KDBReader expects the keyword argument 'logger' to be valid")
-
-        
-        
         
         if fileobj:
             assert filename is None
@@ -184,26 +166,13 @@ class KDBReader(bgzf.BgzfReader):
         self.kmer_ids     = None
         self.counts       = None
         self.frequencies  = None
-        self.count_dtype = None
-        self.frequencies_dtype = None
-        self.kmer_ids_dtype = None
-
-
         # Has been slurped
         self.completed = False
-
-
-        
-        self.logger = logger
-
-        self._loggable = logger is not None
-        
         '''
         Here we want to load the metadata blocks. We want to load the first two lines of the file: the first line is the version, followed by the number of metadata blocks
         '''
         # 0th block
-        if self._loggable:
-            self.logger.log_it("Loading the 0th block from '{0}'...".format(self._filepath), "INFO")
+        logger.info("Loading the 0th block from '{0}'...".format(self._filepath))
         self._load_block(self._handle.tell())
 
         self._buffer = self._buffer.rstrip(config.header_delimiter)
@@ -212,36 +181,30 @@ class KDBReader(bgzf.BgzfReader):
         num_header_blocks = None
 
         if type(initial_header_data) is str:
-            if self._loggable:
-                self.logger.log_it("Inappropriate type for the header data.", "INFO")
+            logger.info("Inappropriate type for the header data.")
             #logger.info("Um, what the fuck is this in my metadata block?")
             raise TypeError("kmerdb.fileutil.KDBReader could not parse the YAML formatted metadata in the first blocks of the file")
         elif type(initial_header_data) is OrderedDict:
-            if self._loggable:
-                self.logger.log_it("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata", "INFO")
-                self.logger.log_it("Assuming YAML blocks until delimiter reached.", "INFO")
+            logger.info("Successfully parsed the 0th block of the file, which is expected to be the first block of YAML formatted metadata")
+            logger.info("Assuming YAML blocks until delimiter reached.")
             if "version" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             elif "metadata_blocks" not in initial_header_data.keys():
                 raise TypeError("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             else:
-                if self._loggable:
-                    self.logger.log_it(str(initial_header_data), "INFO")
+                logger.info(str(initial_header_data))
                 if initial_header_data["metadata_blocks"] == 1:
-                    if self._loggable:
-                        self.logger.log_it("1 metadata block: Not loading any additional blocks", "INFO")
+                    logger.info("1 metadata block: Not loading any additional blocks")
                     pass
                 else:
                     for i in range(initial_header_data["metadata_blocks"] - 1):
                         self._load_block(self._handle.tell())
-                        if self._loggable:
-                            self.logger.log_it("Multiple metadata blocks read...", "DEBUG")
-                            self.logger.log_it("Secondary blocks read", "DEBUG")
+                        logger.debug("Multiple metadata blocks read...")
+                        logger.debug("Secondary blocks read")
                         addtl_header_data = yaml.safe_load(self._buffer.rstrip(config.header_delimiter))
                         if type(addtl_header_data) is str:
-                            if self._loggable:
-                                self.logger.log_it(addtl_header_data, "ERROR")
-                                self.logger.log_it("Couldn't determine this block.::/", "ERROR")
+                            logger.error(addtl_header_data)
+                            logger.error("Couldn't determine this block.::/")
                             raise TypeError("kmerdb.fileutil.KDBReader determined the data in the {0} block of the header data from '{1}' was not YAML formatted".format(i, self._filepath))
                         elif type(addtl_header_data) is dict:
                             sys.stderr.write("\r")
@@ -249,14 +212,12 @@ class KDBReader(bgzf.BgzfReader):
                             initial_header_data.update(addtl_header_data)
                             num_header_blocks = i
                         else:
-                            if self._loggable:
-                                self.logger.log_it(addtl_header_data, "ERROR")
+                            logger.error(addtl_header_data)
                             raise RuntimeError("kmerdb.fileutil.KDBReader encountered a addtl_header_data type that wasn't expected when parsing the {0} block from the .kdb file '{1}'.".format(i, self._filepath))
         else:
             raise RuntimeError("kmerdb.fileutil.KDBReader encountered an unexpected type for the header_dict read from the .kdb header blocks")
-        if self._loggable:
-            self.logger.log_it("Reading additional blocks as YAML...", "INFO")
-            self.logger.log_it("Validating the header data against the schema...", "INFO")
+        logger.info("Reading additional blocks as YAML...")
+        logger.info("Validating the header data against the schema...")
         try:
             jsonschema.validate(instance=initial_header_data, schema=config.kdb_metadata_schema)
             self.metadata = dict(initial_header_data)
@@ -265,34 +226,22 @@ class KDBReader(bgzf.BgzfReader):
 
             # Metadata values
             self.k = self.metadata['k']
-            self.kmer_ids_dtype = self.metadata["kmer_ids_dtype"]
-            self.count_dtype = self.metadata["count_dtype"]
-            self.frequencies_dtype = self.metadata["frequencies_dtype"]
             self.sorted = self.metadata["sorted"]
 
-
+            N = 4**self.metadata["k"]
             # Logging statements
-            if self._loggable:
-                self.logger.log_it("Self assigning dtype to uint64 probably", "DEBUG")
-                self.logger.log_it("Checking for metadata inference...", "DEBUG")
-
-
-
-            # .kdb id and count vectors
-            self.kmer_ids = np.zeros(4**self.metadata["k"], dtype=self.metadata["kmer_ids_dtype"])
-            self.counts = np.zeros(4**self.metadata["k"], dtype=self.metadata["count_dtype"])
-            self.frequencies = np.zeros(4**self.metadata["k"], dtype=self.metadata["frequencies_dtype"])
-
-
-
+            logger.debug(f"Allocating a {N} long uint64 NumPy array... probably /s")
+            # kmer id, count, frequency vectors
+            self.kmer_ids = np.zeros(N, dtype="uint64")
+            self.counts = np.zeros(N, dtype="uint64")
+            self.frequencies = np.zeros(N, dtype="float64")
             # .kdb index
             self.index = None
             self.with_index = with_index
             
         except jsonschema.ValidationError as e:
-            if self._loggable:
-                self.logger.log_it("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks), "ERROR")
-                self.logger.log_it("""
+            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header/metadata YAML from {0} header blocks".format(num_header_blocks))
+            logger.error("""
 
 
 Failed to validate YAML header.
@@ -311,18 +260,12 @@ Failed to validate YAML header.
 
 
 
-""".format(appmap.command_1_usage, "ERROR"))
+""".format(appmap.command_1_usage))
 
-                self.logger.log_it(e.__str__, "ERROR")
+            logger.error(e.__str__)
             raise ValueError("Requires kmerdb v{0} format YAML header. Body is .tsv format table, .bgzf file.      - k-mer count vector        (idx, k-mer id, count, frequency)".format(config.VERSION))
-
-            
-
-
         self.metadata["header_offset"] = self._handle.tell()
-
-        if self._loggable:
-            self.logger.log_it("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]), "DEBUG")
+        logger.debug("Handle set to {0} after reading header, saving as handle offset".format(self.metadata["header_offset"]))
         #self._reader = gzip.open(self._filepath, 'r')
         self._offsets = deque()
         for values in bgzf.BgzfBlocks(self._handle):
@@ -342,24 +285,15 @@ Failed to validate YAML header.
             sort is True
         else:
             sort is False
-
         if slurp is True:
-            self.slurp(column_dtypes=column_dtype, count_dtypes=count_dtype, frequencies_dtype=frequencies_dtype, sort=sort, with_index=with_index)
-            
-
-        self.kmer_ids_dtype = column_dtype
-        self.count_dtypes = count_dtype
-        self.frequencies_dtype = frequencies_dtype
+            self.slurp(sort=sort, with_index=with_index)
         handle.close()
         self._handle.close()
-
         if slurp is True:
             self._handle = None
             handle = None
         fileobj=None
         return
-
-        #
     
     def __iter__(self):
         return self
@@ -370,26 +304,7 @@ Failed to validate YAML header.
         return
 
 
-
-    
-
-    def _slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False, with_index:bool=False):
-        if type(column_dtypes) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the column_dtypes keyword argument to be a str")
-        elif type(count_dtypes) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the count_dtypes keyword argument to be a str")
-        elif type(frequencies_dtype) is not str:
-            raise TypeError("kmerdb.fileutil.KDBReader.slurp expects the frequencies_dtype keyword argument to be a str")
-
-        try:
-            np.dtype(column_dtypes)
-            np.dtype(count_dtypes)
-            np.dtype(frequencies_dtype)
-        except TypeError as e:
-            if self._loggable:
-                self.logger.log_it(e.__str__(), "ERROR")
-                self.logger.log_it("kmerdb.fileutil.KDBReader.slurp encountered a TypeError while assessing a numpy dtype", "ERROR")
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the dtype keyword argument to be a valid numpy data type")
+    def _slurp(self, sort:bool=False, with_index:bool=False):
         if sort is None or type(sort) is not bool:
             raise TypeError("kmerdb.fileutil.KDBReader._slurp expects the 'sort' keyword argument to be a bool")
         elif with_index is None or type(with_index) is not bool:
@@ -401,32 +316,22 @@ Failed to validate YAML header.
         num_bytes = 4 * N
         #logger.info("Approximately {0} bytes".format(num_bytes))
         vmem = psutil.virtual_memory()
-
-
         # Initial zero-valued empty id/count vectors
-        self.kmer_ids = np.zeros(N, dtype=column_dtypes)
-        self.counts = np.zeros(N, dtype=count_dtypes)
-        self.frequencies = np.zeros(N, dtype=frequencies_dtype)
-
-        
+        self.kmer_ids = np.zeros(N, dtype="uint64")
+        self.counts = np.zeros(N, dtype="uint64")
+        self.frequencies = np.zeros(N, dtype="float64")
         self.all_kmer_metadata = []
-
-
         # Initial Python lists
         kmer_ids = []
         profile = []
         counts = []
         frequencies = []
-
-
+        
         # Block offsets
         offsets = []
-
-        
         if vmem.available > num_bytes:
             # Do the slurp
-            if self._loggable:
-                self.logger.log_it("Reading profile into memory", "INFO")
+            logger.info("Reading profile into memory")
             if sort is False:
                 i = 0
                 try:
@@ -436,118 +341,87 @@ Failed to validate YAML header.
                             line = next(self)
                             offset = self._handle.tell()
                         except StopIteration as e:
-                            if self._loggable:
-                                self.logger.log_it("Finished loading initial profile through slurp-on-init", "ERROR")
-                                self.logger.log_it("Read profile from: {0}".format(self._filepath), "ERROR")
-                            #raise e
+                            logger.error("Finished loading initial profile through slurp-on-init")
+                            logger.error("Read profile from: {0}".format(self._filepath))
                             pass
                         if line is None:
-                            if self._loggable:
-                                self.logger.log_it("'next' was None... Internal Error", "ERROR")
-                            raise RuntimeError("Could not complete parsing of file. Internal Error")
+                            logger.error("Internal error: 'next' was None")
+                            raise RuntimeError("Internal error: Could not complete parsing of file.")
                         # Don't forget to not parse the metadata column [:-1]
-
                         l = line.rstrip().split("\t")
                         try:
                             assert len(l) == config.KDB_COLUMN_NUMBER, "kmerdb.fileutil.KDBReader requires .kdb files to have {0} columns.".format(config.KDB_COLUMN_NUMBER)
                         except AssertionError as e:
-                            self.logger.log_it("Found .kdb table line with {0} columns. Requires {1} columns.".format(l, config.KDB_COLUMN_NUMBER))
-                            self.logger.log_it(line, "ERROR")
+                            logger.error("Found .kdb table line with {0} columns. Requires {1} columns.".format(l, config.KDB_COLUMN_NUMBER))
+                            logger.error(line)
                             raise e
-                            
                         x, kmer_id, _count, _frequency = l
                         x = int(x)
                         kmer_id = int(kmer_id)                            
-
-                        assert j == x, "Line number did not match"
-                        
+                        assert j == x, "Line number doesn't match file row index"
                         kmer_ids.append(kmer_id)
-
                         count = int(_count)
                         frequency = float(count)/N
                         # K-mer id and count NumPy index-based assignment
                         self.kmer_ids[j] = kmer_id
                         self.counts[kmer_id] = count
                         self.frequencies[kmer_id] = frequency
-
-
                         # Block offsets
                         if with_index is True:
                             offsets.append((kmer_id, offset))
-                    
                         i += 1
-
-                    
                 except StopIteration as e:
                     if i == N:
                         raise e
                     else:
-                        if self._loggable:
-                            self.logger.log_it("Number of lines read: {0}".format(i), "DEBUG")
-                            self.logger.log_it("Number of k-mers (N) set globally.".format(N), "DEBUG")
-                            self.logger.log_it("Read only {0} lines from the file...".format(i), "DEBUG")
-                            self.logger.log_it("Profile must have been read before this point", "DEBUG")
-                            self.logger.log_it(e.__str__(), "ERROR")
+                        logger.debug("Number of lines read: {0}".format(i))
+                        logger.debug("Number of k-mers (N) set globally.".format(N))
+                        logger.debug("Read only {0} lines from the file...".format(i))
+                        logger.error(e.__str__())
                         raise e
                 except Exception as e:
                     raise e
-                assert self.counts.size == self.kmer_ids.size, "Counts size has diverged from the kmer_ids shape"
-                assert self.counts.size == self.frequencies.size, "Frequencies size has diverged from counts shape"
+                assert self.counts.size == self.kmer_ids.size, "length of k-mer id column has diverged from the counts column"
+                assert self.counts.size == self.frequencies.size, "length of frequencies column has diverged from counts column"
             elif sort is True:
                 i = 0
                 try:
                     for j in range(N):
-                        #logger.debug("Reading {0}th line...".format(j))
                         try:
                             line = next(self)
                             offset = self._handle.tell()
                         except StopIteration as e:
-                            self.logger.log_it("Finished loading initial profile through slurp-on-init", "ERROR")
+                            logger.error("Finished loading initial profile through slurp-on-init")
                             raise e
                         if line is None:
-                            self.logger.log_it("Next was None... profile was sparse, breaking", "WARNING")
+                            logger.warning("Next was None... profile was sparse, breaking", "WARNING")
                             raise IOError("next method was None on sorted import. Internal Error.")
-
                         # Don't forget to not parse the metadata column [:-1]
-
                         x, kmer_id, _count, _frequency = line.rstrip().split("\t")
-
-
                         _frequency = float(_frequency)
                         kmer_id = int(kmer_id)
-
-                        s = is_integer.match(_count)
+                        s = util.is_integer.match(_count)
                         if s is not None:
                             count = int(_count)
                         else:
                             raise TypeError("kmerdb.fileutil.KDBReader._slurp | couldn't properly detect integer")
-
                         frequency = float(count)/N
                         # Trying to get the needle threaded here.
                         # The goal is for the profile to be a running index, similar to the row number
                         # But this could maintain lexical sort order
-                        # 
                         self.kmer_ids[j] = kmer_id
                         self.counts[kmer_id] = count
                         self.frequencies[kmer_id] = _frequency
-
-
                         # Block offsets
                         if with_index is True:
                             offsets.append((kmer_id, offset))
-
-
                         # The index data, just a list of id and gzip file-offsets
                         i+=1
                         #sys.stderr.write("::DEBUG::   |\-)(||||..... KMER_ID: {0} COUNT: {1}".format(kmer_id, count))
                     assert self.kmer_ids.size == self.counts.size, "Counts size has diverged from kmer_ids size/shape"
                     assert self.counts.size == self.frequencies.size, "Frequencies size has diverged from counts shape"
-
                     # Index tuple  data
                     #offsets.append((kmer_id, offset))
-
-
-                    
                 except StopIteration as e:
                     if i == N:
                         raise e
@@ -555,12 +429,10 @@ Failed to validate YAML header.
                         raise e
                 except Exception as e:
                     raise e
-                if self._loggable:
-                    self.logger.log_it("Read {0} lines from the file...".format(i), "INFO")
+                logger.info("Read {0} lines from the file...".format(i))
                 assert self.kmer_ids.size == self.counts.size, "Counts size is mismatched in with kmer_ids size"
                 assert self.frequencies.size == self.counts.size, "Frequencies size is mismatched in count from counts size"
-                if self._loggable:
-                    self.logger.log_it("Correct array sizes match...", "DEBUG")
+                logger.debug("Correct array sizes match...")
                 self._handle.seek(0)
                 self._load_block()
                 #logger.debug("Dammit, why can't i reset the Bio.bgzf filehandle...")
@@ -571,65 +443,29 @@ Failed to validate YAML header.
                     for i, idx in enumerate(kmer_ids_sorted_by_count): # This is right, not fixing this.
                         kmer_id = self.kmer_ids[idx]
                         count = self.counts[idx]
-
                         ## I stand corrected. m
                         #self.kmer_ids[i] = kmer_ids[profile[i]]
                         #self.counts[idx] = counts[idx]
                         ###self.frequencies[idx] = frequencies[idx]
                         #logger.debug("Just in casey eggs and bakey...")
-
             else:
                 raise RuntimeError("Internal error. Failed to initialize array when determining sort strategy")
         else:
             raise OSError("The dimensionality at k={0} or 4^k = {1} exceeds the available amount of available memory (bytes) {2}".format(self.k, N, vmem.available))
-
-
-
-        # print(offsets)
-        # print("Offsets printed...")
-        # raise RuntimeError("yikes")
-
         if with_index is True:
             self.index = offsets
-
-
-
-        
-        if self.kmer_ids.dtype != self.kmer_ids_dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
-        elif self.counts.dtype != self.count_dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
-        elif self.frequencies.dtype != self.frequencies_dtype:
-            raise TypeError("kmerdb.fileutil.KDBReader._slurp encountered an awful TypeError")
-        #self.kmer_ids = np.array(kmer_ids, dtype=suggested_dtype)
-        #self.kmer_ids = np.array(kmer_ids, dtype=column_dtypes)
-        #self.counts = np.array(counts, dtype=count_dtypes)
-        #self.frequencies = np.array(frequencies, dtype=frequencies_dtype)
         self._handle.seek(0)
         self._load_block()
-        #print([x for x in np.ndindex(self.kmer_ids.flat) if x < ])
-
         assert self.kmer_ids.size == self.counts.size, "Number of Counts mismatched in size from kmer_id array size"
         assert self.frequencies.size == self.counts.size, "Number of Frequencies is mismatched in size from Count array size"
-
         if with_index is True:
             assert len(self.index) == self.kmer_ids.size, "Number of index elements is mismatched in size from kmer_id array size"
-
-
-        
         self.completed = True
         return self.counts
 
-    def slurp(self, column_dtypes:str="uint64", count_dtypes:str="uint64", frequencies_dtype:str="float64", sort:bool=False, with_index:bool=False):
+    def slurp(self, sort:bool=False, with_index:bool=False):
         """
         A function to lazy-load an entire .kdb file into memory. 
-
-        :param column_dtypes: a NumPy uint datatype
-        :type column_dtypes: str
-        :param count_dtypes: a NumPy uint datatype
-        :type count_dtypes: str
-        :param frequencies_dtype: a NumPy float datatype
-        :type frequencies_dtype: str
         :param sort: Whether or not to sort the columns?
         :type sort: bool
         :param with_index: dynamically create index offsets while loading
@@ -639,7 +475,7 @@ Failed to validate YAML header.
         if np.sum(self.counts) != 0:
             return self.counts
         else:
-            return self._slurp(column_dtypes=column_dtypes, count_dtypes=count_dtypes, frequencies_dtype=frequencies_dtype, sort=sort, with_index=with_index)
+            return self._slurp(sort=sort, with_index=with_index)
         
 
 
@@ -656,24 +492,18 @@ class KDBWriter(bgzf.BgzfWriter):
     :ivar compresslevel: int
     """
     
-    def __init__(self, metadata:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6, logger=None):
+    def __init__(self, metadata:OrderedDict, filename=None, mode="w", fileobj=None, compresslevel=6):
         """Initilize the class."""
-
-        self.logger = logger
-        self._loggable = logger is not None
-
-
+        import math
         if type(metadata) is not dict and not isinstance(metadata, OrderedDict):
             raise TypeError("kmerdb.fileutil.KDBWriter expects a valid metadata dictionary as its first positional argument")
         try:
-            if self._loggable:
-                self.logger.log_it("Validating metadata schema against the config.py header schema", "DEBUG")
+            logger.debug("Validating .kdb metadata schema")
             jsonschema.validate(instance=dict(metadata), schema=config.kdb_metadata_schema)
             self.metadata = metadata
             self.k = self.metadata['k']
         except jsonschema.ValidationError as e:
-            if self._loggable:
-                self.logger.log_it("kmerdb.fileutil.KDBReader couldn't validate the header YAML", "ERROR")
+            logger.error("kmerdb.fileutil.KDBReader couldn't validate the header YAML")
             raise e
 
         if fileobj:
@@ -684,24 +514,16 @@ class KDBWriter(bgzf.BgzfWriter):
                 raise ValueError("Must use write or append mode, not %r" % mode)
             if "a" in mode.lower():
                 raise NotImplementedError("Append mode is not implemented yet")
-                # handle = _open(filename, "ab")
             else:
                 handle = _open(filename, "wb")
         self._text = "b" not in mode.lower()
         self._handle = handle
         self._buffer = b"" if "b" in mode.lower() else ""
         self.compresslevel = compresslevel
-
-
-        
         """
         Write the header to the file
         """
-
-
-
-        if self._loggable:
-            self.logger.log_it("Constructing a new .kdb file '{0}'...".format(self._handle.name), "INFO")
+        logger.info("Constructing a new .kdb file '{0}'...".format(self._handle.name))
         yaml.add_representer(OrderedDict, util.represent_yaml_from_collections_dot_OrderedDict)
         if "b" in mode.lower():
             metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
@@ -712,21 +534,21 @@ class KDBWriter(bgzf.BgzfWriter):
             self.metadata["metadata_blocks"] = math.ceil( sys.getsizeof(metadata_bytes) / ( 2**16 ) ) # Second estimate
             metadata_bytes = bytes(yaml.dump(self.metadata, sort_keys=False), 'utf-8')
             metadata_bytes = metadata_bytes + bytes(config.header_delimiter, 'utf-8')
-            if self._loggable:
-                self.logger.log_it("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]), "INFO")
+            logger.info("Writing the {0} metadata blocks to the new file".format(self.metadata["metadata_blocks"]))
 
             # 01-01-2022 This is still not a completely functional method to write data to bgzf through the Bio.bgzf.BgzfWriter class included in BioPython
             # 04-10-2023 This is still disgusting to me. I understand a limited amount of the Bio.bgzf source or the nuances of the format specification
             # That said, it's producing files, with data in the correct order. The metadata_blocks/offset calculation is still rudimentary
             # But I'm able to generate my file format reasonably.
             # I've needed to implement a basic block_writer, maintaining compatibility with the Biopython bgzf submodule.
+            # 7/7/25 I like .bgzf in concept... how I'm going to do something with it is unknown. Or maybe not possible.
+            # I actually thought this could be a funny little memory saving shortcut.
+            # I'm not made about this, it just looks hella bloated.
             #self.write(bytes(yaml.dump(metadata, sort_keys=False), 'utf-8'))
-        
             for i in range(self.metadata["metadata_blocks"]):
                 metadata_slice = metadata_bytes[:65536]
                 metadata_bytes = metadata_bytes[65536:]
                 self._write_block(metadata_slice)
-
                 #self._write_block
                 self._buffer = b""
                 self._handle.flush()
@@ -736,24 +558,7 @@ class KDBWriter(bgzf.BgzfWriter):
             mode = "b"
             self._buffer = b""            
             self.write(metadata_bytes)
-
             self._handle.flush()
         else:
             raise RuntimeError("Could not determine proper encoding for write operations to .kdb file")
 
-
-class FileReader:
-    def __init__(self, args, logger=None):
-        self.arguments = args
-        self.logger = logger
-
-        
-    def parsefile(self, filename):
-        """Wrapper function for the KDBReader to keep arguments succinct for deployment through multiprocessing.Pool
-            
-        :param filename: the filepath of the fasta(.gz)/fastq(.gz) to process with parsefile -> parse.SeqParser
-        :type filename: str
-        :returns: (db, m, n)
-        """
-        return open(filename, mode='r', slurp=True, logger=self.logger)
-        
