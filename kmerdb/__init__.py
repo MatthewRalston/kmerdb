@@ -1675,11 +1675,11 @@ def make_graph(arguments):
     counts = np.zeros(N, dtype="uint64")
     
     file_metadata = []
-    pairs = []
+    data = []
     
     for f in arguments.input:
-        pairs_, f_metadata, counts_ = graph.make_edges_from_fasta(f, arguments.k, quiet=arguments.quiet)
-        pairs += pairs_
+        data_, f_metadata, counts_ = graph.make_edges_from_fasta(f, arguments.k, quiet=arguments.quiet)
+        data += data_
         counts = counts + counts_
         file_metadata.append(f_metadata)
 
@@ -1690,7 +1690,7 @@ def make_graph(arguments):
     sys.stderr.write("""\n\n\n
     {0}\n\n
     Generated {1} records of edge relationships:\n\n
-    neighbors from  {2} total k-mers along {3} seqs/reads\n\n\n{0}""".format("="*60, len(pairs), total_kmers, total_num_reads))
+    neighbors from  {2} total k-mers along {3} seqs/reads\n\n\n{0}""".format("="*60, len(data), total_kmers, total_num_reads))
     """
     These are pairs of k-mers... edges in the 1st order graph
     and nodes in the k+1 mer graph.
@@ -1756,11 +1756,9 @@ def make_graph(arguments):
     logger.log_it("Wrote metadata header to .kdbg...", "INFO")    
     try:
         sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
-        for i in range(len(pairs)):
-            k1, k2 = pairs[i]
-            #tupley = (i, k1, k2)
-            #line = "\t".join(list(map(str, tupley)))
-            tupley = (i, k1, k1, kmer.id_to_kmer(k1, arguments.k), kmer.id_to_kmer(k2, arguments.k))
+        for i in range(len(data)):
+            seq_id, pos1, kmerid1, pos2, kmerid2 = data[i]
+            tupley = (i, seq_id, pos1, kmerid1, kmer.id_to_kmer(kmerid1, arguments.k), pos2, kmerid2, kmer.id_to_kmer(kmerid2, arguments.k))
             line = "\t".join(list(map(str, tupley)))
             if arguments.quiet is False:
                 print(line)
@@ -1787,7 +1785,7 @@ def make_graph(arguments):
         sys.stderr.write("="*30 + "\n")
         sys.stderr.write(".kdbg stats:\n")
         sys.stderr.write("-"*30 + "\n")
-        sys.stderr.write("Edges in file:  {0}\n".format(len(pairs)))
+        sys.stderr.write("Edges in file:  {0}\n".format(len(data)))
         sys.stderr.write("\nDone\n")
 
     logger.log_it("Done printing weighted edge list to {0} .kdbg".format(arguments.kdbg), "INFO")

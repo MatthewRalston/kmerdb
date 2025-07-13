@@ -20,6 +20,7 @@
 import io
 import sys
 import os
+import re
 import logging
 import gzip
 import tempfile
@@ -397,15 +398,16 @@ Failed to validate YAML header.
                             logger.warning("Next was None... profile was sparse, breaking", "WARNING")
                             raise IOError("next method was None on sorted import. Internal Error.")
                         # Don't forget to not parse the metadata column [:-1]
-                        x, kmer_id, _count, _frequency = line.rstrip().split("\t")
-                        _frequency = float(_frequency)
+                        _, kmer_id, _count, _frequency = line.rstrip().split("\t")
+                        if re.match(util.is_integer, kmer_id) is None:
+                            raise ValueError("kmerdb.fileutil.KDBReader._slurp() expects the second column to be an integer value")
+                        elif re.match(util.is_integer, _count) is None:
+                            raise ValueError("kmerdb.fileutil.KDBReader._slurp() expects the third column to be an integer value")
+                        elif re.match(util.findall_float, _frequency) is None:
+                            raise ValueError("kmerdb.fileutil.KDBReader._slrup() expects the fourth column to be a floating point value")
                         kmer_id = int(kmer_id)
-                        s = util.is_integer.match(_count)
-                        if s is not None:
-                            count = int(_count)
-                        else:
-                            raise TypeError("kmerdb.fileutil.KDBReader._slurp | couldn't properly detect integer")
-                        frequency = float(count)/N
+                        count = int(_count)
+                        _frequency = float(_frequency)
                         # Trying to get the needle threaded here.
                         # The goal is for the profile to be a running index, similar to the row number
                         # But this could maintain lexical sort order
