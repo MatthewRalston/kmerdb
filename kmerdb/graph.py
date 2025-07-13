@@ -79,8 +79,11 @@ def graph_convert(n1:np.ndarray, n2:np.ndarray, weights:np.ndarray, k:int=None):
     print("Number of edges: {0}".format(G.number_of_edges()))
 
 
+#def make_secondary_graph_from_edge_list(seq_ids, edges:list):
+
     
-def make_coo_graph(filename:str, k:int, quiet:bool=True, replace_with_none:bool=False):
+    
+def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, replace_with_none:bool=False):
     if type(filename) is not str:
         raise TypeError("kmerdb.graph.make_coo_graph() expects a fasta/fastq sequence filepath as a str as its first positional_regument")
     elif type(k) is not int:
@@ -103,7 +106,9 @@ def make_coo_graph(filename:str, k:int, quiet:bool=True, replace_with_none:bool=
     """
     counts = np.zeros(N, dtype="uint64")
     kmer_ids = []
-    seq_lengths = []
+    seq_ids = []
+    positions = []
+    seq_lengths = {}
     pairs = []
     for seq in parse.parse_sequence_file(filename, return_tuple=False):
         """
@@ -115,60 +120,112 @@ def make_coo_graph(filename:str, k:int, quiet:bool=True, replace_with_none:bool=
         Store the results in numpy uint32 (~4B is the max size of unit32) if k<16 EXACTLY or uint64 otherwise
         FIXME: bonus_kmer_ids not included
         """
-        seq_lengths.append(len(seq.seq))
-        kmer_ids_, bonus_kmer_ids = kmer.shred(seq, k, replace_with_none=replace_with_none, quiet_iupac_warning=True)
-        kmer_ids.extend(kmer_ids_)
+        seq_lengths[seq.id] = len(seq.seq)
+        kmer_ids_, seq_ids_, pos = kmer.shred(seq, k, replace_with_none=replace_with_none, quiet_iupac_warning=True)
+
+        assert len(kmer_ids_) == len(seq_ids_) and len(seq_ids_) == len(pos), "Unmatching number of k-mers returned: {0} == {1} == {2}".format(len(kmer_ids_), len(seq_ids_), len(pos))
+
+        if None in kmer_ids:
+            raise RuntimeError("Internal error: An invalid k-mer id was found within sequence '{0}'".format(seq.id))
+        #seq_ids.append([seq.id] * len([kid for kid in kmer_ids if kid is not None]))
+        kmer_ids += kmer_ids_
+        seq_ids += seq_ids_
+        positions += pos
         
         for kmer_id in kmer_ids:
             if kmer_id is not None:
                 counts[kmer_id] += 1
-        if replace_with_none is False:
-            for kmer_id in bonus_kmer_ids:
-                if kmer_id is not None:
-                    counts[kmer_id] += 1
         pass
+
+    """
+    Break off functionality here. Need to pass a slice of k-mers and then resolve the k-mer group using conditionals.
+    The while-loop functionality should not be included here.
+    Instead, lists of k-mers passed to a function should resolve which neighbors get to be involved.
+    """
+    #assert len(seq_ids) == len(positions) and len(seq_ids) == len(kmer_ids), "All lists should have equal length"
+    if len(seq_ids) != len(positions) or len(seq_ids) != len(kmer_ids):
+        raise ValueError("Internal error: kmerdb.graph.make_edges_from_fasta() expects the aggregate k-mer lists to have equal length")
     num_kmer_ids = len(kmer_ids)
     pairs_ = []
-    for i, k_id in enumerate(kmer_ids):
-        current_kmer = kmer.id_to_kmer(k_id, k)
-        #common_seq = current_kmer[1:-1]
+    for i in range(num_kmer_ids):
+        kmer_id = kmer_ids[i]
+        if kmer_id is not None:
+            current_kmer = kmer.id_to_kmer(kmer_id, k)
+            seq_id = seq_ids[i]
+            pos = positions[i]
 
-        if i == 0:
-            left_neighbor_ids = kmer.left_neighbors(kmer.id_to_kmer(k_id, k))
-            pairs += list(zip( left_neighbor_ids, [k_id]*4))
-        elif i == num_kmer_ids - 1:
-            right_neighbor_ids = kmer.right_neighbors(kmer.id_to_kmer(k_id, k))
-            pairs += list(zip( [k_id]*4, right_neighbor_ids ))
-        else: # ALL OTHER KMERS
-            left_neighbor = kmer.id_to_kmer(kmer_ids[i-1], k)
-            right_neighbor = kmer.id_to_kmer(kmer_ids[i+1], k)
-            has_right_neighbor = kmer.is_right_neighbor(current_kmer, right_neighbor)
-            has_left_neighbor = kmer.is_left_neighbor(current_kmer, left_neighbor)
-            # FIXME: Convert these to kmer_ids instead of appending str pairs to pairs_
-            if has_left_neighbor is True and has_right_neighbor is True:
-                pairs.append( (kmer_ids[i-1], k_id) ) # left neighbor edge
-                pairs_.append( (left_neighbor, current_kmer ) )
-            elif has_right_neighbor is True and has_left_neighbor is False:
-                pairs.append( (k_id, kmer_ids[i+1]) )
-            elif has_right_neighbor is False and has_left_neighbor is True:
-                pairs.append( ( kmer_ids[i-1], k_id ) )
-            elif has_right_neighbor is False and has_left_neighbor is False:
-                raise ValueError("Internal error: Single k-mer found without obvious neighbors.")
+            #print("\n\ntotal k-mer id : {0}\n\n".format(i))
+            #print("Index: {0} - Sequence length - k {1}".format(i, seq_lengths[seq_id] - k))
+            
+            if positions[i] == 0:
+                # If i = 0, the very first in the list, do nothing.
+                continue
+            elif pos + k + 1 == seq_lengths[seq_id]:
+                # If the position is at the end of a sequence, append the last k-mer pair
+                pairs.append( (kmer_ids[i-1], kmer_id) )
+            else:
+                #print(f"Index : {i} seqlen : {len(seq_ids)} + 1 : is greater than? {i+1 > len(seq_ids)}")
+                left_neighbors = [] # Create local neighbor lists in case of substitution of ambiguous residue
+                j = i - 1
+                tracking_left = True
+                while tracking_left is True:
+                    #print(f"{kmer.id_to_kmer(kmer_ids[j], k)} <- {current_kmer} : {i}")
+                    if j > 0 and seq_ids[j] == seq_id:
+                        if positions[j] == pos: # The i-xth position has the same position in the sequence and is not a neighbor
+                            pass
+                        elif positions[j] == pos - 1 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[j], k)): # This is considered a left neighbor lexically
+                            left_neighbors.append( (kmer_ids[j], kmer_id) )
+                        else: # This is an exit condition
+                            tracking_left = False
+                    else:
+                        tracking_left = False
+                    j -= 1
+                right_neighbors = []                    
+                j = i + 1
+                tracking_right = True
+                while tracking_right is True:
+                    if j < num_kmer_ids and seq_ids[j] == seq_id:
+                        #print(f"{i} : {current_kmer} -> {kmer.id_to_kmer(kmer_ids[j], k)}")
+                        if positions[j] == pos: # The i+xth position has the same position in the sequence and is not a neighbor
+                            pass
+                        elif positions[j] == pos + 1 and kmer.is_right_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[j], k)):
+                            right_neighbors.append( (kmer_id, kmer_ids[j]) )
+                        else:
+                            tracking_right = False
+                    else:
+                        tracking_right = False
+                    # except IndexError as e:
+                    #     logger.error(f"position: {i} - 1 = {j}")
+                    #     logger.error(f"seq_id: {seq_ids[i]}")
+                    #     raise e
 
-        """
-        FIXME: This produces all possible edges
-        The commented code will not cover read boundaries...
-        I actually DO want to not cover read boundaries, and then try to create as many Eulerian walks
-        Through a graph of the EDGES as NODES and the edges as valid adjacencies
+                    j += 1
+                """
+                Neighbors identified, moving from sequence to 
+                """
+                ln = [tuple(map(lambda l: kmer.id_to_kmer(l, k), ln)) for ln in left_neighbors]
+                rn = [tuple(map(lambda l: kmer.id_to_kmer(l, k), rn)) for rn in right_neighbors]
 
-        MAKE A kmer.are_neighbors function that creates all neighbors of two k-mers and verifies that they are neighbors.
+                #print(f"{ln} | {i}:{current_kmer} | {rn}")
+                pairs_ = resolve_edges(i, kmer_id, current_kmer, seq_id, pos, kmer_ids, seq_ids, positions, seq_lengths, left_neighbors, right_neighbors, k)
+                if len(pairs_) > 0:
+                    pairs += pairs_
+                
+    #print(f"Length of kmers array: {num_kmer_ids}  - number of pairs: {len(pairs)}")
+    """
+    FIXME: This produces all possible edges
+    The commented code will not cover read boundaries...
+    I actually DO want to not cover read boundaries, and then try to create as many Eulerian walks
+    Through a graph of the EDGES as NODES and the edges as valid adjacencies
 
-        This is how we take an EDGE as a node, and then take the left k-mer and find its possible neighbors, and the right node and its possible neighbors, and create an EDGE between the right k-mer and its possible neighbors so long as there are neighbors left? I dunno..
-        """
+    MAKE A kmer.are_neighbors function that creates all neighbors of two k-mers and verifies that they are neighbors.
 
-        """
-        [ (kmer_id, neighbor_kmer_id) , ... ]
-        """
+    This is how we take an EDGE as a node, and then take the left k-mer and find its possible neighbors, and the right node and its possible neighbors, and create an EDGE between the right k-mer and its possible neighbors so long as there are neighbors left? I dunno..
+    """
+
+    """
+    [ (kmer_id, neighbor_kmer_id) , ... ]
+    """
 
     md5, sha256 = util.checksum(filename)
 
@@ -181,7 +238,7 @@ def make_coo_graph(filename:str, k:int, quiet:bool=True, replace_with_none:bool=
     num_reads = len(seq_lengths)
     max_read_length = max(seq_lengths)
     min_read_length = min(seq_lengths)
-    avg_read_length = int(np.mean(np.array(seq_lengths)))
+    avg_read_length = int(np.mean(np.array(list(seq_lengths.values()))))
 
     file_metadata = {
         "filename": filename,
@@ -198,6 +255,56 @@ def make_coo_graph(filename:str, k:int, quiet:bool=True, replace_with_none:bool=
     }
 
     return pairs, file_metadata, counts
+
+
+
+
+def resolve_edges(i:int, kmer_id:int, current_kmer:str, seq_id:str, pos:int, kmer_ids:list, seq_ids:list, positions, seq_lengths:dict, left_neighbors:list, right_neighbors:list, k):
+    if i + 1 == len(seq_ids) or i + 1 == len(kmer_ids):
+        if len(left_neighbors) == 1 and len(right_neighbors) == 0 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i-1], k)):
+            return [ (kmer_ids[i-1], kmer_id) ] # Presume this is the final k-mer
+        else:
+            logger.error(f"K-mer i '{current_kmer}' has {len(left_neighbors)} left neighbors and {len(right_neighbors)} right neighbors")
+
+            raise IndexError(f"There are {len(kmer_ids)} kmer ids, but given index for edge resolution was {i}+1")
+    elif i+1 > len(seq_ids):
+        raise ValueError(f"Internal error: kmerdb.graph.resolve_edges() received an index of all processed kmers, 'i' whose value {i} was larger than the number of kmer ids {len(seq_ids)}")
+    # This sequence resolves
+    generic_error = ValueError("kmerdb.graph.make_edges_from_fasta() - difficulty deciphering sequence boundary and which neighboring kmers are considered valid neighbors")
+    log_msg1 = "Condition 1 : seq_ids[i-1] == seq_id[i] | {0}".format(seq_ids[i-1] == seq_id)
+    log_msg2 = "Condition 2 : seq_ids[i] == seq_ids[i+1] | {0}".format(seq_id == seq_ids[i+1])
+    log_msg3 = "Condition 3: len left_neighbors == 1 | {0}".format(len(left_neighbors) == 1)
+    log_msg4 = "Condition 4: len right_neighbors == 1 | {0}".format(len(right_neighbors) == 1)
+    log_msg5 = "Condition 5: is left neighbor to cur kmer? | {0}".format(kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i-1], k)))
+    log_msg6 = "Condition 6: seq_lengths[seq_id] - k + 1 == pos (end) | {0}".format(seq_lengths[seq_id] - k + 1 == pos)
+    
+    if len(left_neighbors) == 1 and len(right_neighbors) == 1 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i-1], k)):
+        return [ (kmer_ids[i-1], kmer_id) ] # The left neighbor is valid, do retrospective edge list append
+    elif seq_id == seq_ids[i-1] and len(left_neighbors) == 1 and len(right_neighbors) == 0 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i-1], k)):
+        logger.warning(f"Sequence {seq_id} has no more k-mers")
+        return [ (kmer_ids[i-1], kmer_id) ]
+    elif seq_id != seq_ids[i+1] and len(left_neighbors) == 1 and len(right_neighbors) == 0 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i-1], k)) and seq_lengths[seq_id] - k == pos:
+        logger.debug("Found boundary of read/seq '{0}'. Adding final k-mer edge")
+        return [ (kmer_ids[i-1], kmer_id) ] # Here is the actual return statement for singleton neighbors
+    elif len(left_neighbors) == 0 and len(right_neighbors) == 1 and kmer.is_right_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[i+1], k)):
+        logger.debug(f"Found boundary of read/seq '{seq_id}' at {seq_lengths[seq_id]} - 8 + 1. Omitting left neighbor due to sequence boundary")
+        return [] # Return nothing if the left sequence is not the same and the current and right have the same seque
+    elif len(left_neighbors) > 1:
+        # This is the condition in which the current k-mer has multiple 'possible' left/right neighbors
+        return [ (ln[0], kmer_id) for ln in left_neighbors if kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(ln[0], k)) and ln[1] == kmer_id ]
+
+    else:
+        left_kmers = list(list(map(lambda km: (kmer.id_to_kmer(km[0], k), kmer.id_to_kmer(km[1], k)), left_neighbors)))
+        right_kmers = list(list(map(lambda km: (kmer.id_to_kmer(km[0], k), kmer.id_to_kmer(km[1], k)), right_neighbors)))
+
+        logger.error(f"index: {i} : {left_kmers} {current_kmer} {right_kmers}")
+        logger.error("\n".join((log_msg1, log_msg2, log_msg3, log_msg4, log_msg5, log_msg6)))
+        raise ValueError("Internal error: could not determine the category of k-mer relationships amongst the {0}th total k-mer '{1}' and its neighborhood amongst sequence '{2}'".format(i, current_kmer, seq_id))
+
+
+    
+
+
 
 
 
@@ -546,7 +653,7 @@ Failed to validate YAML header.
         """
         # FIXME
         line = self.readline()
-        print("Line: {0}".format(line))
+        #print("Line: {0}".format(line))
         if line == '':
             return
         else:

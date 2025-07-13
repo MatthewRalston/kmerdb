@@ -1678,7 +1678,7 @@ def make_graph(arguments):
     pairs = []
     
     for f in arguments.input:
-        pairs_, f_metadata, counts_ = graph.make_coo_graph(f, arguments.k, quiet=arguments.quiet)
+        pairs_, f_metadata, counts_ = graph.make_edges_from_fasta(f, arguments.k, quiet=arguments.quiet)
         pairs += pairs_
         counts = counts + counts_
         file_metadata.append(f_metadata)
@@ -1751,14 +1751,16 @@ def make_graph(arguments):
     sys.stderr.write("\n\n\n")
 
     feature = 2
-    
+
     kdbg_out = graph.open(arguments.kdbg, mode='w', metadata=metadata)
     logger.log_it("Wrote metadata header to .kdbg...", "INFO")    
     try:
         sys.stderr.write("\n\n\nWriting edge list to {0}...\n\n\n".format(arguments.kdbg))
         for i in range(len(pairs)):
             k1, k2 = pairs[i]
-            tupley = (i, k1, k2)
+            #tupley = (i, k1, k2)
+            #line = "\t".join(list(map(str, tupley)))
+            tupley = (i, k1, k1, kmer.id_to_kmer(k1, arguments.k), kmer.id_to_kmer(k2, arguments.k))
             line = "\t".join(list(map(str, tupley)))
             if arguments.quiet is False:
                 print(line)

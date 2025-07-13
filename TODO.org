@@ -6,11 +6,29 @@
 # .kdb files should be debrujin graph databases
 # The final prototype would be .bgzf format from biopython
 
-Objectives
-
+* Objectives
+** Rename functions
+*** DONE edges of the 1st order de Bruijn graph
+CLOSED: [2025-07-12 Sat 21:16]
+:LOGBOOK:
+- State "DONE"       from "FEEDBACK"   [2025-07-12 Sat 21:16]
+- State "FEEDBACK"   from "DONE"       [2025-07-09 Wed 14:46]
+- State "DONE"       from "FEEDBACK"   [2025-07-09 Wed 14:46]
+- State "FEEDBACK"   from "WAITING"    [2025-07-09 Wed 14:46]
+- State "WAITING"    from "IN-PROGRESS" [2025-07-09 Wed 14:46]
+- State "IN-PROGRESS" from "NEXT"       [2025-07-09 Wed 14:46]
+:END:
+** edges of the 2nd order de Bruijn graph
+** convert to networkx
 
 * Dates
-** 7/7/24
+** 7/12/24
+Over the last 5-7 days, I've been reworking the kmer.py and graph.py modules. Associated function invocations in parse.py have also been modified. The goal of the refactoring included interface changes in functions and a solution for ambiguous k-mer edge relationships via ambiguous IUPAC residues.
+
+The next step is to make the edge relationships between the k+1 mers. This next step involves turning the edge relationships of a .kdbg file (or a new accessory function in graph.py) into a k+1mer node list, and then edges from that list, given positional information.
+
+Again the goal is an edge list, but this one should be the final edge list of interest? I think... I hope.
+
 ** 7/6/25  | 0.9.0
 After a little bit of time working on things, I've acceptance tested the kmerdb graph and profile commands from this refactor. The refactoring was mostly housekeeping in the modules graph.py, kmer.py, and parse.py.
 

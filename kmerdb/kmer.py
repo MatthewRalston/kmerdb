@@ -18,7 +18,7 @@ import os
 import sys
 import copy
 import random
-from itertools import chain, repeat
+from itertools import chain, repeat, product
 
 import logging
 
@@ -133,9 +133,8 @@ IUPAC_AA_DOUBLETS = {
 IUPAC_AA_DOUBLET_CHARS=set(IUPAC_AA_DOUBLETS)
 
 
-permitted_AA_characters = standard_lettersAA
-permitted_AA_characters_extended = standard_lettersAA.union(IUPAC_AA_DOUBLET_CHARS)
-
+permitted_AA_characters = standard_lettersAA.union(IUPAC_AA_DOUBLET_CHARS)
+permitted_AA_characters_with_X = permitted_AA_characters.union(set("X"))
 
 
 #############################
@@ -451,7 +450,7 @@ def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_
 
     if is_sequence_na(seqRecord) is True and is_sequence_aa(seqRecord) is False:
         extended_iupac_symbols = list(letters.intersection(permitted_NA_characters) - standard_lettersNA)
-        all_non_iupac_symbols = list(letters - permitted_NA_characters)
+        all_non_iupac_symbols = list(letters - permitted_NA_characters_with_N)
     elif is_sequence_aa(seqRecord) is True and is_sequence_na(seqRecord) is False:
         extended_iupac_symbols = list(letters.intersection(permitted_AA_characters) - standard_lettersAA)
         all_non_iupac_symbols = list(letters - permitted_AA_characters_extended)
@@ -469,6 +468,10 @@ def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_
             logger.warning("Suppressing warning that non-standard IUPAC residues (including N/X) are detected.")
     return (letters, extended_iupac_symbols, all_non_iupac_symbols, seqlen)
 
+
+
+
+
 def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warning:bool=True):
     """
     Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
@@ -480,90 +483,345 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warnin
     :type Bio.SeqRecord.SeqRecord:
     :raise ValueError: Non IUPAC characters detected
     :raise ValueError: Internal Error: an invalid non-standard IUPAC character was not categoried properly
-    :returns: a 2-tuple of k-mer ids and bonus k-mer ids, depending on replace_with_none parameterization
+    :returns: a 3-tuple of k-mer ids, sequence ids, and positions
     :rtype: tuple
     """
+    if type(k) is not int:
+        raise TypeError("kmerdb.kmer.shred() expects an int as its second positional argument")
+    elif not isinstance(seq, SeqRecord):
+        raise TypeError("kmerdb.kmer.shred() expects a Bio.SeqRecord.SeqRecord as its first positional argument")
     seq_id = seq.id
     is_na = is_sequence_na(seq)
     is_aa = is_sequence_aa(seq)
     letters, iupac, non_iupac, seqlen = validate_seqRecord_and_detect_IUPAC(seq, k, quiet_iupac_warning=quiet_iupac_warning)
-    kmers = [seq.seq[i:(i+k)] for i in range(seqlen - k + 1)]
-
+    #kmers = [seq.seq[i:(i+k)] for i in range(seqlen - k + 1)]
+    seq_ids = []
     kmer_ids = []
-    bonus_kmer_ids = []
+    data = []
     for i in range(seqlen - k + 1):
-        kmer = seq.seq[i:(i+k)]
-        if len(non_iupac) > 0:
-            raise ValueError("Non-IUPAC symbols detected in '{0}'".format(seq_id))
-        elif is_na is True:
-            nonstandard_chars = set(kmer) - permitted_NA_characters_with_N
+        kmer = str(seq.seq[i:(i+k)])
+        kmer_id = kmer_to_id(kmer) # NOTE: Could be None
+
+        if is_na is True:
+            nonstandard = set(kmer) - standard_lettersNA
+            num_nonstandard = len(nonstandard)
+            n_count = kmer.count("N")
+            num_all_nonstandard = n_count + num_nonstandard
+
+            if len(non_iupac) > 0:
+                raise ValueError("Non-IUPAC symbols detected in '{0}'".format(seq_id))
+            if num_all_nonstandard == 0:
+                data.append({"seq_id": seq_id, "kmer": kmer, "kmer_id": kmer_id, "pos": i})
+                continue
+            elif num_all_nonstandard > 0:
+                if replace_with_none is True:
+                    kmer_ids.append(None)
+                    continue
+                """
+                Here I expand all Nucleic Acid doublets, triplets, and N residues 
+                """
+
+                # Start by only creating substitutions for base kmer
+                doublets_subd = _substitute_na_doublets(kmer)
+                # Now substitute triplets
+                triplets_subd = []
+                for _kmer in doublets_subd:
+                    for t in _substitute_na_triplets(_kmer):
+                        triplets_subd.append(t)
+                # Finally, substitute N residues
+                all_subd = []
+                for _kmer in triplets_subd:
+                    for n in substitute_residue_with_chars(_kmer, "N", list(standard_lettersNA)):
+                        all_subd.append(n)
+                #all_subd = [n for n in substitute_residue_with_chars(_kmer, "N", standard_lettersNA) for _kmer in triplets_subd]
+                d = []
+                for _kmer in all_subd:
+                    d.append({"seq_id": seq_id, "kmer": _kmer, "kmer_id": kmer_to_id(_kmer), "pos": i})
+                data += d
+
         elif is_aa is True:
-            nonstandard_chars = set(kmer) - permitted_AA_characters_with_N
-
-            
-        if is_na is True and "N" in iupac:
-            logger.warning("Omitting k-mer with ambiguous N residue from kmer '{0}' in sequence '{1}' at position {2} from consideration".format(kmer, seq_id, i))
-            kmer_ids.append(None)
-            continue
-        elif is_aa is True and "X" in iupac:
-            logger.warning("Omitting k-mer with ambiguous X residue from kmer '{0}' in sequence '{1}' at position {2} from consideration".format(kmer, seq_id, i))
-            kmer_ids.append(None)
-            continue
-
-        if len(nonstandard_chars) == 0:
-            kmer_ids.append(kmer_to_id(kmer))
-        elif len(nonstandard_chars) > 0 and replace_with_none is True:
-            kmer_ids.append(None) # Use None for a non-standard, valid IUPAC kmer id under certain conditions
-        elif len(nonstandard_chars) == 1 and replace_with_none is False:
-            # Otherwise, subsitute doublets or triplets
-            logger.warning("Non-standard IUPAC character {0} detected in sequence '{1}' at position {2}: {3}".format(c, seq_id, i, kmer))
-            """
-            Doublet/triplet expansion and random selection of kmer_id with ambiguous valid IUPAC residue
-            """
-            if is_na is True:
-                if replace_with_none is True:
-                    kmer_ids.append(None)
-                elif c in IUPAC_NA_DOUBLET_CHARS:
-                    d1, d2 = (kmer.replace(c, x) for x in IUPAC_NA_DOUBLETS[c])
-                    random_kmer = random.choice( (d1, d2) )
-                    other_kmer = d1 if random_kmer == d2 else d2
-                    random_kmer_id = kmer_to_id(random_kmer)
-                    other_kmer_id = kmer_to_id(other_kmer)
-                    
-                    logger.warning("Subsituting a non-standard IUPAC doublet residue in k-mer {0}  : {2} and {2}".format(kmer, random_kmer, other_kmer))
-                    kmer_ids.append(random_kmer_id)
-                    bonus_kmer_ids.append(other_kmer_id)
-                elif c in IUPAC_NA_TRIPLET_CHARS:
-                    t1, t2, t3 = (kmer.replace(c, x) for x in IUPAC_NA_TRIPLETS[c])
-                    random_kmer = random.choice( (t1, t2, t3) )
-                    random_kmer_id = kmer_to_id(random_kmer)
-                    kmer_ids.append(random_kmer)
-                    adds = []
-                    add_ids = []
-                    for t in (t1, t2, t3):
-                        if t != random_kmer:
-                            t_kmer_id = kmer_to_id(t)
-                            adds.append(t)
-                            adds_ids.append(t_kmer_id)
-                    adds_ids += add_ids
-                    logger.warning("Subsituting a non-standard IUPAC triplet residue in k-mer {0}  : {2} and {2} and {3}".format(kmer, random_kmer, adds[0], adds[1]))
-            elif is_aa is True:
-                if replace_with_none is True:
-                    kmer_ids.append(None)
-                elif c in IUPAC_AA_DOUBLET_CHARS:
-                    d1, d2 = (kmer.replace(c, x) for x in IUPAC_AA_DOUBLETS[c])
-                    random_kmer = random.choice( (d1, d2 ) )
-                    other_kmer = d1 if kmer == d2 else d2
-                    random_kmer_id = kmer_to_id(random_kmer)
-                    other_kmer_id = kmer_to_id(other_kmer)
-                    logger.warning("Subsituting a non-standard IUPAC double residue in k-mer {0}  : {2} and {2}".format(kmer, random_kmer, other_kmer))
-                    kmer_ids.append(random_kmer_id)
-                    bonus_kmer_ids.append(other_kmer_id)
-            else:
-                raise ValueError("Internal Error: Somehow character {0} from kmer {1} in sequence '{2}' at position {3} wasn't categorized properly as a non-standard IUPAC symbol expansion into a doublet or triplet properly. ".format(c, kmer, seq_id, i))
-        elif len(nonstandard_chars) > 1:
-            logger.warning("Multiple characters are ambiguous in kmer '0' and prohibit simple replacement strategies for doublet or triplet expansion of this kmer. Too much ambiguity, using k-mer id 'None' and moving on...")
-            continue
+            raise RuntimeError("Internal error: Unimplemented for amino-acids")
         else:
             raise ValueError("Internal error: Unknown situation regarding kmer {0} and IUPAC expansion module")
-    return kmer_ids, bonus_kmer_ids
+
+
+    _kmer_ids = [_kmer["kmer_id"] for _kmer in data]
+    _seq_ids = [_kmer["seq_id"] for _kmer in data]
+    _pos = [_kmer["pos"] for _kmer in data]
+    #print("Num kmer ids: {0}\nNum seq ids: {1}\nNum pos: {2}".format(len(_kmer_ids), len(_seq_ids), len(_pos)))
+    return _kmer_ids, _seq_ids, _pos
+
+
+
+
+
+
+
+
+def substitute_residue_with_chars(kmer:str, char:str, substitutions:list):
+    """
+    Substitute all position of residue 'char' with the provided 'substitutions' combinatorially.
+
+    """
+    if type(kmer) is not str:
+        raise TypeError("kmerdb.kmer.substitute_residue_with_chars() expects a str as its first argument")
+    elif type(char) is not str or len(char) > 1:
+        raise TypeError("kmerdb.kmer.substitute_residue_with_chars() expects a single character as its second argument")
+    elif type(substitutions) is not list or not all(type(c) is str and len(c) == 1 for c in substitutions):
+        raise TypeError("kmerdb.kmer.substitute_residue_with_chars() expects a list of single characters as its third argument")
+
+    kmers = []
+    to_replace = ""
+    num_replacements = kmer.count(char)
+    if num_replacements == 0:
+        return [kmer]
+    if num_replacements == 1:
+        return list(map(lambda c: kmer.replace("N", c), substitutions))
+    else:
+        for j in range(num_replacements):
+            if to_replace == '':
+                to_replace = str(substitutions)
+            else:
+                to_replace += ", " + str(substitutions)
+        try:
+            prod = list(eval("product({0})".format(to_replace)))
+            for to_replace in prod: # List of characters to replace R with
+                _nukmer = kmer
+                for c in to_replace: # Characters substituted with R
+                    _nukmer = _nukmer.replace(char, c, 1)
+                assert _nukmer.count(char) == 0, "Internal error: kmer '{0}' has multiple ambiguous residues remaining after substitution".format(_nukmer)
+                kmers.append(_nukmer)
+        except Exception as e:
+            raise e
+    return kmers
+
+
+
+
+
+
+
+    
+def _substitute_na_doublets(kmer:str):
+    to_sub = ''
+    for c in "RYSWKM":
+        if c in kmer:
+            to_sub += c
+    match to_sub:
+        case "":
+            return [kmer]
+        case "R":
+            return substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])
+        case "Y":
+            return substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])
+        case "S":
+            return substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])
+        case "W":
+            return substitute_residue_with_chars(kmer, "W", IUPAC_NA_DOUBLETS["W"])
+        case "K":
+            return substitute_residue_with_chars(kmer, "K", IUPAC_NA_DOUBLETS["K"])
+        case "M":
+            return substitute_residue_with_chars(kmer, "M", IUPAC_NA_DOUBLETS["M"])
+        case "RY":
+            return [ry for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RS":
+            return [rs for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RW":
+            return [rw for rw in substitute_residue_with_chars(r, "W", IUPAC_NA_DOUBLETS["W"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RK":
+            return [rk for rk in substitute_residue_with_chars(r, "K", IUPAC_NA_DOUBLETS["K"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RM":
+            return [rm for rm in substitute_residue_with_chars(r, "M", IUPAC_NA_DOUBLETS["M"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "YS":
+            return [ys for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YW":
+            return [yw for yw in substitute_residue_with_chars(y, "W", IUPAC_NA_DOUBLETS["W"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YK":
+            return [yk for yk in substitute_residue_with_chars(y, "K", IUPAC_NA_DOUBLETS["K"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YM":
+            return [ym for ym in substitute_residue_with_chars(y, "M", IUPAC_NA_DOUBLETS["M"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "SW":
+            return [sw for sw in substitute_residue_with_chars(s, "W", IUPAC_NA_DOUBLETS["W"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "SK":
+            return [sk for sk in substitute_residue_with_chars(s, "K", IUPAC_NA_DOUBLETS["K"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "SM":
+            return [sm for sm in substitute_residue_with_chars(s, "M", IUPAC_NA_DOUBLETS["M"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "WK":
+            return [wk for wk in substitute_residue_with_chars(w, "K", IUPAC_NA_DOUBLETS["K"]) for w in substitute_residue_with_chars(kmer, "W", IUPAC_NA_DOUBLETS["W"])]
+        case "WM":
+            return [wm for wm in substitute_residue_with_chars(w, "M", IUPAC_NA_DOUBLETS["M"]) for w in substitute_residue_with_chars(kmer, "W", IUPAC_NA_DOUBLETS["W"])]
+        case "KM":
+            return [km for km in substitute_residue_with_chars(k, "M", IUPAC_NA_DOUBLETS["M"]) for k in substitute_residue_with_chars(kmer, "K", IUPAC_NA_DOUBLETS["K"])]
+
+
+
+        
+        case "RYS":
+            return [rys for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYW":
+            return [ryw for ryw in substitute_residue_with_chars(ry, "W", IUPAC_NA_DOUBLETS["W"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYK":
+            return [ryk for ryk in substitute_residue_with_chars(ry, "K", IUPAC_NA_DOUBLETS["K"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYM":
+            return [rym for rym in substitute_residue_with_chars(ry, "M", IUPAC_NA_DOUBLETS["M"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSW":
+            return [rsw for rsw in substitute_residue_with_chars(rs, "W", IUPAC_NA_DOUBLETS["W"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSK":
+            return [rsk for rsk in substitute_residue_with_chars(rs, "K", IUPAC_NA_DOUBLETS["K"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSM":
+            return [rsm for rsm in substitute_residue_with_chars(rs, "M", IUPAC_NA_DOUBLETS["M"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RWK":
+            return [rwk for rwk in substitute_residue_with_chars(rw, "K", IUPAC_NA_DOUBLETS["K"]) for rw in substitute_residue_with_chars(r, "W", IUPAC_NA_DOUBLETS["W"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RWM":
+            return [rwm for rwm in substitute_residue_with_chars(rw, "K", IUPAC_NA_DOUBLETS["K"]) for rw in substitute_residue_with_chars(r, "W", IUPAC_NA_DOUBLETS["W"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RKM":
+            return [rkm for rkm in substitute_residue_with_chars(rk, "M", IUPAC_NA_DOUBLETS["M"]) for rk in substitute_residue_with_chars(r, "K", IUPAC_NA_DOUBLETS["K"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "YSW":
+            return [ysw for ysw in substitute_residue_with_chars(ys, "W", IUPAC_NA_DOUBLETS["W"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YSK":
+            return [ysk for ysk in substitute_residue_with_chars(ys, "K", IUPAC_NA_DOUBLETS["K"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YSM":
+            return [ysm for ysm in substitute_residue_with_chars(ys, "M", IUPAC_NA_DOUBLETS["M"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YWK":
+            return [ywk for ywk in substitute_residue_with_chars(yw, "K", IUPAC_NA_DOUBLETS["K"]) for yw in substitute_residue_with_chars(y, "W", IUPAC_NA_DOUBLETS["W"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YWM":
+            return [ywm for ywm in substitute_residue_with_chars(yw, "M", IUPAC_NA_DOUBLETS["M"]) for yw in substitute_residue_with_chars(y, "W", IUPAC_NA_DOUBLETS["W"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YKM":
+            return [ykm for ykm in substitute_residue_with_chars(yk, "M", IUPAC_NA_DOUBLETS["M"]) for yk in substitute_residue_with_chars(y, "K", IUPAC_NA_DOUBLETS["K"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "SWK":
+            return [swk for swk in substitute_residue_with_chars(sw, "K", IUPAC_NA_DOUBLETS["K"]) for sw in substitute_residue_with_chars(s, "W", IUPAC_NA_DOUBLETS["W"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "SWM":
+            return [swm for swm in substitute_residue_with_chars(sw, "M", IUPAC_NA_DOUBLETS["M"]) for sw in substitute_residue_with_chars(s, "W", IUPAC_NA_DOUBLETS["W"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "SKM":
+            return [skm for skm in substitute_residue_with_chars(sk, "M", IUPAC_NA_DOUBLETS["M"]) for sk in substitute_residue_with_chars(s, "K", IUPAC_NA_DOUBLETS["K"]) for s in substitute_residue_with_chars(kmer, "S", IUPAC_NA_DOUBLETS["S"])]
+        case "WKM":
+            return [wkm for wkm in substitute_residue_with_chars(wk, "M", IUPAC_NA_DOUBLETS["M"]) for wk in substitute_residue_with_chars(w, "K", IUPAC_NA_DOUBLETS["K"]) for w in substitute_residue_with_chars(kmer, "W", IUPAC_NA_DOUBLETS["W"])]
+
+
+        
+        case "RYSW":
+            return [rysw for rysw in substitute_residue_with_chars(rys, "W", IUPAC_NA_DOUBLETS["W"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYSK":
+            return [rysk for rysk in substitute_residue_with_chars(rys, "K", IUPAC_NA_DOUBLETS["K"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYSM":
+            return [rysm for rysm in substitute_residue_with_chars(rys, "M", IUPAC_NA_DOUBLETS["M"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYWK":
+            return [rywk for rywk in substitute_residue_with_chars(ryw, "K", IUPAC_NA_DOUBLETS["K"]) for ryw in substitute_residue_with_chars(ry, "W", IUPAC_NA_DOUBLETS["W"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYWM":
+            return [rywm for rywm in substitute_residue_with_chars(ryw, "M", IUPAC_NA_DOUBLETS["M"]) for ryw in substitute_residue_with_chars(ry, "W", IUPAC_NA_DOUBLETS["W"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RYKM":
+            return [rykm for rykm in substitute_residue_with_chars(ryk, "M", IUPAC_NA_DOUBLETS["M"]) for ryk in substitute_residue_with_chars(ry, "W", IUPAC_NA_DOUBLETS["W"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSWK":
+            return [rswk for rswk in substitute_residue_with_chars(rsw, "K", IUPAC_NA_DOUBLETS["K"]) for rsw in substitute_residue_with_chars(rs, "W", IUPAC_NA_DOUBLETS["W"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSWM":
+            return [rswm for rswm in substitute_residue_with_chars(rsw, "M", IUPAC_NA_DOUBLETS["M"]) for rsw in substitute_residue_with_chars(rs, "W", IUPAC_NA_DOUBLETS["W"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RSKM":
+            return [rskm for rskm in substitute_residue_with_chars(rsk, "M", IUPAC_NA_DOUBLETS["M"]) for rsk in substitute_residue_with_chars(rs, "W", IUPAC_NA_DOUBLETS["W"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "RWKM":
+            return [rwkm for rwkm in substitute_residue_with_chars(rwk, "M", IUPAC_NA_DOUBLETS["M"]) for rwk in substitute_residue_with_chars(rw, "K", IUPAC_NA_DOUBLETS["K"]) for rw in substitute_residue_with_chars(r, "W", IUPAC_NA_DOUBLETS["W"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case "YSWK":
+            return [yswk for yswk in substitute_residue_with_chars(ysw, "K", IUPAC_NA_DOUBLETS["K"]) for ysw in substitute_residue_with_chars(ys, "W", IUPAC_NA_DOUBLETS["W"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YSWM":
+            return [yswm for yswm in substitute_residue_with_chars(ysw, "M", IUPAC_NA_DOUBLETS["M"]) for ysw in substitute_residue_with_chars(ys, "W", IUPAC_NA_DOUBLETS["W"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YSKM":
+            return [yskm for yskm in substitute_residue_with_chars(ysk, "M", IUPAC_NA_DOUBLETS["M"]) for ysk in substitute_residue_with_chars(ys, "K", IUPAC_NA_DOUBLETS["K"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "YWKM":
+            return [ywkm for ywkm in substitute_residue_with_chars(ywk, "M", IUPAC_NA_DOUBLETS["M"]) for ywk in substitute_residue_with_chars(yw, "K", IUPAC_NA_DOUBLETS["K"]) for yw in substitute_residue_with_chars(y, "W", IUPAC_NA_DOUBLETS["W"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+        case "SWKM":
+            return [swkm for swkm in substitute_residue_with_chars(swk, "M", IUPAC_NA_DOUBLETS["M"]) for swk in substitute_residue_with_chars(sw, "K", IUPAC_NA_DOUBLETS["K"]) for sw in substitute_residue_with_chars(s, "W", IUPAC_NA_DOUBLETS["W"]) for s in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+
+        case 'RYSWK':
+            return [ryswk for ryswk in substitute_residue_with_chars(rysw, "K", IUPAC_NA_DOUBLETS["K"]) for rysw in substitute_residue_with_chars(rys, "W", IUPAC_NA_DOUBLETS["W"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+
+
+        
+        case 'RYSWM':
+            return [ryswm for ryswm in substitute_residue_with_chars(rysw, "M", IUPAC_NA_DOUBLETS["M"]) for rysw in substitute_residue_with_chars(rys, "W", IUPAC_NA_DOUBLETS["W"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case 'RYSKM':
+            return [ryskm for ryskm in substitute_residue_with_chars(rysk, "M", IUPAC_NA_DOUBLETS["M"]) for rysk in substitute_residue_with_chars(rys, "K", IUPAC_NA_DOUBLETS["K"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case 'RYWKM':
+            return [rywkm for rywkm in substitute_residue_with_chars(rywk, "M", IUPAC_NA_DOUBLETS["M"]) for rywk in substitute_residue_with_chars(ryw, "K", IUPAC_NA_DOUBLETS["K"]) for ryw in substitute_residue_with_chars(ry, "W", IUPAC_NA_DOUBLETS["W"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case 'RSWKM':
+            return [rswkm for rswkm in substitute_residue_with_chars(rswk, "M", IUPAC_NA_DOUBLETS["M"]) for rswk in substitute_residue_with_chars(rsw, "K", IUPAC_NA_DOUBLETS["K"]) for rsw in substitute_residue_with_chars(rs, "K", IUPAC_NA_DOUBLETS["K"]) for rs in substitute_residue_with_chars(r, "S", IUPAC_NA_DOUBLETS["S"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case 'YSWKM':
+            return [yswkm for yswkm in substitute_residue_with_chars(yswk, "M", IUPAC_NA_DOUBLETS["M"]) for yswk in substitute_residue_with_chars(ysw, "k", IUPAC_NA_DOUBLETS["K"]) for ysw in substitute_residue_with_chars(ys, "W", IUPAC_NA_DOUBLETS["W"]) for ys in substitute_residue_with_chars(y, "S", IUPAC_NA_DOUBLETS["S"]) for y in substitute_residue_with_chars(kmer, "Y", IUPAC_NA_DOUBLETS["Y"])]
+
+
+        case "RYSWKM":
+            return [ryswkm for ryswkm in substitute_residue_with_chars(ryswk, "M", IUPAC_NA_DOUBLETS["M"]) for ryswk in substitute_residue_with_chars(rysw, "K", IUPAC_NA_DOUBLETS["K"]) for rysw in substitute_residue_with_chars(rys, "W", IUPAC_NA_DOUBLETS["W"]) for rys in substitute_residue_with_chars(ry, "S", IUPAC_NA_DOUBLETS["S"]) for ry in substitute_residue_with_chars(r, "Y", IUPAC_NA_DOUBLETS["Y"]) for r in substitute_residue_with_chars(kmer, "R", IUPAC_NA_DOUBLETS["R"])]
+        case _:
+            raise ValueError("Internal error: substitution of all positions in kmer '{0}' with residues '{1}' failed...".format(kmer, to_sub))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def _substitute_aa_doublets(kmer:str):
+    to_sub = ''
+    for c in "JBZ":
+        if c in kmer:
+            to_sub += c
+    match to_sub:
+        case "":
+            return [kmer]
+        case "JB":
+            return [jb for jb in substitute_residue_with_chars(j, "B", IUPAC_AA_DOUBLETS["B"]) for j in substitute_residue_with_chars(kmer, "J", IUPAC_AA_DOUBLETS["J"])]
+        case "JZ":
+            return [jz for jz in substitute_residue_with_chars(j, "Z", IUPAC_AA_DOUBLETS["Z"]) for j in substitute_residue_with_chars(kmer, "J", IUPAC_AA_DOUBLETS["J"])]
+        case "BZ":
+            return [bz for bz in substitute_residue_with_chars(b, "Z", IUPAC_AA_DOUBLETS["Z"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_AA_DOUBLETS["B"])]
+        case "JBZ":
+            return [jbz for jbz in substitute_residue_with_chars(jb, "Z", IUPAC_AA_DOUBLETS["Z"]) for jb in substitute_residue_with_chars(j, "B", IUPAC_AA_DOUBLETS["B"]) for j in substitute_residue_with_chars(kmer, "J", IUPAC_AA_DOUBLETS["J"])]
+        case _:
+            raise ValueError("Internal Error: substitution of all positions in kmer '{0}' with residues '{1}' failed...".format(kmer, to_sub))
+        
+def _substitute_na_triplets(kmer:str):
+    to_sub = ''
+    for c in "BDHV":
+        if c in kmer:
+            to_sub += c
+    match to_sub:
+        case "":
+            return [kmer]
+        case "B":
+            return substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])
+        case "D":
+            return substitute_residue_with_chars(kmer, "D", IUPAC_NA_TRIPLETS["D"])
+        case "H":
+            return substitute_residue_with_chars(kmer, "H", IUPAC_NA_TRIPLETS["H"])
+        case "V":
+            return substitute_residue_with_chars(kmer, "V", IUPAC_NA_TRIPLETS["V"])
+        case "BD":
+            return [bd for bd in substitute_residue_with_chars(b, "D", IUPAC_NA_TRIPLETS["D"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "BH":
+            return [bh for bh in substitute_residue_with_chars(b, "H", IUPAC_NA_TRIPLETS["H"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "BV":
+            return [bv for bv in substitute_residue_with_chars(b, "V", IUPAC_NA_TRIPLETS["V"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "DH":
+            return [dh for dh in substitute_residue_with_chars(d, "H", IUPAC_NA_TRIPLETS["H"]) for d in substitute_residue_with_chars(kmer, "D", IUPAC_NA_TRIPLETS["D"])]
+        case "DV":
+            return [dv for dv in substitute_residue_with_chars(d, "V", IUPAC_NA_TRIPLETS["V"]) for d in substitute_residue_with_chars(kmer, "D", IUPAC_NA_TRIPLETS["D"])]
+        case "HV":
+            return [hv for hv in substitute_residue_with_chars(h, "V", IUPAC_NA_TRIPLETS["V"]) for h in substitute_residue_with_chars(kmer, "H", IUPAC_NA_TRIPLETS["H"])]
+        case "BDH":
+            return [bdh for bdh in substitute_residue_with_chars(bd, "H", IUPAC_NA_TRIPLETS["H"]) for bd in substitute_residue_with_chars(b, "D", IUPAC_NA_TRIPLETS["D"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "BDV":
+            return [bdh for bdh in substitute_residue_with_chars(bd, "H", IUPAC_NA_TRIPLETS["H"]) for bd in substitute_residue_with_chars(b, "D", IUPAC_NA_TRIPLETS["D"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "BHV":
+            return [bhv for bhv in substitute_residue_with_chars(bh, "V", IUPAC_NA_TRIPLETS["V"]) for bh in substitute_residue_with_chars(b, "H", IUPAC_NA_TRIPLETS["H"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case "DHV":
+            return [dvh for dvh in substitute_residue_with_chars(dv, "H", IUPAC_NA_TRIPLETS["H"]) for dv in substitute_residue_with_chars(d, "V", IUPAC_NA_TRIPLETS["V"]) for d in substitute_residue_with_chars(kmer, "D", IUPAC_NA_TRIPLETS["D"])]
+        case "BDHV":
+            return [bdvh for bdvh in substitute_residue_with_chars(bdv, "H", IUPAC_NA_TRIPLETS["H"]) for bdv in substitute_residue_with_chars(bd, "V", IUPAC_NA_TRIPLETS["V"]) for bd in substitute_residue_with_chars(b, "D", IUPAC_NA_TRIPLETS["D"]) for b in substitute_residue_with_chars(kmer, "B", IUPAC_NA_TRIPLETS["B"])]
+        case _:
+            raise ValueError("Internal Error: substitution of all positions in kmer '{0}' with residues '{1}' failed...".format(kmer, to_sub))
+
