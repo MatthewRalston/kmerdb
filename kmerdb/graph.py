@@ -39,49 +39,65 @@ from kmerdb import fileutil, parse, kmer, config, util
 logger = logging.getLogger(__file__)
 
 
-def graph_convert(n1:np.ndarray, n2:np.ndarray, weights:np.ndarray, k:int=None):
-    """
-    :param n1: A numpy.ndarray of node 1 kmer ids from an edge list
-    :type numpy.ndarray:
-    :param n2: A numpy.ndarray of node 2 kmer ids from an edge list
-    :type numpy.ndarray:
-    :param weights: A numpy.ndarray of weights corresponding to the edge
-    :type numpy.ndarray:
-    """
 
+def make_secondary_graph_from_edge_list(seq_id:str, k:int, edges:list):
+    """
+    Creates a list of k+1 mer edges from a list of 2-tuples of kmerids (the primary edge list)
+    :param seq_id: A sequence id for all corresponding edges
+    :type str:
+    :param edges: A list of 2-tuples of k-mer ids
+    :type list:
+    :raises TypeError: if seq_id is not a str
+    :raises TypeError: if k is not an int
+    :raises TypeError: if edges is not a list of N 2-tuples of kmer id int
+    :raises ValueError: if the number of new edges does not have length of N-1
+    """
+    if type(seq_id) is not str:
+        raise TypeError("kmerdb.graph.make_secondary_graph_from_edge_list() expects a str as its first positional argument")
+    elif type(k) is not int:
+        raise TypeError("kmerdb.graph.make_secondary_graph_from_edge_list() expects an int as its second positional argument")
+    elif type(edges) is not list or not all(type(e) is tuple and type(e[0]) is int and type(e[1]) is int for e in edges):
+        raise TypeError("kmerdb.graph.make_secondary_graph_from_edge_list() expects a list of integer pairs as its third positional argument")
+
+    new_edges = []
+    kplus1mers = convert_edge_list_to_augmented_kmer(k, edges)
+    num_edges = len(kplus1mers)
+    for i, kmer1 in enumerate(kplus1mers):
+        if i < num_edges - 1:
+            kmer2 = augmented_kplus1mers[i+1]
+            new_edges.append( (kmer.kmer_to_id(kmer1), kmer.kmer_to_id(kmer2)) )
+    if len(new_edges) != num_edges - 1:
+        raise ValueError("Internal error: kmerdb.graph.make_secondary_graph_from_edge_list() should create N-1 k+1mers from an edges list with length N")
+    return new_edges
+
+def convert_edge_list_to_augmented_kmer(k:int, edges:list):
+    """
+    Creates a list of k+1mer strings from an edge list of 2-tuples of kmer ids
+    :param k:
+    :type k:
+    :param edges:
+    :type list:
+    :raises TypeError: if k is not an int
+    :raises TypeError: if edges is not a list of 2-tuples of kmer id int
+    """
     if type(k) is not int:
-        raise TypeError("kmerdb.graphlib.graph_convert() expects the keyword argument 'k' to be an int")
-    elif isinstance(n1, np.ndarray) is False:
-        raise TypeError("kmerdb.graphlib.graph_convert() expects a numpy.ndarray as its first positional argument")
-    elif isinstance(n2, np.ndarray) is False:
-        raise TypeError("kmerdb.graphlib.graph_convert() expects a numpy.ndarray as its second positional argument")
-    elif isinstance(weights, np.ndarray) is False:
-        raise TypeError("kmerdb.graphlib.graph_convert() expects a numpy.ndarray as its third positional argument")
-    elif n1.shape == () or n2.shape == () or weights.shape == ():
-        raise ValueError("kmerdb.graphlib.graph_convert() found that numpy.ndarrays were empty")
-    elif n1.shape != n2.shape:
-        raise ValueError("kmerdb.graphlib.graph_convert() found that the node1 and node2 array lengths did not match |  node1: {0} node2: {1}".format(n1.shape, n2.shape))
-    elif n2.shape != weights.shape:
-        raise ValueError("kmerdb.graphlib.graph_convert() found that the node2 and weights array lengths did not match |  node2: {0} weights: {1}".format(n2.shape, weights.shape))
+        raise TypeError("kmerdb.graph.convert_edge_list_to_augmented_kmer() expects an int as its first positional argument")
+    elif type(edges) is not list or not all(type(e) is tuple and type(e[0]) is int and type(e[1]) is int for e in edges):
+        raise TypeError("kmerdb.graph.convert_edge_list_to_augmented_kmer() expects a list of integer pairs as its third positional argument")
 
-    N = 4**k
-    # edge_list = list(zip(n1.tolist(), n2.tolist(), weights.tolist()))
-
-    
-    edge_list_length = n1.shape[0] #
-    edge_list = [ (int(n1[i]), int(n2[i]), {'weight': int(weights[i])}) for i in range(edge_list_length)]
-    G = nx.Graph()
-
-
-    G.add_nodes_from(range(N)) # Adds a list of k-mer ids as nodes to the graph
-    G.add_edges_from(edge_list)
-
-    print("Number of nodes: {0}".format(G.number_of_nodes()))
-    print("Number of edges: {0}".format(G.number_of_edges()))
-
-
-#def make_secondary_graph_from_edge_list(seq_ids, edges:list):
-
+    augmented_kplus1mers = []
+    num_edges = len(edges)
+    for i, edge in edges:
+        kmerid1, kmerid2 = edge
+        kmer1 = kmer.id_to_kmer(kmerid1, k)
+        kmer2 = kmer.id_to_kmer(kmerid2, k)
+        if kmer.is_right_neighbor(kmer1, kmer2):
+            bridging_kmer = kmer1 + kmer2[-1]
+            augmented_kplus1mers.append(kmer.kmer_to_id(bridging_kmer))
+        else:
+            logger.error(f"Sequence {seq_id}  |   {kmer1} @ position {i}  -  {kmer2} @ position {i+1}")
+            raise ValueError(f"Internal error: lexicographically ordered kmers don't appear to be valid neighbors in the sequence.")
+    return augmented_kplus1mers
 
 
 def make_edges_from_kmerids(kmer_ids:list, positions:list, seqlen:int, seq_id:str, k:int):
@@ -672,11 +688,14 @@ Failed to validate YAML header.
                 raise RuntimeError("Internal error: kmerdb.graph.KDBGReader.slurp errored on new line")
             try:
                 if line is not None:
-                    i, seq_id, p1, id1, kmer1str, p2, id2, kmer2str = list(map(int, line.split("\t")))
+                    line = line.split("\t")
+                    if len(line) != 8:
+                        raise ValueError("kmerdb.graph.KDBGReader.slurp() expects .kdbg data to have 8 columns")
+                    i, seq_id, p1, id1, kmer1str, p2, id2, kmer2str = line
                     try:
                         if re.match(util.is_integer, i) is None:
                             raise ValueError("kmerdb.graph.KDBGReader.slurp() expects the first column to be an integer value")
-                        elif re.match(util.is_integer, p1) is not None:
+                        elif re.match(util.is_integer, p1) is None:
                             raise ValueError("kmerdb.graph.KDBGReader.slurp() expects the third column to be an integer value")
                         elif re.match(util.is_integer, id1) is None:
                             raise ValueError("kmerdb.graph.KDBGReader.slurp() expects the fourth column to be an integer value")
@@ -695,10 +714,77 @@ Failed to validate YAML header.
             except StopIteration as e:
                 reading = False
         self.seq_ids = seq_ids
-        self.pos1 = np.array(pos1, dtype="uint64")
-        self.kmer_id1 = np.arary(kmerid1, dtype="uint64")
-        self.pos2 = np.array(pos2, dtype="uint64")
-        self.kmer_id2 = np.arary(kmerid2, dtype="uint64")
+        self.pos1 = pos1 #np.array(pos1, dtype="uint64")
+        self.kmer_id1 = kmerid1 #np.arary(kmerid1, dtype="uint64")
+        self.pos2 = pos2 #np.array(pos2, dtype="uint64")
+        self.kmer_id2 = kmerid2 #np.arary(kmerid2, dtype="uint64")
+        self.G = None
 
         return
+    
+    def as_networkx(self):
+        """
+        Creates a NetworkX representation of the graph.
+        
+        """
+
+        if self.G is not None:
+            return self.G
+        else:
+            N = 4**self.k
+            num_edges = len(self.kmer_id1.shape[0])
+
+            unique_kmers = list(set(self.kmer_id1))
+            temp = self.kmer_id1 + self.kmer_id2
+
+            nodes = []
+            for kmerid_ in temp:
+                try:
+                    idx = self.kmer_id1.index(kmerid_)
+                    pos = self.pos1[idx]
+                except ValueError as e:
+                    idx = self.kmer_id2.index(kmerid_)
+                    pos = self.pos2[idx]
+                nodes.append( (kmerid_, {"seq_id": self.seq_ids[idx], "pos": pos, "kmer": kmer.id_to_kmer(kmerid_, self.k)}) )
+            #tuples = [(self.seq_ids[i], self.pos1[i], self.kmer_id1[i], self.pos2[i], self.kmer_id2[i]) for i in range(num_edges)]
+        
+        
+            edge_list = list(zip(self.kmer_id1, self.kmer_id2))
+            
+            G = nx.Graph()
+
+
+            G.add_nodes_from(nodes) # Adds a list of k-mer ids as nodes to the graph
+            G.add_edges_from(edge_list) # Adds edges between nodes
+
+            logger.info(f"Number of nodes: {G.number_of_nodes()}")
+            logger.info(f"Number of edges: {G.number_of_edges()}")
+
+            self.G = G
+
+            # Adjacency matrix
+            #rcm = list(cuthill_mckee_ordering(self.G, heuristic=_smallest_degree))
+            #self.A = nx.adjacency_matrix(self.G, nodelist=rcm)
+            return G
+
+        
+    #def make_eulerian_circuit(self):
+
+    def _smallest_degree(self):
+        return min(self.G, key=self.G.degree)
+        
+    def write_dot(self, filepath:str):
+        from networkx.utils import cuthill_mckee_ordering
+        if type(filepath) is not str:
+            raise ValueError("kmerdb.graph.KDBGReader.write_dot() expects a filepath as a str")
+        #pg = nx.nx_pydot.to_pydot(G)
+        nx.write_dot(G, filepath)
+
+    # def read_dot(self, filepath):
+    #     if type(filepath) is not str and not (os.path.exists(filepath) and os.access(filepath, os.R_OK)):
+    #         raise ValueError("kmerdb.graph.KDBGReader.read_dot() expects a filepath as a str that points to a readable filepath on the filesystem")
+                 
+    #def write_sparse6(self, filepath:str):
+
+
     
