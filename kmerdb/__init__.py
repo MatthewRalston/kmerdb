@@ -1511,18 +1511,23 @@ def view(arguments):
                 print(yaml.dump(metadata, sort_keys=False))
                 print(config.header_delimiter)
         logger.log_it("Reading from file...", "INFO")
-        logger.log_it("I cut off the json-formatted unstructured column for the main view.", "DEBUG")
-        
-        for i in range(len(kdbg_in.n1)):
-            n1 = kdbg_in.n1[i]
-            n2 = kdbg_in.n2[i]
-            w  = kdbg_in.weights[i]
-            logger.log_it("The row in the file should follow this order:", "DEBUG")
-            logger.log_it("The first is an implicit row-index. The second and third are k-mer ids, then edge weight", "DEBUG")
-            logger.log_it("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w), "DEBUG")
+        logger.log_it("The row in the file should follow this order:", "DEBUG")
+        logger.log_it("(seq_id, position1, kmerid1, kmer1str, position2, kmerid2, kmer2str)")
+        for i in range(len(kdbg_in.seq_ids)):
+            
+            seq_id = kdbg_in.seq_ids[i]
+            pos1 = kdbg_in.pos1[i]
+            kmerid1 = kdbg_in.kmer_id1[i]
+            kmer1str = kmer.id_to_kmer(kmerid1, metadata["k"])
+            pos2 = kdbg_in.pos2[i]
+            kmerid2 = kdbg_in.kmer_id2[i]
+            kmer2str = kmer.id_to_kmer(kmerid2, metadata["k"])
+
+            outline = "\t".join(list(map(str, (i, seq_id, pos1, kmerid1, kmer1str, pos2, kmerid2, kmer2str))))
+            logger.log_it(outline, "DEBUG")
             logger.log_it("{0} line:".format(i), "DEBUG")
             logger.log_it("=== = = = ======= =  =  =  =  =  = |", "DEBUG")
-            print("{0}\t{1}\t{2}\t{3}".format(i, n1, n2, w))
+            print(outline)
             """
                 # I don't think anyone cares about the graph representation.
                 # I don't think this actually matters because I can't figure out what the next data structure is.
@@ -1544,8 +1549,16 @@ def view(arguments):
             if arguments.kdb_out is not None:
                 with graph.open(arguments.kdb_out, metadata=metadata, mode='w') as kdb_out:
                     try:
-                        for i in range(len(kdbg.n1)):
-                            kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kdbg_in.n1[i], kdbg_in.n2[i],  kdbg_in.w[i]))
+                        for i in range(len(kdbg_in.seq_ids)):
+                            seq_id = kdbg_in.seq_ids[i]
+                            pos1 = kdbg_in.pos1[i]
+                            kmerid1 = kdbg_in.kmer_id1[i]
+                            kmer1str = kmer.id_to_kmer(kmerid1, metadata["k"])
+                            pos2 = kdbg_in.pos2[i]
+                            kmerid2 = kdbg_in.kmer_id2[i]
+                            kmer2str = kmer.id_to_kmer(kmerid2, metadata["k"])
+                            outline = "\t".join(list(map(str, (i, seq_id, pos1, kmerid1, kmer1str, pos2, kmerid2, kmer2str))))
+                            kdb_out.write(outline + "\n")
                     except StopIteration as e:
                         logger.log_it(e.__str__(), "ERROR")
                         raise e

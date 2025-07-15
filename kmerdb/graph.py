@@ -717,6 +717,7 @@ Failed to validate YAML header.
                 line = next(self)
             except StopIteration as e:
                 logger.info("Finished loading .kdbg through slurp (on init)")
+                reading = False
                 break
             if line is None:
                 raise RuntimeError("Internal error: kmerdb.graph.KDBGReader.slurp errored on new line")
