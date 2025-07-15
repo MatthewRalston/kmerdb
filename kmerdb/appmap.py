@@ -46,63 +46,41 @@ O---o     |||      Website   : https://matthewralston.github.io/kmerdb
  O-o      |||
 
 
-
-
-
-
-
-
-
 # |||||||||||||||||||||||||||||||||||||||
 #      [ Usage ] :        |||||||||||||||
 # |||||||||||||||||||||||||||||||||||||||
 
-
 #  Check test/data for example fasta files.
 
-
-# -----------------------------
 # Generate k-mer count profiles
 # -----------------------------
 kmerdb profile -k 12 -o profile_1 input_1.fa.gz [input_2.fq] ...
-...
 
-
-# -----------------------------
 # Merge profiles
 # -----------------------------
 kmerdb matrix from profile_1.12.kdb profile_2.12.kdb profile_3.12.kdb ... > count_matrix.tsv
 
-# -----------------------------
 # Generate inter-profile distances
 # -----------------------------
 kmerdb distance pearson count_matrix.tsv
 
-
-# -----------------------------
 # Pipeline form
 # -----------------------------
-
 kmerdb matrix from ... | kmerdb distance pearson STDIN > pearson_correlation_matrix.tsv
 
-# -----------------------------
-# Okay, how about PCA, t-SNE?
+# Dimensionality reduction
 # -----------------------------
 kmerdb matrix PCA -n 25 ... > 25_pseudomer_count_profiles.tsv
-# kmerdb matrix tSNE -n 25
+# kmerdb matrix tSNE -n 25 ...
 
+# k-means clustering
+# -----------------------------
+kmerdb kmeans <Biopython|sklearn> -k 4 --distance e -i input_distance_matrix.tsv
+# Uses 'e' Euclidean dist with Biopython kmeans. Check the source, Biopython RTD, and sklearn RTD.
 
+# hierarchical clustering
 # -----------------------------
-# k-means clustering?
-# -----------------------------
-kmerdb kmeans <Biopython|sklearn> -k 4 --distance e -i input_distance_matrix.tsv # Using 'e' for Euclidean distance with Biopython. Check the source, Biopython RTD, and sklearn RTD.
-# Produces
-
-# -----------------------------
-# okay, now straight-up hierarchical clustering:
-# -----------------------------
-kmerdb hierarchical -i input_distance_matrix.tsv --method complete # Uses complete linkage
-
+kmerdb hierarchical -i input_distance_matrix.tsv --method complete
 
 
 """.format(config.VERSION)
@@ -3519,24 +3497,24 @@ class kmerdb_appmap:
         # This is the "Error blocks" metadata
 
 
-        sys.stderr.write("Aggregating program metadata, if this fails without error without the --debug flag, please report to the GitHub issue tracker with the title 'Error summary convenience function'.")
-        sys.stderr(subcommand)
-        sys.stderr(config.VERSION)
-        sys.stderr(config.REQUIRES_PYTHON)
-        sys.stderr(feature)
-        sys.stderr(ALL_FEATURES[subcommand][feature]["name"])
-        sys.stderr(ALL_FEATURES[subcommand][feature]["shortname"])
-        sys.stderr(ALL_FEATURES[subcommand][feature]["description"])
-        sys.stderr(step)
-        sys.stderr(ALL_STEPS[subcommand][step]["name"])
-        sys.stderr(ALL_STEPS[subcommand][step]["shortname"])
-        sys.stderr(ALL_STEPS[subcommand][step]["description"])
+        #sys.stderr.write("Aggregating program metadata, if this fails without error without the --debug flag, please report to the GitHub issue tracker with the title 'Error summary convenience function'.")
+        sys.stderr.write(f"subcommand: {subcommand}\n")
+        sys.stderr.write(f"kmerdb version: {config.VERSION}\n")
+        sys.stderr.write(f"Python version required: {config.REQUIRES_PYTHON}\n")
+        sys.stderr.write(f"Feature: {feature}\n")
+        # sys.stderr.write(ALL_FEATURES[subcommand][feature]["name"] + "\n")
+        # sys.stderr.write(ALL_FEATURES[subcommand][feature]["shortname"] + "\n")
+        # sys.stderr.write(ALL_FEATURES[subcommand][feature]["description"] + "\n")
+        # sys.stderr.write(step + "\n")
+        # sys.stderr.write(ALL_STEPS[subcommand][step]["name"] +"\n")
+        # sys.stderr.write(ALL_STEPS[subcommand][step]["shortname"] + "\n")
+        # sys.stderr.write(ALL_STEPS[subcommand][step]["description"] + "\n")
             # The *total* number of logged lines produced by the program and returned to the global 'logs' var in __init__.py
-        sys.stderr(self.logfile)
-        sys.stderr(str(tb))
-        sys.stderr(error_file_name)
-        sys.stderr(error_line_number)
-        sys.stderr(e.__str__())
+        sys.stderr.write(f"log file: {self.logfile}")
+        # sys.stderr.write(str(tb))
+        # sys.stderr.write(error_file_name)
+        # sys.stderr.write(error_line_number)
+        # sys.stderr.write(e.__str__())
 
         
         e_sum = {
@@ -3605,11 +3583,11 @@ class kmerdb_appmap:
 
             sys.stderr.write(THREE_LINES)
 
-            self.logger.log_it("="*40 + "\n", "ERROR")
+            self.logger.log_it("="*40, "ERROR")
 
-            self.logger.log_it(" "*20 + "ERROR: Program exit summary:\n", "ERROR")
+            self.logger.log_it(" "*20 + "ERROR: Program exit summary:", "ERROR")
             
-            self.logger.log_it("="*40 + "\n", "ERROR")
+            self.logger.log_it("="*40, "ERROR")
             
             self.logger.log_it("\n" + yaml.dump(exit_summary), "ERROR")
 

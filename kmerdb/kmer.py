@@ -196,23 +196,27 @@ def is_sequence_aa(s:str):
     else:
         raise ValueError("Unable to determine IUPAC nature of the following sequence\n{0}".format(s))
 
-def left_neighbors(kmer:str):
+def left_neighbors(kmer:str, canonicalize:bool=True):
     if type(kmer) is not str:
         raise TypeError("kmerdb.kmer.left_neighbors() expected a str as its argument")
     last_char_removed = kmer[:-1]
-    return list(map(lambda c: kmer_to_id(c + last_char_removed), binaryToLetterNA))
+    return list(map(lambda c: kmer_to_id(c + last_char_removed, canonicalize=canonicalize), binaryToLetterNA))
 
-def right_neighbors(kmer:str):
+def right_neighbors(kmer:str, canonicalize:bool=True):
     if type(kmer) is not str:
         raise TypeError("kmerdb.kmer.right_neighbors() expected a str as its argument")
     first_char_removed = kmer[1:]
     return list(map(lambda c: kmer_to_id(first_char_removed + c), binaryToLetterNA))
 
 def is_right_neighbor(kmer:str, right_neighbor):
-    return kmer[1:] == right_neighbor[:-1]
+    kmer1 = Seq(kmer) # Horribly patching the neighbor methods to 
+    kmer2 = Seq(right_neighbor)
+    return kmer1[1:] == kmer2[:-1] or kmer1.reverse_complement()[1:] == kmer2[:-1]
 
 def is_left_neighbor(kmer:str, left_neighbor):
-    return left_neighbor[1:] == kmer[:-1]
+    kmer1 = Seq(kmer)
+    kmer2 = Seq(left_neighbor)
+    return kmer2[1:] == kmer1[:-1] or kmer2.reverse_complement()[:-1] == kmer1[1:]
 
 def are_neighbors(kmer1:str, kmer2:str):
     if type(kmer1) is not str:
@@ -222,16 +226,20 @@ def are_neighbors(kmer1:str, kmer2:str):
     return is_right_neighbor(kmer1, kmer2) or is_left_neighbor(kmer1, kmer2)
     
 
-def kmer_to_id(s, is_aa:bool=False):
+def kmer_to_id(s:str, is_aa:bool=False, canonicalize:bool=True):
     """Convert a fixed length k-mer string to the binary encoding parameterized upon that same k
 
     Note that the conversion of a k-mer string to an id integer
     is consistent regardless of k, 
     because the k is implicit in the k-mer string's size.
 
+    7/14/25 The k-mer id is now canonicalized by making the k-mer strand agnostic.
+
+    More specifically, the canonical form is the lexicographical minimum of the two k-mer identifiers
+
     Therefore, this method does not need to be wrapped in the k-mer class
 
-    Acknowledgements for the 'idx = idx << 2' bit-shifting trick goes to the authors of kPAL.
+    Acknowledgements for the 'idx = idx << 2' bit-shifting trick goes to the authors of kPAL (among others)
 
     @article{anvar2014determining,
     title={Determining the quality and complexity of next-generation sequencing data without a reference genome},
@@ -248,6 +256,8 @@ def kmer_to_id(s, is_aa:bool=False):
     :type s: str
     :param is_aa: Is the input an amino acid?
     :type is_aa: bool
+    :param canonicalize: make the k-mer id strand agnostic
+    :type canonicalize: bool
     :raises TypeError: if the input (first argument) is not a str
     :raises KeyError: if non-standard (ATCG) character detected
     :raises ValueError: if non-IUPAC single letter codes for nucleic-acids OR amino-acids are detected
@@ -265,54 +275,49 @@ def kmer_to_id(s, is_aa:bool=False):
     
     Omitting the is_aa bool typecheck as this is a frequently used function
     """
-    idx = 0
+    idx1=0
+    idx2=0
     if is_aa is True and s.find("X") != -1:
         return None # Explicitly return None if an unknown amino acid is found
     elif is_aa is False and s.find('N') != -1: # k-mer with 'N' do not have a binary encoding
         logger.debug(TypeError("kdb.kmer.kmer_to_id expects the letters to contain only nucleotide symbols ATCG"))
         return None
-
-    # print("Is sequence NA? {0}".format(is_sequence_na(str(s))))
-    # print("Is sequence AA? {0}".format(is_sequence_aa(str(s))))
-        
     if is_aa is False and is_sequence_na(str(s)) is True: #and is_sequence_aa(str(s)) is False:
-        #logger.debug("k-mer '{0}' is determined as an nucleic acid sequence".format(s))
         pass
     elif is_aa is True and is_sequence_aa(str(s)) is True: #and is_sequence_na(str(s)) is False:
-        #logger.debug("k-mer '{0}' is determined as an amino acid sequence".format(s))
         pass
     else:
         raise ValueError("Could not determine whether sequence was amino acid or nucleic acid: \n{0}".format(str(s)))
+    
+    if type(s) is str:
+        s = Seq(s)
+    elif isinstance(s, SeqRecord):
+        s = s.seq
 
-    if isinstance(s, Seq) or isinstance(s, SeqRecord):
-        s = str(s)        
-    for c in bytes(s, "UTF-8"): # Use byteshifting for fast conversion to binary encoding
-        #print("Full sequence: {0}".format(s))
-        #print("Character: {0}".format(c))
-        if is_aa is True:
-            idx = idx << 5
-            try:
-                idx = idx | letterToBinaryAA[c]
-            except KeyError as e:
-                sys.stderr.write("Entire sequence: {0}".format(s) + "\n")
-                sys.stderr.write("Problematic character: {0}".format(c) + "\n")
-                raise e
-        elif is_aa is False:
-            idx = idx << 2
-            try:
-                idx = idx | letterToBinaryNA[c]
-            except KeyError as e:
-                sys.stderr.write("Entire sequence: {0}".format(s) + "\n")
-                sys.stderr.write("Problematic character: {0}".format(c) + "\n")
-                raise e
-    if idx is None:
-        raise ValueError("kmer.kmer_to_id produced an invalid k-mer id")
-    return idx
+    if is_aa is True:
+        for c in bytes(str(s), "UTF-8"): # Use byteshifting for fast conversion to binary encoding
+            idx1 = idx1 << 5
+            idx1 = idx1 | letterToBinaryAA[c]
+    elif is_aa is False:
+        for c in bytes(str(s), "UTF-8"): # Use byteshifting for fast conversion to binary encoding
+            idx1 = idx1 << 2
+            idx1 = idx1 | letterToBinaryNA[c]
+        for c in bytes(str(s.reverse_complement()), "UTF-8"):
+            idx2 = idx2 << 2
+            idx2 = idx2 | letterToBinaryNA[c]
+
+    if canonicalize is True:
+        return min(idx1, idx2)
+    else:
+        return idx1
 
 
 def id_to_kmer(id, k, is_aa:bool=False):
     """
     Convert an id_to_kmer. I don't understand this docstring's purpose.
+
+    Note that the canonical k-mer representation is not guaranteed by this function.
+    The canonical form is only true if the k-mer id is canonicalized.
 
     :param id: The int id is the input to the id_to_kmer conversion
     :type id: int
@@ -334,11 +339,12 @@ def id_to_kmer(id, k, is_aa:bool=False):
         sys.stderr.write(str(type(k)) + "\n")
         raise TypeError("kmerdb.id_to_kmer expects an int as its second positional argument")
     kmer = ""
-    for i in range(k):
-        if is_aa is False:
+    if is_aa is False:        
+        for i in range(k):
             kmer += binaryToLetterNA[id & 0x03]
             id = id >> 2
-        elif is_aa is True:
+    elif is_aa is True:
+        for i in range(k):
             kmer += binaryToLetterAA[id & 0x1F] # 1F otherwise
             id = id >> 5
     kmer = list(kmer)
@@ -347,12 +353,12 @@ def id_to_kmer(id, k, is_aa:bool=False):
         raise ValueError("kmer.id_to_kmer returned an empty k-mer. The kmer-id was '{0}', the choice of k is {1}".format(id, k))
     elif kmer_len != k:
         raise ValueError("kmer.id_to_kmer encountered an inconsistency error. Expected lenght of k-mer sequence was {0}".format(k, kmer_len))
-    #just_reversed = kmer.reverse()
+
     kmer.reverse()
     return ''.join(kmer)
 
 
-def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
+def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True, canonicalize:bool=True):
     """
     3/11/24 revived. given a k-mer of length k, give its neighbors. This is so ugly.
 
@@ -385,8 +391,8 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
         # TYPE 1: [first char removed ... + ... c  : ['A', "c", "g", "T"]]
         # TYPE 2: [["A", "C", "G", "T"] : c + last char removed  ]
         """
-        right_neighbor_ids = list(map(kmer_to_id, right_neighbor_kmers))
-        left_neighbor_ids = list(map(kmer_to_id, left_neighbor_kmers))
+        right_neighbor_ids = list(map(lambda rn: kmer_to_id(rn, canonicalize=canonicalize), right_neighbor_kmers))
+        left_neighbor_ids = list(map(lambda ln: kmer_to_id(ln, canonicalize=canonicalize), left_neighbor_kmers))
 #         logger.debug(""" flower garden - joan G. Stark fir sur. fleicitaciones
 #                                     wWWWw
 #    vVVVv (___) wWWWw  wWWWw  (___)  vVVVv
@@ -410,7 +416,7 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True):
 #         )
 
         
-        if quiet is not True:
+        if quiet is False:
             logger.debug("kmerdb.kmer.neighbors creating neighbors for kmer_id : {0}\nkmer : \"  {1}  \"\nneighbors : \n\n{2}\n{3}\nids: \n\n{4}\n{5}".format(kmer_id, kmer, left_neighbors, right_neighbors, left_neighbor_ids, right_neighbor_ids))
         return left_neighbor_ids + right_neighbor_ids
 
@@ -472,7 +478,7 @@ def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_
 
 
 
-def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warning:bool=True):
+def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, canonicalize:bool=True, quiet_iupac_warning:bool=True):
     """
     Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
     Doublets become replace with two counts, etc.
@@ -480,7 +486,17 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warnin
     Otherwise, a random k-mer id from the expansion is selected and added to the kmer_ids array. Other ids are collected in the bonus_kmer_ids array
 
     :param seqRecord:
-    :type Bio.SeqRecord.SeqRecord:
+    :type seqRecord:  Bio.SeqRecord.SeqRecord
+    :param k:
+    :type k: int
+    :param replace_with_none: replace k-mers with ambiguous IUPAC residues with an id of None
+    :type replace_with_none: bool
+    :param canonicalize: Canonicalize the k-mer ids to be strand agnostic
+    :type canonicalize: bool
+    :param quiet_iupac_warning:
+    :type quiet_iupac_warning: bool
+    :raise TypeError: k it not an int
+    :raise TypeError: sequence to shred is not Bio.SeqRecord.SeqRecord
     :raise ValueError: Non IUPAC characters detected
     :raise ValueError: Internal Error: an invalid non-standard IUPAC character was not categoried properly
     :returns: a 3-tuple of k-mer ids, sequence ids, and positions
@@ -500,7 +516,7 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warnin
     data = []
     for i in range(seqlen - k + 1):
         kmer = str(seq.seq[i:(i+k)])
-        kmer_id = kmer_to_id(kmer) # NOTE: Could be None
+        kmer_id = kmer_to_id(kmer, canonicalize=canonicalize) # NOTE: Could be None
 
         if is_na is True:
             nonstandard = set(kmer) - standard_lettersNA
@@ -536,7 +552,7 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, quiet_iupac_warnin
                 #all_subd = [n for n in substitute_residue_with_chars(_kmer, "N", standard_lettersNA) for _kmer in triplets_subd]
                 d = []
                 for _kmer in all_subd:
-                    d.append({"seq_id": seq_id, "kmer": _kmer, "kmer_id": kmer_to_id(_kmer), "pos": i})
+                    d.append({"seq_id": seq_id, "kmer": _kmer, "kmer_id": kmer_to_id(_kmer, canonicalize=canonicalize), "pos": i})
                 data += d
 
         elif is_aa is True:

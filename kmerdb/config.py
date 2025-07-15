@@ -17,12 +17,12 @@
 
 
 
-VERSION="0.9.3" # 7/14/25 
-REQUIRES_PYTHON="3.7.4"
+VERSION="0.9.4" # 7/14/25 
+REQUIRES_PYTHON="3.12.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
 
-requirements_count = 11
+requirements_count = 12
 requirements_dev_count = 8
 
 # 9/22/24 Kind of? I mean...
@@ -341,12 +341,11 @@ conda_environment_validated? : CONDA_READY
 
 
 
-thanks = "\n\n\n" + "="*40 + """\n
+thanks = "\n\n" + "="*40 + """
 
   kmerdb v{0}    -     view -h|--help (or usage subcommand) for detailed information.
 
-
-  please report any issues to https://github.com/MatthewRalston/kmerdb/issues and thanks.
+  please report any issues to https://github.com/MatthewRalston/kmerdb/issues. Thank you.
 """.format(VERSION)
 
 
@@ -358,8 +357,20 @@ thanks = "\n\n\n" + "="*40 + """\n
 
 #DONE = + usage + issue_tracker
 # Accept the citation notice with 'kmerdb citation'
-DONE = """
-DONE\n
+DONE="\n\n        d o n e\n\n"
+DONE_DEBUG = """
+                                      +-------+
+                                       D O N E
+                                      +=======+
+
+
+WWW              CCCCCC    WWWWWW              CCCCCC    WWWWWW              CCCCCC    WWWW
+| |WW          CC : : :CCWW | | |WW          CC : : :CCWW | | |WW          CC : : :CCWW | |
+| | |W        C : : : : WC| | | | |W        C : : : : WC| | | | |W        C : : : : WC| | |
+| | | W      C: : : : :W  CC| | | | WW     C: : : : :W  CC| | | | WW     C: : : : :W  CC| |
+| | | |WW  CC : : : :WW     C | | | | W  CC : : : :WW     C | | | | W  CC : : : :WW     C |
+| | | | |WC : : : : W        C| | | | |WC : : : : W        C| | | | |WC : : : : W        C|
+CC| | | CCWW: : : WW          CC| | | CCWW: : : WW          CC| | | CCWW: : : WW          C
 """
 
 

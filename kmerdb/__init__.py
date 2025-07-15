@@ -573,9 +573,6 @@ def get_alignments(arguments):
     #alignment.smith_waterman_with_minimizers(query_fasta_ids, reference_fasta_ids, query_fasta_seqs, reference_fasta_seqs, arguments.reference_kdb, query_kdb_filepath, query_coords, reference_coords, reference_minimizers, query_minimizers)
         
     
-
-    print(config.DONE)
-    
     
 def distances(arguments):
     """
@@ -1043,9 +1040,7 @@ def get_matrix(arguments):
 
     final_df.to_csv(sys.stdout, sep=arguments.output_delimiter, index=arguments.with_index)
 
-    
-    logger.log_it("Done printing {0} matrix to STDOUT".format(arguments.method), "INFO")
-    sys.stderr.write(config.DONE)
+    sys.stderr.write("\n\n\nCompleted matrix printed to STDOUT...\n")
 
 
 
@@ -1209,8 +1204,6 @@ def kmeans(arguments):
 
     logger.log_it("The annotated sample matrix can be printed by specifying an output files with [ -o|--output OUTFILE ]", "INFO")
     
-    sys.stderr.write(config.DONE)
-
 
 
 def hierarchical(arguments):
@@ -1278,7 +1271,6 @@ def hierarchical(arguments):
     Phylo.draw(upgmatree, branch_labels=lambda c: c.branch_length)
     Phylo.write(upgmatree, config.spearman_upgma_tree_phy, "phyloxml")
     sys.stderr.write("Saving the phylip format tree to '{0}'".format(config.spearman_upgma_tree_phy))
-    sys.stderr.write(config.DONE)
 
 # def rarefy(arguments):
 #     logging.getLogger('matplotlib.font_manager').disabled = True
@@ -1318,7 +1310,6 @@ def hierarchical(arguments):
 #     else:
 #         arguments.output.write(test)
 
-#     sys.stderr.write(config.DONE)
         
         
 
@@ -1503,11 +1494,12 @@ def view(arguments):
                         except StopIteration as e:
                             logger.log_it(e.__str__(), "ERROR")
                             raise e
-                        finally:
+                        #finally:
                             #kdb_out._write_block(kdb_out._buffer)
                             #kdb_out._handle.flush()
                             #kdb_out._handle.close()
-                            sys.stderr.write(config.DONE)
+
+
     elif sfx == ".kdbg":
         kdbg_in = graph.open(arguments.kdb_in, mode='r', slurp=True)
         metadata = kdbg_in.metadata
@@ -1557,11 +1549,11 @@ def view(arguments):
                     except StopIteration as e:
                         logger.log_it(e.__str__(), "ERROR")
                         raise e
-                    finally:
+                    #finally:
                         #kdb_out._write_block(kdb_out._buffer)
                         #kdb_out._handle.flush()
                         #kdb_out._handle.close()
-                        sys.stderr.write(config.DONE)
+
     else:
         raise ValueError("Input files in kmerdb are tab delimited .csv files, either a count vector or a edge list (block gzip compression). Requires a YAML metadata header. Try making a k-mer count profile/vector with 'kmerdb profile -k 12 <input_1.fa>' ")
 
@@ -1653,16 +1645,8 @@ def make_graph(arguments):
     global step
     global feature
     
-
-    
-    logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
-
-    logger.log_it(str(arguments), "DEBUG")
-    
     # The extension should be .kdb because I said so.
     logger.log_it("Checking extension of output file...", "INFO")
-
-    
     if os.path.splitext(arguments.kdbg)[-1] != ".kdbg":
         raise IOError("Destination .kdbg filepath does not end in '.kdbg'")
 
@@ -1678,7 +1662,7 @@ def make_graph(arguments):
     data = []
     
     for f in arguments.input:
-        data_, f_metadata, counts_ = graph.make_edges_from_fasta(f, arguments.k, quiet=arguments.quiet)
+        data_, f_metadata, counts_ = graph.make_edges_from_fasta(f, arguments.k, quiet=arguments.quiet, canonicalize=not arguments.do_not_canonicalize, replace_with_none=arguments.replace_with_none)
         data += data_
         counts = counts + counts_
         file_metadata.append(f_metadata)
@@ -1690,7 +1674,7 @@ def make_graph(arguments):
     sys.stderr.write("""\n\n\n
     {0}\n\n
     Generated {1} records of edge relationships:\n\n
-    neighbors from  {2} total k-mers along {3} seqs/reads\n\n\n{0}""".format("="*60, len(data), total_kmers, total_num_reads))
+    neighbors from  {2} total k-mers along {3} seqs/reads\n\n\n{0}\n\n""".format("="*60, len(data), total_kmers, total_num_reads))
     """
     These are pairs of k-mers... edges in the 1st order graph
     and nodes in the k+1 mer graph.
@@ -1708,7 +1692,7 @@ def make_graph(arguments):
 
     all_observed_kmers = sum(list(map(lambda fm: fm["total_kmers"], file_metadata)))
     unique_kmers = int(np.count_nonzero(counts))
-    unique_nullomers = N - unique_kmers
+    unique_nullomers = N - unique_kmers if arguments.do_not_canonicalize is True else int((N/2) - unique_kmers)
     
     metadata=OrderedDict({
         "version": VERSION,
@@ -1782,15 +1766,13 @@ def make_graph(arguments):
         sys.stderr.write("Unique nullomer count:   {0}\n".format(unique_nullomers))
         sys.stderr.write("Unique {0}-mer count:     {1}\n".format(arguments.k, unique_kmers))
         sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(arguments.k, theoretical_kmers_number))
+        if arguments.do_not_canonicalize is False:
+            sys.stderr.write("    adjusted for canonicalization (4^{0}/2) : {1}\n".format(arguments.k, int(theoretical_kmers_number/2)))
         sys.stderr.write("="*30 + "\n")
         sys.stderr.write(".kdbg stats:\n")
         sys.stderr.write("-"*30 + "\n")
         sys.stderr.write("Edges in file:  {0}\n".format(len(data)))
-        sys.stderr.write("\nDone\n")
-
-    logger.log_it("Done printing weighted edge list to {0} .kdbg".format(arguments.kdbg), "INFO")
-
-    sys.stderr.write(config.DONE)
+        sys.stderr.write("Done printing weighted edge list to '{0}'...\n".format(arguments.kdbg))
 
     
             
@@ -1817,9 +1799,6 @@ def profile(arguments):
     """
     import copy
     
-    logger.log_it("Printing entire CLI argparse option Namespace...", "DEBUG")
-    logger.log_it(str(arguments), "DEBUG")
-
     ## 6/11/24 removed because reasons
     # The extension should be .kdb because I said so.
     # logger.log_it("Checking extension of output file...", "INFO")
@@ -1865,8 +1844,6 @@ def profile(arguments):
         logger.log_it("Running in single-k mode", "INFO")
         _profile(new_args)
 
-    sys.stderr.write(config.DONE)
-    return 
 
 
 def _profile(args):
@@ -1886,8 +1863,7 @@ def _profile(args):
     feature = 0
 
     file_metadata = []
-    total_kmers = 4**args.k # Dimensionality of k-mer profile
-    N = total_kmers
+    N = 4**args.k # Dimensionality of k-mer profile
     theoretical_kmers_number = N
     counts = np.zeros(N, dtype="uint64")
     nullomers = set()
@@ -1897,7 +1873,7 @@ def _profile(args):
     step += 1
 
     for sequence_file in args.input:
-        counts_, file_metadata_, _ = parse.parsefile(sequence_file, args.k, replace_with_none=args.no_ambiguous)
+        counts_, file_metadata_, _ = parse.parsefile(sequence_file, args.k, replace_with_none=args.no_ambiguous, canonicalize=not args.do_not_canonicalize)
         counts = counts + counts_
         file_metadata.append(file_metadata_)
     step += 1
@@ -1911,7 +1887,7 @@ def _profile(args):
     
     all_observed_kmers = int(np.sum(counts))
     unique_kmers = int(np.count_nonzero(counts))
-    unique_nullomers = theoretical_kmers_number - unique_kmers
+    unique_nullomers = theoretical_kmers_number - unique_kmers if args.do_not_canonicalize is True else int((theoretical_kmers_number/2) - unique_kmers)
     #unique_nullomers = len(set(nullomer_ids))
 
     # from kmerdb import lexer
@@ -1923,12 +1899,14 @@ def _profile(args):
     # i, cov = lexer.max(hist)
     # kmer_coverage = cov
     
-    logger.log_it("Theoretical k-mer number: {0} | {1}".format(N, theoretical_kmers_number), "DEBUG")
-    logger.log_it("Length of count array: {0}".format(counts.size), "DEBUG")
-    logger.log_it("Number of non-zeroes: {0}".format(unique_kmers), "DEBUG")
-    logger.log_it("Number of nullomers: {0}".format(unique_nullomers), "DEBUG")
+    sys.stderr.write("Theoretical k-mer number 4^{0} : {1}\n".format(args.k, theoretical_kmers_number))
+    if args.do_not_canonicalize is False:
+        logger.log_it("    adjusted for canonicalization (4^{0}/2) : {1}\n".format(args.k, unique_kmers+unique_nullomers))
+    sys.stderr.write("Length of count array: {0}\n".format(counts.size))
+    logger.log_it("Number of non-zeroes: {0}\n".format(unique_kmers))
+    logger.log_it("Number of nullomers: {0}\n".format(unique_nullomers))
     
-    assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
+    #assert unique_kmers + unique_nullomers == theoretical_kmers_number, "kmerdb | internal error: unique nullomers ({0}) + unique kmers ({1}) should equal 4^k = {2} (was {3})".format(unique_nullomers, unique_kmers, theoretical_kmers_number, unique_kmers + unique_nullomers)
     logger.log_it("Initial counting process complete, creating BGZF format file (.kdb)...", "INFO")
     logger.log_it("Formatting main metadata dictionary...", "INFO")
     
@@ -1998,7 +1976,7 @@ def _profile(args):
                     print("{0}\t{1}\t{2}\t{3}".format(i, kmer_id, c, f))
                 kdb_out.write("{0}\t{1}\t{2}\t{3}\n".format(i, kmer_id, c, f))
                 
-        logger.log_it("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(total_kmers), "INFO")
+        logger.log_it("Wrote 4^k = {0} k-mer counts + neighbors to the .kdb file.".format(N), "INFO")
 
             
     finally:
@@ -2020,7 +1998,6 @@ def _profile(args):
         #sys.stderr.write("K-mer coverage:  {0}\n".format(kmer_cov))
         sys.stderr.write("Theoretical {0}-mer number (4^{0}):     {1}\n".format(args.k, theoretical_kmers_number))
         sys.stderr.write("="*30 + "\n")
-        sys.stderr.write("\nDone\n")
 
         
 
@@ -2099,6 +2076,7 @@ def cli():
     profile_parser.add_argument("--maxK", type=int, help="Maximum k for output k-mer profiles")
     profile_parser.add_argument("-o", "--output-name", type=str, required=True, help="File name pattern for outputs. e.g.: example with underscores and dashes input_samplename_1 => input_samplename_1.11.kdb, input_samplename_1.12.kdb")
     profile_parser.add_argument("--no-ambiguous", action="store_true", help="Do not include non-standard IUPAC residues as doublets/triplets. Omit ambiguous k-mers entirely")
+    profile_parser.add_argument("--do-not-canonicalize", action="store_true", help="Do not canonicalize the k-mer ids lexicographically. Default behavior makes k-mer ids strand agnostic")
     profile_parser.add_argument("--sorted", action="store_true", default=False, help="Sort the output kdb file by count")
     profile_parser.add_argument("--quiet", action="store_true", default=False, help="Do not log the entire .kdb file to stdout")
     profile_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
@@ -2119,7 +2097,8 @@ def cli():
     graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
 
     graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
-
+    graph_parser.add_argument("--replace-with-none", action="store_true", help=argparse.SUPPRESS)
+    graph_parser.add_argument("--do-not-canonicalize", action="store_true", help=argparse.SUPPRESS)#"Do not store k-mer ids as strand-agnostic canonicalized identifiers")
     graph_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
     graph_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
 
@@ -2459,14 +2438,24 @@ def cli():
     kmerdb_appmap.print_verbosity_header()
     
     if args.debug is True:
-        logger.log_it(str(args), "WARNING")
-        args.func(args)
+        sys.stderr.write("Printing argparse Namespace object to stderr...\n\n")
+        sys.stderr.write("\n\n{0}\n\n".format(str(args)))
+        try:
+            args.func(args)
+        except Exception as e:
+            sys.stderr.write("\n\n\nInternal Error: please use -h|--help, -vv verbose logging, and --debug flags to troubleshoot\n\n")
+            raise e
+        finally:
+            sys.stderr.write("Program ran for {0} seconds...\n\n\n".format(time.time() - start))
+            sys.stderr.write(config.DONE_DEBUG)
+            sys.stderr.write(config.thanks)
+            sys.stderr.write(config.DONE)
+            
     else:
         logger.log_it("Running with error summary feature enabled, bypass with --debug for vague/invalid exceptions", "DEBUG")
         
         try:
             args.func(args)
-            
             exit_code = 0
 
         except TypeError as e:
@@ -2527,7 +2516,7 @@ def cli():
         
             raise e
         finally:
-            sys.stderr.write("Program ran for {0} seconds...\n\n\n".format(time.time() - start))
+            sys.stderr.write("\n\nProgram ran for {0} seconds...\n\n".format(time.time() - start))
             sys.stderr.write(config.thanks)
             sys.stderr.write(config.DONE)
             sys.exit(exit_code)

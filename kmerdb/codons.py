@@ -175,9 +175,9 @@ def is_sequence_cds(seq, include_noncanonicals:bool=False):
 def get_codons_in_order(seq:str, seq_id:str=None):
     """
     :param seq: a fasta nucleic-acid sequence as a string
-    :type bool:
+    :type seq: bool
     :param seq_id: the sequence identifier for the fasta sequence
-    :type str:
+    :type seq_id: str
     :raises TypeError: When the seq 1st positional argument is not a str
     :raises TypeError: When the seq_id keyword argument is not a str
     :raises ValueError: When the sequence does not use IUPAC nucleic acid characters
@@ -238,11 +238,11 @@ def get_codons_in_order(seq:str, seq_id:str=None):
 def count_codons(codon_list:list, include_start_codons:bool=False, include_stop_codons:bool=False):
     """
     :param codon_list: List of codon/3-mer ids in the order found in the sequence
-    :type list:
+    :type codon_list: list
     :param include_start_codons: include the start codon in the counts?
-    :type bool:
+    :type include_start_codons: bool
     :param include_stop_codons: include the stop codon in the counts?
-    :type bool:
+    :type include_stop_codons: bool
     :returns: Vector of 64 elements corresponding to 3-mer/codon ids.
     :rtype: np.ndarray
     """
@@ -279,13 +279,13 @@ def count_codons(codon_list:list, include_start_codons:bool=False, include_stop_
 def codon_frequency_table(seq, seqid, include_stop_codons:bool=False, include_start_codons:bool=False):
     """
     :param seq: A nucleic acid CDS sequence 
-    :type str:
+    :type seq: str
     :param seqid: A fasta identifier for the sequence
-    :type str:
+    :type seqid: str
     :param include_stop_codons: do not include codon counts for stop codons
-    :type bool:
+    :type include_stop_codons: bool
     :param include_start_codons: do not include codon counts for start codons
-    :type bool:
+    :type include_start_codons: bool
     :returns: A typle of (codon_ids, codon_counts, codon_frequencies_wrt_length, codon_frequencies_in_family)
     :rtype: tuple
     Takes an input sequence 'seq' and produces 3-mer frequencies
