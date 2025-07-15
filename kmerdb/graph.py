@@ -33,6 +33,7 @@ import networkx as nx
 
 
 from Bio import bgzf
+from Bio.Seq import Seq
 from kmerdb import fileutil, parse, kmer, config, util
 
 
@@ -44,13 +45,15 @@ def make_secondary_graph_from_edge_list(seq_id:str, k:int, edges:list):
     """
     Creates a list of k+1 mer edges from a list of 2-tuples of kmerids (the primary edge list)
     :param seq_id: A sequence id for all corresponding edges
-    :type str:
+    :type seq_id: str
     :param edges: A list of 2-tuples of k-mer ids
-    :type list:
+    :type edges: list
     :raises TypeError: if seq_id is not a str
     :raises TypeError: if k is not an int
     :raises TypeError: if edges is not a list of N 2-tuples of kmer id int
     :raises ValueError: if the number of new edges does not have length of N-1
+    :returns: the edge list of the k+1mer graph (each edge corresponds to a k+2mer)
+    :rtype: list
     """
     if type(seq_id) is not str:
         raise TypeError("kmerdb.graph.make_secondary_graph_from_edge_list() expects a str as its first positional argument")
@@ -74,11 +77,13 @@ def convert_edge_list_to_augmented_kmer(k:int, edges:list):
     """
     Creates a list of k+1mer strings from an edge list of 2-tuples of kmer ids
     :param k:
-    :type k:
+    :type k: int
     :param edges:
-    :type list:
+    :type edges: list
     :raises TypeError: if k is not an int
     :raises TypeError: if edges is not a list of 2-tuples of kmer id int
+    :returns: a list of k+1mer strings from the k-mer edge list
+    :rtype: list
     """
     if type(k) is not int:
         raise TypeError("kmerdb.graph.convert_edge_list_to_augmented_kmer() expects an int as its first positional argument")
@@ -104,15 +109,15 @@ def make_edges_from_kmerids(kmer_ids:list, positions:list, seqlen:int, seq_id:st
     """
     Make edges from a list of lexicographically ordered kmer ids, given their positions and seq_ids
     :param kmer_ids: A list of kmer ids as ints
-    :type list:
+    :type kmer_ids: list
     :param positions: A list of positions in the 'seq_id' sequence/read
-    :type list:
+    :type positions: list
     :param seqlen: The length of the sequence
-    :type int:
+    :type seqlen: int
     :param seq_id: A sequence identifier from the fasta/fastq sequence
-    :type str:
+    :type seq_id: str
     :param k:  The choice of k
-    :type int:
+    :type k: int
     :raises TypeError: if the kmer_ids positional arg is not a list of integers
     :raises TypeError: if the positions positional arg is not a list of integers
     :raises ValueError: if the list of kmer_ids and positions are not equal in length
@@ -158,13 +163,21 @@ def make_edges_from_kmerids(kmer_ids:list, positions:list, seqlen:int, seq_id:st
                 j = i - 1
                 tracking_left = True
                 while tracking_left is True:
+                    # print(f"index: {i}")
+                    # print(f"pos[j] : {positions[j]}")
+                    # print(f"current kmer : {current_kmer}")
+                    # print(f" left neighbor : {kmer.id_to_kmer(kmer_ids[j], k)}")
+                    # print(f"is left neighbor : {kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[j], k))}")
+                    # print(list(map(lambda kid: kmer.id_to_kmer(kid, k), kmer_ids[:10])))
+                    # print(kmer_ids[:10])
                     if j >= 0 and j + 1 <= seqlen:
                         if positions[j] == pos: # The i-xth position has the same position in the sequence and is not a neighbor
                             pass
-                        elif positions[j] == pos - 1 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(kmer_ids[j], k)): # This is considered a left neighbor lexically
-                            left_neighbors.append( (kmer_ids[j], kmer_id) )
-                        else: # This is an exit condition
-                            tracking_left = False
+                        else:
+                            if positions[j] == pos - 1 and kmer.are_neighbors(current_kmer, kmer.id_to_kmer(kmer_ids[j], k)): # This is considered a left neighbor lexically
+                                left_neighbors.append( (kmer_ids[j], kmer_id) )
+                            else: # This is an exit condition
+                                tracking_left = False
                     else:
                         tracking_left = False
                     j -= 1
@@ -193,12 +206,31 @@ def make_edges_from_kmerids(kmer_ids:list, positions:list, seqlen:int, seq_id:st
                 #rn = [tuple(map(lambda l: kmer.id_to_kmer(l, k), rn)) for rn in right_neighbors]
                 #print(f"{ln} | {i}:{current_kmer} ")
                 pairs_ = resolve_edges(i, kmer_id, current_kmer, seq_id, pos, seqlen, left_neighbors, k)
+                if len(pairs_) == 0:
+                    print("Are neighbors? {0}".format(list(map(lambda ln, ck: kmer.are_neighbors(ck, ln), left_neighbors))))
+                    print(left_neighbors)
+                    raise RuntimeError("UHoh")
                 if len(pairs_) > 0:
                     final += [ (seq_id, positions[i-1], p[0], pos, kmer_id) for p in pairs_] # This
+    #print(final[:10])
     return final
 
     
-def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, replace_with_none:bool=False):
+def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, canonicalize:bool=True, replace_with_none:bool=False):
+    """
+    :param filename: Filepath to a fasta file to make edges from
+    :type filename: str
+    :param k:
+    :type k: int
+    :param quiet:
+    :type quiet: bool
+    :param canonicalize: Canonicalize k-mer ids lexicographically to be strand agnostic
+    :type canonicalize: bool
+    :param replace_with_none:
+    :type replace_with_none: bool
+    :returns: returns a 3-tuple - the edge list of 5-tuples (seq_id, pos1, kmerid1, pos2, kmerid2), file_metadata for .kdbg file, and the counts numpy.ndarray
+    :rtype: tuple
+    """
     if type(filename) is not str:
         raise TypeError("kmerdb.graph.make_coo_graph() expects a fasta/fastq sequence filepath as a str as its first positional_regument")
     elif type(k) is not int:
@@ -238,7 +270,7 @@ def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, replace_with_non
         """
         seqlen = len(seq.seq)
         seq_lengths[seq.id] = seqlen 
-        kmer_ids_, seq_ids_, pos = kmer.shred(seq, k, replace_with_none=replace_with_none, quiet_iupac_warning=True)
+        kmer_ids_, seq_ids_, pos = kmer.shred(seq, k, replace_with_none=replace_with_none, canonicalize=canonicalize, quiet_iupac_warning=True)
         data_ = make_edges_from_kmerids(kmer_ids_, pos, seqlen, seq.id, k)
         num_kmer_ids += len(kmer_ids_)
         if None in kmer_ids:
@@ -246,11 +278,13 @@ def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, replace_with_non
         # kmer_ids += kmer_ids_
         # seq_ids += seq_ids_
         # positions += pos
-        for kmer_id in kmer_ids:
+        for kmer_id in kmer_ids_:
             if kmer_id is not None:
                 counts[kmer_id] += 1
-        data += data
+        data += data_
 
+
+        
     """
     Break off functionality here. Need to pass a slice of k-mers and then resolve the k-mer group using conditionals.
     The while-loop functionality should not be included here.
@@ -275,10 +309,10 @@ def make_edges_from_fasta(filename:str, k:int, quiet:bool=True, replace_with_non
     unique_kmers = int(np.count_nonzero(counts))
 
     
-    num_nullomers = N - unique_kmers
+    num_nullomers = N - unique_kmers if canonicalize is False else int((N/2) - unique_kmers)
     num_reads = len(seq_lengths)
-    max_read_length = max(seq_lengths)
-    min_read_length = min(seq_lengths)
+    max_read_length = max(seq_lengths.values())
+    min_read_length = min(seq_lengths.values())
     avg_read_length = int(np.mean(np.array(list(seq_lengths.values()))))
 
     file_metadata = {
@@ -307,12 +341,12 @@ def resolve_edges(i:int, kmer_id:int, current_kmer:str, seq_id:str, pos:int, seq
     # This sequence resolves
     generic_error = ValueError("kmerdb.graph.make_edges_from_fasta() - difficulty deciphering sequence boundary and which neighboring kmers are considered valid neighbors")
     
-    if len(left_neighbors) == 1 and kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(left_neighbors[0][0], k)):
+    if len(left_neighbors) == 1 and kmer.are_neighbors(current_kmer, kmer.id_to_kmer(left_neighbors[0][0], k)):
         assert left_neighbors[0] == (left_neighbors[0][0], kmer_id), "kmerdb.graph.resolve_edges() expects a pair of kmerids as the argument 'left_neighbors'"
         return [ left_neighbors[0] ] # The left neighbor is valid, do retrospective edge list append
     elif len(left_neighbors) > 1:
         # This is the condition in which the current k-mer has multiple 'possible' left/right neighbors
-        return [ (ln[0], kmer_id) for ln in left_neighbors if kmer.is_left_neighbor(current_kmer, kmer.id_to_kmer(ln[0], k)) and ln[1] == kmer_id ]
+        return [ (ln[0], kmer_id) for ln in left_neighbors if kmer.are_neighbors(current_kmer, kmer.id_to_kmer(ln[0], k)) and ln[1] == kmer_id ]
 
     else:
         left_kmers = list(list(map(lambda km: (kmer.id_to_kmer(km[0], k), kmer.id_to_kmer(km[1], k)), left_neighbors)))
@@ -730,42 +764,42 @@ Failed to validate YAML header.
 
         if self.G is not None:
             return self.G
-        else:
-            N = 4**self.k
-            num_edges = len(self.kmer_id1.shape[0])
 
-            unique_kmers = list(set(self.kmer_id1))
-            temp = self.kmer_id1 + self.kmer_id2
+        N = 4**self.k
+        num_edges = len(self.kmer_id1.shape[0])
 
-            nodes = []
-            for kmerid_ in temp:
-                try:
-                    idx = self.kmer_id1.index(kmerid_)
-                    pos = self.pos1[idx]
-                except ValueError as e:
-                    idx = self.kmer_id2.index(kmerid_)
-                    pos = self.pos2[idx]
-                nodes.append( (kmerid_, {"seq_id": self.seq_ids[idx], "pos": pos, "kmer": kmer.id_to_kmer(kmerid_, self.k)}) )
-            #tuples = [(self.seq_ids[i], self.pos1[i], self.kmer_id1[i], self.pos2[i], self.kmer_id2[i]) for i in range(num_edges)]
+        unique_kmers = list(set(self.kmer_id1))
+        temp = self.kmer_id1 + self.kmer_id2
+
+        nodes = []
+        for kmerid_ in temp:
+            try:
+                idx = self.kmer_id1.index(kmerid_)
+                pos = self.pos1[idx]
+            except ValueError as e:
+                idx = self.kmer_id2.index(kmerid_)
+                pos = self.pos2[idx]
+            nodes.append( (kmerid_, {"seq_id": self.seq_ids[idx], "pos": pos, "kmer": kmer.id_to_kmer(kmerid_, self.k)}) )
+        #tuples = [(self.seq_ids[i], self.pos1[i], self.kmer_id1[i], self.pos2[i], self.kmer_id2[i]) for i in range(num_edges)]
         
         
-            edge_list = list(zip(self.kmer_id1, self.kmer_id2))
+        edge_list = list(zip(self.kmer_id1, self.kmer_id2))
             
-            G = nx.Graph()
+        G = nx.Graph()
 
 
-            G.add_nodes_from(nodes) # Adds a list of k-mer ids as nodes to the graph
-            G.add_edges_from(edge_list) # Adds edges between nodes
+        G.add_nodes_from(nodes) # Adds a list of k-mer ids as nodes to the graph
+        G.add_edges_from(edge_list) # Adds edges between nodes
 
-            logger.info(f"Number of nodes: {G.number_of_nodes()}")
-            logger.info(f"Number of edges: {G.number_of_edges()}")
+        logger.info(f"Number of nodes: {G.number_of_nodes()}")
+        logger.info(f"Number of edges: {G.number_of_edges()}")
 
-            self.G = G
+        self.G = G
 
-            # Adjacency matrix
-            #rcm = list(cuthill_mckee_ordering(self.G, heuristic=_smallest_degree))
-            #self.A = nx.adjacency_matrix(self.G, nodelist=rcm)
-            return G
+        # Adjacency matrix
+        #rcm = list(cuthill_mckee_ordering(self.G, heuristic=_smallest_degree))
+        #self.A = nx.adjacency_matrix(self.G, nodelist=rcm)
+        return G
 
         
     #def make_eulerian_circuit(self):

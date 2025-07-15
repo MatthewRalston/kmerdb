@@ -143,7 +143,6 @@ def read_minimizers(kdbfile:str, fasta_file:str, window_size):
         metadata = kdb_in.metadata
 
         k = metadata["k"]
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
         if metadata["version"] != config.VERSION:
             sys.stderr.write("KDB version is out of date, may be incompatible with current KDBReader class\n")
@@ -208,12 +207,13 @@ def print_coordmap(coordinate_mapping):
 def make_minimizers(fasta_file:str, kdb_file:str, window_size:int):
     """
     :param fasta_file:
-    :type str:
+    :type fasta_file: str
     :param kdb_file:
-    :type int:
+    :type kdb_file: int
     :param window_size:
-    :type int:
+    :type window_size: int
     :returns: (coordmap, k) # coordmap is a dictionary keyed on sequence id, whose value is list of 4-tuples of (seq_id, coordinate, kmer_id, is_min:bool)
+    :rtype: tuple
     """
 
     from kmerdb import fileutil, config, util
@@ -259,7 +259,6 @@ def make_minimizers(fasta_file:str, kdb_file:str, window_size:int):
         metadata = kdb_in.metadata
 
         k = metadata["k"]
-        kmer_ids_dtype = metadata["kmer_ids_dtype"]
         N = 4**metadata["k"]
         if metadata["version"] != config.VERSION:
             sys.stderr.write("KDB version is out of date, may be incompatible with current KDBReader class\n")

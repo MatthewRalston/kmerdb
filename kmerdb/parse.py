@@ -85,7 +85,7 @@ def parse_sequence_file(seq_filepath:str, return_tuple:bool=True):
 
 
 
-def parsefile(filepath:str, k:int, replace_with_none:bool=True): 
+def parsefile(filepath:str, k:int, replace_with_none:bool=True, canonicalize:bool=True): 
     """Parse a single sequence file in blocks/chunks with multiprocessing support
 
     :param filepath: Path to a fasta or fastq file
@@ -126,7 +126,7 @@ def parsefile(filepath:str, k:int, replace_with_none:bool=True):
     for seq in parse_sequence_file(filepath, return_tuple=False):
         seq_id = seq.id
         seqlen = len(seq)        
-        kmer_ids, seq_ids, pos = kmer.shred(seq, k, replace_with_none=replace_with_none, quiet_iupac_warning=False)
+        kmer_ids, seq_ids, pos = kmer.shred(seq, k, replace_with_none=replace_with_none, canonicalize=canonicalize, quiet_iupac_warning=False)
 
         for kmer_id in kmer_ids:
             if kmer_id is not None:
