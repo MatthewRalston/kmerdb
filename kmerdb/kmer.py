@@ -160,8 +160,10 @@ def is_sequence_na(s:str):
         letters = set(str(s))
     elif isinstance(s, SeqRecord):
         letters = set(str(s.seq))
+    elif isinstance(s, Seq):
+        letters = set(str(s))
     else:
-        raise TypeError("kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument")
+        raise TypeError(f"kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument. Got {type(s)}")
 
     if letters.difference(permitted_NA_characters_with_N) == set():
         return True
@@ -187,8 +189,11 @@ def is_sequence_aa(s:str):
         letters = set(str(s))
     elif isinstance(s, SeqRecord):
         letters = set(str(s.seq))
+    elif isinstance(s, Seq):
+        letters = set(str(s))
     else:
-        raise TypeError("kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument")
+        
+        raise TypeError(f"kmer.is_sequence_na expects a str/Bio.SeqRecord as its only positional argument. Got {type(s)}")
     if letters.difference(permitted_NA_characters_with_N) == set():
         return False
     elif letters.difference(permitted_AA_characters_extended) == set():
@@ -385,14 +390,15 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True, canonicalize:bool=
     elif len(kmer) != k:
         raise ValueError("kmerdb.kmer.neighbors cannot calculate the {0}-mer neighbors of a {1}-mer".format(k, len(s)))
     else:
-        left_neighbor_kmers = left_neighbors(kmer)
-        right_neighbor_kmers = right_neighbors(kmer)
+        left_neighbor_kmer_ids = left_neighbors(kmer, canonicalize=canonicalize)
+        right_neighbor_kmer_ids = right_neighbors(kmer, canonicalize=canonicalize)
         """
         # TYPE 1: [first char removed ... + ... c  : ['A', "c", "g", "T"]]
         # TYPE 2: [["A", "C", "G", "T"] : c + last char removed  ]
+        Incorrect: 
         """
-        right_neighbor_ids = list(map(lambda rn: kmer_to_id(rn, canonicalize=canonicalize), right_neighbor_kmers))
-        left_neighbor_ids = list(map(lambda ln: kmer_to_id(ln, canonicalize=canonicalize), left_neighbor_kmers))
+        #right_neighbor_ids = list(map(lambda rn: kmer_to_id(rn, canonicalize=canonicalize), right_neighbor_kmers))
+        #left_neighbor_ids = list(map(lambda ln: kmer_to_id(ln, canonicalize=canonicalize), left_neighbor_kmers))
 #         logger.debug(""" flower garden - joan G. Stark fir sur. fleicitaciones
 #                                     wWWWw
 #    vVVVv (___) wWWWw  wWWWw  (___)  vVVVv
@@ -417,8 +423,8 @@ def neighbors(kmer:str, kmer_id:int,  k:int, quiet:bool=True, canonicalize:bool=
 
         
         if quiet is False:
-            logger.debug("kmerdb.kmer.neighbors creating neighbors for kmer_id : {0}\nkmer : \"  {1}  \"\nneighbors : \n\n{2}\n{3}\nids: \n\n{4}\n{5}".format(kmer_id, kmer, left_neighbors, right_neighbors, left_neighbor_ids, right_neighbor_ids))
-        return left_neighbor_ids + right_neighbor_ids
+            logger.debug("kmerdb.kmer.neighbors creating neighbors for kmer_id : {0}\nkmer : \"  {1}  \"\nneighbors : \n\n{2}\n{3}\nids: \n\n{4}\n{5}".format(kmer_id, kmer, list(map(lambda n: kmer.id_to_kmer(n, len(kmer)), left_neighbor_kmer_ids)), list(map(lambda n: kmer.id_to_kmer(n, len(kmer)), right_neighbor_kmer_ids)), left_neighbor_kmer_ids, right_neighbor_kmer_ids))
+        return left_neighbor_kmer_ids + right_neighbor_kmer_ids
 
 
 def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_warning:bool=True):
@@ -442,12 +448,14 @@ def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_
     """
     if type(quiet_iupac_warning) is not bool:
         raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects keyword argument 'quiet_iupac_warning' to be a bool")
-    elif isinstance(seqRecord, SeqRecord) is False:
-        raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects a Bio.SeqRecord.SeqRecord object as its first positional argument")
+    elif type(seqRecord) is not str and isinstance(seqRecord, SeqRecord) is False and isinstance(seqRecord, Seq) is False:
+        raise TypeError("kmerdb.kmer.Kmers.validate_seqRecord_and_detect_IUPAC expects a str/Bio.SeqRecord.SeqRecord/Bio.Seq.Seq object as its first positional argument")
     elif type(k) is not int:
         raise TypeError("kmerdb.kmer.validate_seqRecord_and_detect_IUPAC expects an int as its second positional argument")
-    letters = set(seqRecord.seq)
-    seqlen = len(seqRecord.seq)
+
+
+    letters = set(seqRecord.seq) if isinstance(seqRecord, SeqRecord) else set(seqRecord)
+    seqlen = len(seqRecord.seq) if isinstance(seqRecord, SeqRecord) else len(seqRecord)
 
         
     if seqlen < k:
@@ -478,7 +486,7 @@ def validate_seqRecord_and_detect_IUPAC(seqRecord:SeqRecord, k:int, quiet_iupac_
 
 
 
-def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, canonicalize:bool=True, quiet_iupac_warning:bool=True):
+def shred(seqRecord:SeqRecord, k:int, replace_with_none:bool=False, canonicalize:bool=True, quiet_iupac_warning:bool=True):
     """
     Take a seqRecord fasta/fastq object and slice according to the IUPAC charset.
     Doublets become replace with two counts, etc.
@@ -504,9 +512,10 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, canonicalize:bool=
     """
     if type(k) is not int:
         raise TypeError("kmerdb.kmer.shred() expects an int as its second positional argument")
-    elif not isinstance(seq, SeqRecord):
-        raise TypeError("kmerdb.kmer.shred() expects a Bio.SeqRecord.SeqRecord as its first positional argument")
-    seq_id = seq.id
+    elif type(seqRecord) is not str and not isinstance(seqRecord, SeqRecord):
+        raise TypeError("kmerdb.kmer.shred() expects a str or Bio.SeqRecord.SeqRecord as its first positional argument")
+    seq = seqRecord.seq if isinstance(seqRecord, SeqRecord) else seqRecord
+    seq_id = seqRecord.id if isinstance(seqRecord, SeqRecord) else "Untitled_sequence"
     is_na = is_sequence_na(seq)
     is_aa = is_sequence_aa(seq)
     letters, iupac, non_iupac, seqlen = validate_seqRecord_and_detect_IUPAC(seq, k, quiet_iupac_warning=quiet_iupac_warning)
@@ -515,7 +524,7 @@ def shred(seq:SeqRecord, k:int, replace_with_none:bool=False, canonicalize:bool=
     kmer_ids = []
     data = []
     for i in range(seqlen - k + 1):
-        kmer = str(seq.seq[i:(i+k)])
+        kmer = str(seq[i:(i+k)])
         kmer_id = kmer_to_id(kmer, canonicalize=canonicalize) # NOTE: Could be None
 
         if is_na is True:

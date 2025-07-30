@@ -29,6 +29,24 @@ CLOSED: [2025-07-12 Sat 21:16]
 
 * Dates
 
+** 7/22/25
+So upon further experimentation at the REPL, I've determined that an Eulerian path for unitig collapse is indeed possible with networkx. Details are presented in a blog post.
+
+I am using a transcript sequence of MEK1 to reconstruct an Eulerian path from fastq data. The methodology still needs improvement, but essentially I am trying to get the network properly configured in graph.py using the edge list from kmerdb graph.
+
+A cursory analysis with non-canonicalized reads suggested that an Eulerian path was not found using 20x fold coverage reads with the default error profile. I have no explanation why these reads are not forming an Eulerian path.
+
+A much simpler analysis based on a simple sequence of 9 characters and two 'reads' of 8mers, suggests that Eulerian paths indeed can be captured from simple sequences.
+
+
+** 7/17/25
+So upon further reading and chatGPT I found out that there are situations in which a dataset from a single copy of fasta sequence is given, there might not be sufficient data to correctly perform the Eulerian walk.
+
+This suggests that I'm better off finding Eulerian Walks amongst artificial fastq data generated from the original genome sequence. Having looked at this over the weekend (7/20/25), I've decided that a minimalist solution with networkx isn't feasible with native functions.
+
+Or put another way: I've realized that the assembly problem cannot be broken down so simply into a "nx.has_eulerian_path()" call on a graph object
+
+
 ** 7/13/25
 This morning I released kmerdb 0.9.2 which has improved modularity in graph.py of the edge list functionality. The function 'make_edges_from_kmerids' takes a list of kmer_ids from a single sequence/read and creates a list of 2-tuples of kmer ids, the so-called 'edge list'
 This afternoon I created two helper functions to implement the conversion of a k-degree edge list of 2-tuples of kmer ids (the original .kdbg format) to the k+1mer id pairs (also can be stored in a .kdbg format).

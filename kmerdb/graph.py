@@ -574,7 +574,7 @@ class KDBGReader(bgzf.BgzfReader):
         if slurp is True:
             logger.info("Reading .kdbg contents into memory")
             self.slurp()
-
+        self.G = None
         if handle is not None:
             handle.close()
         if self._handle is not None:
@@ -753,54 +753,70 @@ Failed to validate YAML header.
         self.kmer_id1 = kmerid1 #np.arary(kmerid1, dtype="uint64")
         self.pos2 = pos2 #np.array(pos2, dtype="uint64")
         self.kmer_id2 = kmerid2 #np.arary(kmerid2, dtype="uint64")
-        self.G = None
+
 
         return
     
-    def as_networkx(self):
+    def as_networkx(self, seq_ids:list=None, pos1:list=None, kmer1:list=None, pos2:list=None, kmer2:list=None):
         """
         Creates a NetworkX representation of the graph.
         
         """
-
+        N = 4**self.k
         if self.G is not None:
             return self.G
 
-        N = 4**self.k
-        num_edges = len(self.kmer_id1.shape[0])
-
-        unique_kmers = list(set(self.kmer_id1))
-        temp = self.kmer_id1 + self.kmer_id2
-
+        
+        if seq_ids is None and pos1 is None and kmer1 is None and pos2 is None and kmer2 is None:
+            seq_ids = self.seq_ids
+            kmer1 = self.kmer_id1
+            kmer2 = self.kmer_id2
+            pos1 = self.pos1
+            pos2 = self.pos2
+            
+        num_edges = len(kmer1)
+        unique_kmers = list(set(kmer1))
+        temp = kmer1 + kmer2
+        edge_list = list(zip(kmer1, kmer2)) # Using a set here would be faster computationally, but would be challenging to get the seq_ids
+        edges = []
         nodes = []
+
+        """
+        The edge list needs to be a reduced set. The edge list needs to have kmer_ids that are not redundant
+        The node list should also be a reduced set
+            
+        """
+            
         for kmerid_ in temp:
             try:
-                idx = self.kmer_id1.index(kmerid_)
-                pos = self.pos1[idx]
+                idx = kmer1.index(kmerid_)
+                pos = pos1[idx]
             except ValueError as e:
-                idx = self.kmer_id2.index(kmerid_)
-                pos = self.pos2[idx]
-            nodes.append( (kmerid_, {"seq_id": self.seq_ids[idx], "pos": pos, "kmer": kmer.id_to_kmer(kmerid_, self.k)}) )
-        #tuples = [(self.seq_ids[i], self.pos1[i], self.kmer_id1[i], self.pos2[i], self.kmer_id2[i]) for i in range(num_edges)]
-        
-        
-        edge_list = list(zip(self.kmer_id1, self.kmer_id2))
+                idx = kmer2.index(kmerid_)
+                pos = pos2[idx]
+            nodes.append( (kmerid_, {"seq_id": seq_ids[idx], "pos": pos, "kmer": kmer.id_to_kmer(kmerid_, self.k) } ) )
             
-        G = nx.Graph()
 
+        G = nx.DiGraph()
+        G.add_nodes_from(nodes)
+        G.add_edges_from(edge_list)
 
-        G.add_nodes_from(nodes) # Adds a list of k-mer ids as nodes to the graph
-        G.add_edges_from(edge_list) # Adds edges between nodes
-
+        self.nodes = nodes
+        self.edges = edge_list
+            
+        print("Original number of kmers: {0}".format(len(seq_ids)))
+        print("Deduplicated number of nodes: {0}".format(len(nodes)))
+        print("Deduplicated number of edges: {0}".format(len(edge_list)))
+            
+            
         logger.info(f"Number of nodes: {G.number_of_nodes()}")
         logger.info(f"Number of edges: {G.number_of_edges()}")
 
-        self.G = G
-
+        return G
         # Adjacency matrix
         #rcm = list(cuthill_mckee_ordering(self.G, heuristic=_smallest_degree))
         #self.A = nx.adjacency_matrix(self.G, nodelist=rcm)
-        return G
+        return
 
         
     #def make_eulerian_circuit(self):
