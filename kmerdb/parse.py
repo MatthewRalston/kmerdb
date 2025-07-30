@@ -60,10 +60,12 @@ def parse_sequence_file(seq_filepath:str, return_tuple:bool=True):
 
     try:
         logger.debug("Beginning to process sequence filepath '{0}'".format(seq_filepath))
-        if util.is_gz_file is True:
-            seqhandle = gzip.open(seq_filepath, "rb")
+        if util.is_gz_file(seq_filepath) is True:
+            logger.debug("File '{0}' provided seems to be gzipped".format(seq_filepath))
+            seqhandle = gzip.open(seq_filepath, "rt", encoding="UTF-8")
         else:
-            seqhandle = open(seq_filepath, 'r')
+            logger.debug("File '{0}' provided seems to be uncompressed".format(seq_filepath))
+            seqhandle = open(seq_filepath, 'r', encoding="UTF-8")
         if util.is_fasta(seq_filepath) is True:
             parser = SeqIO.parse(seqhandle, "fasta")
         elif util.is_fastq(seq_filepath) is True:
