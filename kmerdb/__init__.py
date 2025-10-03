@@ -2076,9 +2076,9 @@ def cli():
 
 
     
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="\n\nkmerdb is a C-Python CLI for alignment-free genomics.\n\n")
 
-    subparsers = parser.add_subparsers(help="Use --help with sub-commands")
+    subparsers = parser.add_subparsers(help="Use -h|--help with sub-commands for simple description or 'kmerdb usage|help subcommand' for expanded details")
 
 
     profile_parser = subparsers.add_parser("profile", help=appmap.command_1_description)
@@ -2106,7 +2106,7 @@ def cli():
     # profile_parser.add_argument("kdb", type=str, help="Kdb file")
     profile_parser.set_defaults(func=profile)
 
-    graph_parser = subparsers.add_parser("graph", help=appmap.command_2_description)
+    graph_parser = subparsers.add_parser("graph", help=appmap.command_10_description)
     graph_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
 
     graph_parser.add_argument("-k", default=12, type=int, help="Choose k-mer size (Default: 12)", required=True)
@@ -2129,7 +2129,7 @@ def cli():
     # assembly_parser.add_argument("kdbg", type=str, help=".kdbg file")
     # assembly_parser.set_defaults(func=assembly)
 
-    minimizer_parser = subparsers.add_parser("minimizers", help="Index an array of minimizers (selected-or-not) to associate with a position in reference")
+    minimizer_parser = subparsers.add_parser("minimizers", help=appmap.command_11_description)
 
     minimizer_parser.add_argument("fasta", type=str, help="A fasta file (.fa) to generate minimizers from")
     minimizer_parser.add_argument("kdb", type=str, help="A .kdb file to generate minimizers")
@@ -2144,7 +2144,7 @@ def cli():
     minimizer_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     minimizer_parser.set_defaults(func=get_minimizers)
 
-    alignment_parser = subparsers.add_parser("alignment", help="Create a Smith-Waterman-like alignment using a reference fasta, its minimizers, and query sequence, and its minimizers.")
+    alignment_parser = subparsers.add_parser("alignment", help=appmap.command_12_description)
     alignment_parser.add_argument("reference", type=str, help="Reference sequences in .fa/.fna/.fasta format")
     alignment_parser.add_argument("reference_kdbi", type=str, help="Alignment requires .kdbi minimizers index (kmerdb minimizers) file to seed alignment")
     alignment_parser.add_argument("query", type=str, help="Query sequences in .fa/.fna/.fasta format. Not expected to be .kdb or indexed")
@@ -2164,7 +2164,7 @@ def cli():
     alignment_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     alignment_parser.set_defaults(func=get_alignments)
 
-    codon_table_parser = subparsers.add_parser("codons", help="Create a codon frequency table from .faa input")
+    codon_table_parser = subparsers.add_parser("codons", help=appmap.command_8_description)
     codon_table_parser.add_argument("fasta", type=str, help="A nucleic-acid CDS sequence fasta file")
     codon_table_parser.add_argument("--as-frequencies", action="store_true", default=False, help="Use frequencies instead of codon counts, per CDS")
     codon_table_parser.add_argument("--ignore-invalid-cds", action="store_true", default=False, help="Ignore (warn only) invalid CDS sequences")
@@ -2179,7 +2179,7 @@ def cli():
     codon_table_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     codon_table_parser.set_defaults(func=get_codon_table)
     
-    codon_usage_bias_parser = subparsers.add_parser("CUB", help="Calculate codon usage bias by using scipy.stats.chisquare chi-square goodness-of-fit test for each sequence against the 'reference' sequences")
+    codon_usage_bias_parser = subparsers.add_parser("CUB", help=appmap.command_9_description)
     codon_usage_bias_parser.add_argument("input", type=str, help="The codon counts (not frequencies) table produced by 'kmerdb codons'.")
     codon_usage_bias_parser.add_argument("--sequences", type=str, help="The nucleic-acid fasta file of CDS sequences to test for codon usage bias against the 'model' or 'reference' input", required=True)
     codon_usage_bias_parser.add_argument("--delimiter", type=str, default="\t", help="The delimiter for the codon count/frequency table (Default '\\t')")
@@ -2204,7 +2204,7 @@ def cli():
     usage_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help=argparse.SUPPRESS)
     usage_parser.set_defaults(func=expanded_help)
 
-    help_parser = subparsers.add_parser("help", help="provide expanded help section on parameters and functions provided")
+    help_parser = subparsers.add_parser("help", help="provide expanded help information on parameters and functions provided")
     help_parser.add_argument("-m", "--method", type=str, choices=("usage", "help", "profile", "graph", "index", "shuf", "matrix", "distance"), required=True, help="Print expanded usage statement")
     help_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     help_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
@@ -2213,7 +2213,7 @@ def cli():
     help_parser.set_defaults(func=expanded_help)
     
     
-    view_parser = subparsers.add_parser("view", help="View the contents of the .kdb or .kdbg file")
+    view_parser = subparsers.add_parser("view", help=appmap.command_2_description)
     view_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     view_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     view_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
@@ -2232,7 +2232,7 @@ def cli():
     view_parser.add_argument("kdb_out", type=str, nargs="?", default=None, help="A k-mer database file (.kdb) to be written to (Optional)")
     view_parser.set_defaults(func=view)
 
-    header_parser = subparsers.add_parser("header", help="Print the YAML header of the .kdb or .kdbg file and exit")
+    header_parser = subparsers.add_parser("header", help=appmap.command_3_description)
     header_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     header_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     header_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help=argparse.SUPPRESS)
@@ -2242,7 +2242,7 @@ def cli():
     header_parser.set_defaults(func=header)
 
 
-    matrix_parser = subparsers.add_parser("matrix", help=appmap.command_3_description)
+    matrix_parser = subparsers.add_parser("matrix", help=appmap.command_4_description)
     matrix_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     matrix_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     matrix_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
@@ -2273,7 +2273,7 @@ def cli():
     # rarefy_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default=None, help="THe output csv/tsv of rarefied data")
     # rarefy_parser.set_defaults(func=rarefy)
 
-    kmeans_parser = subparsers.add_parser("kmeans", help=appmap.command_7_description)
+    kmeans_parser = subparsers.add_parser("kmeans", help=appmap.command_6_description)
     kmeans_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     kmeans_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     kmeans_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
@@ -2289,7 +2289,7 @@ def cli():
     kmeans_parser.add_argument("method", choices=["sklearn", "Biopython"], default="Biopython", help="The Python implementation of k-means to use. The Biopython method is selected for access to alternative distance metrics")
     kmeans_parser.set_defaults(func=kmeans)
 
-    hierarchical_parser = subparsers.add_parser("hierarchical", help=appmap.command_8_description)
+    hierarchical_parser = subparsers.add_parser("hierarchical", help=appmap.command_7_description)
     hierarchical_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     hierarchical_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     hierarchical_parser.add_argument("-nl", "--num-log-lines", type=int, choices=config.default_logline_choices, default=50, help="Number of logged lines to print to stderr. Default: 50")
@@ -2300,7 +2300,7 @@ def cli():
     hierarchical_parser.add_argument("-m", "--method", type=str, choices=["single", "complete", "average", "weighted", "centroid", "median", "ward"], default="ward", help="The method for linkage fitting to use")
     hierarchical_parser.set_defaults(func=hierarchical)
     
-    dist_parser = subparsers.add_parser("distance", help=appmap.command_4_description)
+    dist_parser = subparsers.add_parser("distance", help=appmap.command_5_description)
     dist_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     dist_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     dist_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")        
@@ -2340,7 +2340,7 @@ def cli():
     dist_parser.set_defaults(func=distances)
 
 
-    index_parser = subparsers.add_parser("index", help=appmap.command_9_description)
+    index_parser = subparsers.add_parser("index", help=appmap.command_13_description)
 
     index_parser.add_argument("--force", action="store_true", help="Force index creation (if previous index exists")
     index_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
@@ -2352,7 +2352,7 @@ def cli():
     index_parser.add_argument("kdb", type=str, help="A k-mer database file (.kdb)")
     index_parser.set_defaults(func=index_file)
 
-    shuf_parser = subparsers.add_parser("shuf", help=appmap.command_10_description)
+    shuf_parser = subparsers.add_parser("shuf", help=appmap.command_14_description)
     shuf_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     shuf_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     shuf_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")
@@ -2362,7 +2362,7 @@ def cli():
     shuf_parser.set_defaults(func=shuf)
 
 
-    version_parser = subparsers.add_parser("version", help=appmap.command_13_name)
+    version_parser = subparsers.add_parser("version", help=appmap.command_17_description)
     version_parser.add_argument("-v", "--verbose", help="Prints warnings to the console by default", default=0, action="count")
     version_parser.add_argument("--debug", action="store_true", default=False, help="Debug mode. Do not format errors and condense log")
     version_parser.add_argument("-l", "--log-file", type=str, default="kmerdb.log", help="Destination path to log file")

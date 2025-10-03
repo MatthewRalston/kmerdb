@@ -3,37 +3,28 @@ When using programs that use kmerdb to generate k-mer profiles, please cite the 
   author={Matt Ralston},
   title={kmerdb},
   url={https://github.com/MatthewRalston/kmerdb},
-  version={0.8.6},
-  date = {8/7/2024}
+  version={0.9.5},
+  date = {10/3/2024}
 }
 
 @article{Ralston2020kdb,
- title = {K-mer counts and phylogeny with kmerdb},
+ title = {K-mer counts, phylogeny, and alignment-free genomics with kmerdb},
  author = {Matthew Ralston},
  address = {Newark DE, USA},
  journal = {bioRxiv},
- month = {Aug},
+ month = {Dec},
  number = {1},
  volume = {},
  url = {},
- year = {2024},
+ year = {2025},
  pages = {}
 }
 
 
-[ T H A N K S   / | ]
+[ thank you ]
 
-
-
-
-
-
-
-         kmer, counts :'-)
-
-
-
-{ seriously thanks }
+See https://github.com/MatthewRalston/kmerdb
+    associated blog posts: https://matthewralston.github.io/tags/kmerdb/
 
 
 

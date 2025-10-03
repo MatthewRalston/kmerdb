@@ -1,4 +1,11 @@
 =============
+| v0.9.6    |
+=============
+Minor updates to documentation and usage/descriptions. Variety of acceptance tests completed across the board. Minimizers, codon-usage-bias, codon frequency table, networkx adjacency list. Some larger refactoring of kmer.py and associated downstream usage. Removes most parallelization options used early on when making a composite profile. Networkx and alignment still remain the primary objectives of the software still under devlopment. Tabling some of the desired kmerdb updates scheduled to make room for more blogging, writing, and secondary projects. I would consider the project in a "healthy" state to move forward when necessary, so I can spend more time to do writing, lit review, and revisiting my thesis data analysis, potentially with kubeflow. Writing shell scripts to do data processing isn't as fun as it can be when I'm getting paid to do so. Making room for healing.
+
+    
+
+=============
 | v0.8.3    |
 =============
 Some bugs cleaned up, smoother interface, custom error handling option disabled by --debug, usage/help subcommands in addition to -h,--help, better verbosity/clarity in UX, and working on multi-k mode, D2 stats, and index bugfix.

@@ -17,7 +17,7 @@
 
 
 
-VERSION="0.9.5" # 7/29/25 
+VERSION="0.9.6" # 10/25/25 
 REQUIRES_PYTHON="3.12.4"
 header_delimiter = "\n" + ("="*24) + "\n"
 
