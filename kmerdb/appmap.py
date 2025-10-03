@@ -1444,7 +1444,7 @@ COMMAND_7_STEPS = OrderedDict({
 
 Command 8 codons
 """
-command_8_description = "Codon usage table"
+command_8_description = "Codon usage table from .fna of CDS sequences"
 command_8_description_long = "Calculate codon usage counts (or frequencies) for codons in a reference sequence population"
 command_8_parameters = "--as-frequencies changes counts to frequencies within a synonymous amino-acid family of codons, --ignore-noncanonicals omits sequences that do not contain standard CDS definition (non-ATG start codon, non-TAA/TAG/TGA stop codons), --ignore-invalid-cds omits sequences that are considered invalid (length not divisible by 3, otherwise uses --ignore-noncanonicals definition). --dont-ignore-start-codons includes counts from start codons for downstream analysis, --dont-ignore-stop-codons includes counts from stop codons for downstream analysis"
 command_8_inputs = "Input is a .fna fasta file of CDS sequences"
@@ -1632,7 +1632,7 @@ Command 9
 """
 
 command_9_description = "Codon usage bias"
-command_9_description_long = "Use codon counts ('kmerdb codons') for Chi-Square tests of overrepresentation of specific codons within a synonymous codon family"
+command_9_description_long = "Use codon counts ('kmerdb codons') for scipy.stats.chisquare goodness-of-fit Chi-Square tests of overrepresentation of codons for each sequence against the reference --sequences"
 command_9_parameters = "--as-frequencies changes counts to frequencies within a synonymous amino-acid family of codons, --ignore-noncanonicals omits sequences that do not contain standard CDS definition (non-ATG start codon, non-TAA/TAG/TGA stop codons), --ignore-invalid-cds omits sequences that are considered invalid (length not divisible by 3, otherwise uses --ignore-noncanonicals definition). --dont-ignore-start-codons includes counts from start codons for downstream analysis, --dont-ignore-stop-codons includes counts from stop codons for downstream analysis"
 command_9_inputs = "Input is a table of codon counts from a reference population and a .fna fasta file of CDS sequences to compare to the reference family's codon usage"
 command_9_usage = "kmerdb CUB -vv <--sequences input.fna> <codon_usage.tsv>"
@@ -2004,10 +2004,10 @@ Command 11
 
 
 
-command_11_description = "Calculate minimizers"
+command_11_description = "Select minimizers with an even window-size from a .fa and .kdb file"
 command_11_description_long = """
-    Calculate minimizers, outputs a binary array to associate with a index array.
-    
+    Calculate minimizers, outputs a table of sequence id, kmer-id, coordinate, and 1|0 whether or not the minimizer was selected. 
+        Potentially useful downstream when 'kmerdb alignment' is implemented.
 
 
 """
@@ -2150,9 +2150,9 @@ COMMAND_11_STEPS = OrderedDict({
 
 
 
-command_12_description = "Sequence alignment"
+command_12_description = "Create a Smith-Waterman-like alignment using a reference fasta, its minimizers, and query sequence, and its minimizers.t"
 command_12_description_long = """
-        Perform Smith-Waterman alignment on a reference database using seed regions (minimizers) determined from the reference .fasta sequence and the associated .kdb file.
+        Perform Smith-Waterman-like alignment on a reference database using seed regions (minimizers) determined from the reference .fasta sequence and the associated .kdb file. (Unimplemented)
     
 
 
